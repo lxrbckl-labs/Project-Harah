@@ -196,16 +196,48 @@ def stats():
 
 # ---------------------------------------------------------------- traffic
 
+def _read_caddy_logs(include_rolled: bool) -> str:
+    """Read the current access log; also rolled/gzipped history when requested."""
+    if not include_rolled:
+        return docker("exec", CADDY_CONTAINER, "cat", CADDY_LOGPATH, timeout=25)
+    base = CADDY_LOGPATH[:-4] if CADDY_LOGPATH.endswith(".log") else CADDY_LOGPATH
+    # current file, then any rotated (.log) and gzipped (.log.gz) siblings Caddy leaves behind
+    cmd = (
+        f'cat {CADDY_LOGPATH} 2>/dev/null; '
+        f'for f in {base}-*.log; do [ -f "$f" ] && cat "$f"; done 2>/dev/null; '
+        f'for f in {base}-*.log.gz; do [ -f "$f" ] && gunzip -c "$f"; done 2>/dev/null; '
+        f'true'  # ensure exit 0 even when globs match nothing
+    )
+    return docker("exec", CADDY_CONTAINER, "sh", "-c", cmd, timeout=45)
+
+
+def _auto_bucket(minutes: float) -> int:
+    """Seconds per data point, chosen so a range yields a sane number of points."""
+    if minutes <= 180:      # ≤ 3h  → 1 min
+        return 60
+    if minutes <= 1440:     # ≤ 24h → 5 min
+        return 300
+    if minutes <= 10080:    # ≤ 7d  → 1 hour
+        return 3600
+    return 86400            # 30d   → 1 day
+
+
 @app.get("/api/traffic")
-def traffic(minutes: float = 15):
-    """Aggregate the Caddy access log over the last `minutes`, with a per-minute series."""
+def traffic(minutes: float = 15, bucket: int = 0):
+    """Aggregate the Caddy access log over the last `minutes` into a bucketed series.
+
+    `bucket` = seconds per data point (0 = auto by range). Ranges beyond the live
+    file also read rolled/gzipped history.
+    """
+    bucket = bucket if bucket > 0 else _auto_bucket(minutes)
     cutoff = time.time() - minutes * 60
+    include_rolled = minutes > 240  # only pay the decompress cost for longer ranges
     try:
-        raw = docker("exec", CADDY_CONTAINER, "cat", CADDY_LOGPATH, timeout=25)
+        raw = _read_caddy_logs(include_rolled)
     except HTTPException:
-        return {"available": False, "minutes": minutes, "requests": 0,
-                "series": [], "by_host": {}, "status_class": {},
-                "rate_limited_429": 0, "top_ips": []}
+        return {"available": False, "minutes": minutes, "bucket_seconds": bucket,
+                "requests": 0, "series": [], "by_host": {}, "status_class": {},
+                "rate_limited_429": 0, "top_ips": [], "peak_per_bucket": 0}
 
     total = bytes_out = rl429 = 0
     by_host: dict[str, int] = {}
@@ -238,21 +270,25 @@ def traffic(minutes: float = 15):
             rl429 += 1
         ip = req.get("client_ip") or req.get("remote_ip") or "?"
         by_ip[ip] = by_ip.get(ip, 0) + 1
-        buckets[int(ts // 60)] = buckets.get(int(ts // 60), 0) + 1
+        b = int(ts // bucket)
+        buckets[b] = buckets.get(b, 0) + 1
 
-    # dense per-minute series across the window
-    start_min = int(cutoff // 60)
-    end_min = int(time.time() // 60)
-    series = [{"minute": m, "count": buckets.get(m, 0)} for m in range(start_min, end_min + 1)]
+    # dense bucketed series across the window (each point's t = bucket-start epoch)
+    start_b = int(cutoff // bucket)
+    end_b = int(time.time() // bucket)
+    series = [{"t": b * bucket, "count": buckets.get(b, 0)} for b in range(start_b, end_b + 1)]
+    peak = max((s["count"] for s in series), default=0)
 
     top_ips = sorted(by_ip.items(), key=lambda x: -x[1])[:6]
     return {
         "available": True,
         "minutes": minutes,
+        "bucket_seconds": bucket,
         "requests": total,
         "requests_per_min": round(total / max(minutes, 1e-9), 2),
         "bytes_out": bytes_out,
         "rate_limited_429": rl429,
+        "peak_per_bucket": peak,
         "by_host": dict(sorted(by_host.items(), key=lambda x: -x[1])),
         "status_class": status_class,
         "top_ips": [{"ip": ip, "count": n} for ip, n in top_ips],

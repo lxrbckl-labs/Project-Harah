@@ -19,13 +19,24 @@ function greeting() {
 
 const NAV = ['◱', '▤', '◈', '⛁', '⋔', '◐', '⚙'];
 
+// Traffic time-range tiers → window (minutes) + bucket granularity (seconds).
+const TIERS = [
+  { label: '15m', minutes: 15, bucket: 60 },
+  { label: '1h', minutes: 60, bucket: 60 },
+  { label: '3h', minutes: 180, bucket: 60 },
+  { label: '24h', minutes: 1440, bucket: 300 },
+  { label: '7d', minutes: 10080, bucket: 3600 },
+  { label: '30d', minutes: 43200, bucket: 86400 },
+];
+
 export default function App() {
   const [containers, setContainers] = useState<Container[]>([]);
   const [stats, setStats] = useState<StatsResp | null>(null);
   const [traffic, setTraffic] = useState<TrafficResp | null>(null);
   const [pending, setPending] = useState<Record<string, boolean>>({});
   const [err, setErr] = useState<string>('');
-  const [window_, setWindow] = useState(15);
+  const [tierIdx, setTierIdx] = useState(3); // default 24h
+  const tier = TIERS[tierIdx];
 
   const loadContainers = useCallback(async () => {
     try { setContainers((await api.containers()).containers); }
@@ -34,19 +45,19 @@ export default function App() {
   const loadStats = useCallback(async () => {
     try { setStats(await api.stats()); } catch { /* transient */ }
   }, []);
-  const loadTraffic = useCallback(async (m: number) => {
-    try { setTraffic(await api.traffic(m)); } catch { /* transient */ }
+  const loadTraffic = useCallback(async (minutes: number, bucket: number) => {
+    try { setTraffic(await api.traffic(minutes, bucket)); } catch { /* transient */ }
   }, []);
 
   useEffect(() => { loadContainers(); loadStats(); }, [loadContainers, loadStats]);
-  useEffect(() => { loadTraffic(window_); }, [window_, loadTraffic]);
+  useEffect(() => { loadTraffic(tier.minutes, tier.bucket); }, [tier, loadTraffic]);
 
   useEffect(() => {
     const a = setInterval(loadStats, 4000);
     const b = setInterval(loadContainers, 6000);
-    const c = setInterval(() => loadTraffic(window_), 15000);
+    const c = setInterval(() => loadTraffic(tier.minutes, tier.bucket), 15000);
     return () => { clearInterval(a); clearInterval(b); clearInterval(c); };
-  }, [loadStats, loadContainers, loadTraffic, window_]);
+  }, [loadStats, loadContainers, loadTraffic, tier]);
 
   async function act(name: string, action: 'start' | 'stop') {
     setPending(p => ({ ...p, [name]: true }));
@@ -90,10 +101,7 @@ export default function App() {
         <div className="main">
           <div className="topbar">
             <h1>Dashboard</h1>
-            <div className="search"><span>⌕</span><span>Search containers, hosts, traffic…</span></div>
             <div className="topbar-right">
-              <div className="pill-btn">◔</div>
-              <div className="pill-btn">⚑</div>
               <div className="user">
                 <div style={{ textAlign: 'right' }}>
                   <div className="name">ServerManager</div>
@@ -171,8 +179,8 @@ export default function App() {
               <div className="panel-head">
                 <div><h3>Caddy Traffic</h3><div className="sub">Requests through the reverse proxy</div></div>
                 <div className="seg">
-                  {[15, 60, 180].map(m => (
-                    <button key={m} className={window_ === m ? 'on' : ''} onClick={() => setWindow(m)}>{m < 60 ? `${m}m` : `${m / 60}h`}</button>
+                  {TIERS.map((t, i) => (
+                    <button key={t.label} className={tierIdx === i ? 'on' : ''} onClick={() => setTierIdx(i)}>{t.label}</button>
                   ))}
                 </div>
               </div>
@@ -182,7 +190,7 @@ export default function App() {
                 <div className="s"><div className="n">{fmtBytes(traffic?.bytes_out ?? 0)}</div><div className="l">served</div></div>
                 <div className="s"><div className="n" style={{ color: (traffic?.rate_limited_429 ?? 0) > 0 ? 'var(--bad)' : undefined }}>{traffic?.rate_limited_429 ?? 0}</div><div className="l">rate-limited (429)</div></div>
               </div>
-              <TrafficChart data={(traffic?.series ?? []).map(s => s.count)} />
+              <TrafficChart data={traffic?.series ?? []} bucketSeconds={traffic?.bucket_seconds ?? tier.bucket} />
               <div className="host-list">
                 {Object.entries(traffic?.by_host ?? {}).slice(0, 5).map(([h, n]) => (
                   <div className="host-row" key={h}>
@@ -197,7 +205,7 @@ export default function App() {
 
             {/* status + ips */}
             <div className="panel col-4">
-              <div className="panel-head"><div><h3>Request Mix</h3><div className="sub">Last {window_}m</div></div></div>
+              <div className="panel-head"><div><h3>Request Mix</h3><div className="sub">Last {tier.label}</div></div></div>
               <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
                 {Object.entries(traffic?.status_class ?? {}).map(([k, v]) => {
                   const col = k.startsWith('2') ? 'var(--good)' : k.startsWith('3') ? 'var(--accent-2)' : k.startsWith('4') ? 'var(--warn)' : 'var(--bad)';

@@ -40,14 +40,16 @@ export interface StatsResp {
 export interface TrafficResp {
   available: boolean;
   minutes: number;
+  bucket_seconds: number;
   requests: number;
   requests_per_min: number;
   bytes_out: number;
   rate_limited_429: number;
+  peak_per_bucket: number;
   by_host: Record<string, number>;
   status_class: Record<string, number>;
   top_ips: { ip: string; count: number }[];
-  series: { minute: number; count: number }[];
+  series: { t: number; count: number }[];
 }
 
 async function j<T>(url: string, init?: RequestInit): Promise<T> {
@@ -65,7 +67,8 @@ async function j<T>(url: string, init?: RequestInit): Promise<T> {
 export const api = {
   containers: () => j<ContainersResp>('/api/containers'),
   stats: () => j<StatsResp>('/api/stats'),
-  traffic: (minutes = 15) => j<TrafficResp>(`/api/traffic?minutes=${minutes}`),
+  traffic: (minutes = 15, bucket = 0) =>
+    j<TrafficResp>(`/api/traffic?minutes=${minutes}&bucket=${bucket}`),
   action: (name: string, action: 'start' | 'stop' | 'restart') =>
     j<{ name: string; action: string; state: string; ok: boolean }>(
       `/api/containers/${encodeURIComponent(name)}/${action}`,
