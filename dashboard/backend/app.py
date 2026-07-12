@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import json
 import shutil
+import sqlite3
 import subprocess
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,6 +29,50 @@ ALLOWED_ACTIONS = {"start", "stop", "restart"}
 
 CADDY_CONTAINER = "caddy"
 CADDY_LOGPATH = "/data/access.log"
+
+# Resource-history sampler: persists host CPU/mem/disk/load to sqlite so the
+# dashboard can graph usage over time. History starts accumulating when the
+# backend first runs (no retroactive data).
+_DB = Path(__file__).resolve().parent / "resources.db"
+SAMPLE_INTERVAL = 15      # seconds between samples
+HISTORY_RETENTION = 49 * 3600  # keep ~2 days
+
+
+def _init_history_db() -> None:
+    con = sqlite3.connect(_DB)
+    con.execute(
+        "CREATE TABLE IF NOT EXISTS samples "
+        "(ts REAL PRIMARY KEY, cpu REAL, mem REAL, disk REAL, load1 REAL)"
+    )
+    con.commit()
+    con.close()
+
+
+def _sampler_loop() -> None:
+    con = sqlite3.connect(_DB)
+    while True:
+        try:
+            cpu = psutil.cpu_percent(interval=1.0)  # 1s average
+            vm = psutil.virtual_memory()
+            du = psutil.disk_usage("/")
+            try:
+                load1 = psutil.getloadavg()[0]
+            except (AttributeError, OSError):
+                load1 = 0.0
+            now = time.time()
+            con.execute(
+                "INSERT OR REPLACE INTO samples VALUES (?,?,?,?,?)",
+                (now, cpu, vm.percent, du.percent, load1),
+            )
+            con.execute("DELETE FROM samples WHERE ts < ?", (now - HISTORY_RETENTION,))
+            con.commit()
+        except Exception:
+            pass
+        time.sleep(max(1, SAMPLE_INTERVAL - 1))  # cpu_percent already blocked ~1s
+
+
+_init_history_db()
+threading.Thread(target=_sampler_loop, daemon=True).start()
 
 app = FastAPI(title="ServerManager Dashboard API", version="0.1.0")
 app.add_middleware(
@@ -192,6 +238,48 @@ def stats():
     per.sort(key=lambda c: c["cpu_percent"], reverse=True)
 
     return {"host": host, "containers": per, "container_count": len(per)}
+
+
+# ---------------------------------------------------------------- resource history
+
+@app.get("/api/resources/history")
+def resources_history(minutes: float = 1440, points: int = 240):
+    """Downsampled host CPU/mem/disk/load over the last `minutes` (~`points` buckets)."""
+    cutoff = time.time() - minutes * 60
+    con = sqlite3.connect(_DB)
+    try:
+        rows = con.execute(
+            "SELECT ts, cpu, mem, disk, load1 FROM samples WHERE ts >= ? ORDER BY ts",
+            (cutoff,),
+        ).fetchall()
+    finally:
+        con.close()
+
+    if not rows:
+        return {"minutes": minutes, "series": [], "count": 0}
+
+    bucket = max(1.0, (minutes * 60) / max(points, 1))
+    agg: dict[int, list] = {}
+    for ts, cpu, mem, disk, load1 in rows:
+        k = int(ts // bucket)
+        a = agg.setdefault(k, [0, 0.0, 0.0, 0.0, 0.0])
+        a[0] += 1
+        a[1] += cpu
+        a[2] += mem
+        a[3] += disk
+        a[4] += load1
+
+    series = []
+    for k in sorted(agg):
+        n, c, m, d, l = agg[k]
+        series.append({
+            "t": k * bucket,
+            "cpu": round(c / n, 1),
+            "mem": round(m / n, 1),
+            "disk": round(d / n, 1),
+            "load1": round(l / n, 2),
+        })
+    return {"minutes": minutes, "bucket_seconds": bucket, "series": series, "count": len(rows)}
 
 
 # ---------------------------------------------------------------- traffic

@@ -198,3 +198,59 @@ body {
 .seg { display: inline-flex; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; padding: 3px; gap: 2px; }
 .seg button { font-size: 12px; padding: 5px 12px; border-radius: 7px; border: none; background: transparent; color: var(--muted); cursor: pointer; }
 .seg button.on { background: rgba(109,139,255,0.22); color: #fff; }
+
+/* ---------- header nav (sidebar removed) ---------- */
+.app { grid-template-columns: 1fr; }   /* override: no sidebar column */
+
+.hdr {
+  display: flex; align-items: center; gap: 22px;
+  padding: 13px 20px; margin-bottom: 22px;
+  background: var(--panel);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--border); border-radius: 16px;
+  position: sticky; top: 0; z-index: 20;
+  box-shadow: 0 12px 40px -24px rgba(0,0,0,0.9);
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand .logo { margin-bottom: 0; }
+.bname { font-size: 15px; font-weight: 750; letter-spacing: -0.01em; }
+.bsub { font-size: 11px; color: var(--faint); }
+
+.tabs {
+  display: flex; gap: 4px; padding: 4px;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 12px;
+}
+.tab {
+  font-size: 13.5px; font-weight: 600; padding: 8px 18px; border-radius: 9px;
+  border: none; background: transparent; color: var(--muted); cursor: pointer; transition: all .15s;
+}
+.tab:hover { color: var(--text); }
+.tab.on {
+  background: linear-gradient(135deg, rgba(109,139,255,0.28), rgba(139,92,255,0.28));
+  color: #fff; box-shadow: inset 0 0 0 1px rgba(109,139,255,0.4);
+}
+
+.hdr-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.hchip {
+  display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 650;
+  padding: 8px 13px; background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border); border-radius: 11px;
+}
+.hchip .lbl { font-size: 10px; color: var(--faint); letter-spacing: 0.06em; }
+.hchip .v { font-variant-numeric: tabular-nums; }
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--good);
+  box-shadow: 0 0 8px var(--good); animation: pulse 1.8s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+.hw-badge {
+  font-size: 12px; font-weight: 650; padding: 6px 12px; border-radius: 20px;
+  background: rgba(109,139,255,0.14); border: 1px solid rgba(109,139,255,0.3); color: #cdd6ff;
+}
+
+@media (max-width: 900px) {
+  .hdr { flex-wrap: wrap; gap: 12px; }
+  .hchip .lbl { display: none; }
+}

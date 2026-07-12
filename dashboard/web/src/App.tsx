@@ -2,9 +2,11 @@ import { useEffect, useState, useCallback } from 'react';
 import Aurora from './components/Aurora';
 import Gauge from './components/Gauge';
 import TrafficChart from './components/TrafficChart';
+import ResourceChart from './components/ResourceChart';
+import HardwareView from './components/HardwareView';
 import {
   api, fmtBytes, fmtUptime,
-  type Container, type StatsResp, type TrafficResp,
+  type Container, type StatsResp, type TrafficResp, type ResHistoryResp,
 } from './api';
 
 const SERVER_NAME = 'Homelab Server';
@@ -17,8 +19,6 @@ function greeting() {
   return 'Good evening';
 }
 
-const NAV = ['◱', '▤', '◈', '⛁', '⋔', '◐', '⚙'];
-
 // Traffic time-range tiers → window (minutes) + bucket granularity (seconds).
 const TIERS = [
   { label: '15m', minutes: 15, bucket: 60 },
@@ -29,14 +29,26 @@ const TIERS = [
   { label: '30d', minutes: 43200, bucket: 86400 },
 ];
 
+const RES_TIERS = [
+  { label: '6h', minutes: 360 },
+  { label: '24h', minutes: 1440 },
+  { label: '48h', minutes: 2880 },
+];
+
+type View = 'dashboard' | 'hardware';
+
 export default function App() {
+  const [view, setView] = useState<View>('dashboard');
   const [containers, setContainers] = useState<Container[]>([]);
   const [stats, setStats] = useState<StatsResp | null>(null);
   const [traffic, setTraffic] = useState<TrafficResp | null>(null);
+  const [resHistory, setResHistory] = useState<ResHistoryResp | null>(null);
   const [pending, setPending] = useState<Record<string, boolean>>({});
   const [err, setErr] = useState<string>('');
   const [tierIdx, setTierIdx] = useState(3); // default 24h
+  const [resIdx, setResIdx] = useState(1);   // default 24h
   const tier = TIERS[tierIdx];
+  const resTier = RES_TIERS[resIdx];
 
   const loadContainers = useCallback(async () => {
     try { setContainers((await api.containers()).containers); }
@@ -48,16 +60,21 @@ export default function App() {
   const loadTraffic = useCallback(async (minutes: number, bucket: number) => {
     try { setTraffic(await api.traffic(minutes, bucket)); } catch { /* transient */ }
   }, []);
+  const loadResHistory = useCallback(async (minutes: number) => {
+    try { setResHistory(await api.resourceHistory(minutes)); } catch { /* transient */ }
+  }, []);
 
   useEffect(() => { loadContainers(); loadStats(); }, [loadContainers, loadStats]);
   useEffect(() => { loadTraffic(tier.minutes, tier.bucket); }, [tier, loadTraffic]);
+  useEffect(() => { loadResHistory(resTier.minutes); }, [resTier, loadResHistory]);
 
   useEffect(() => {
     const a = setInterval(loadStats, 4000);
     const b = setInterval(loadContainers, 6000);
     const c = setInterval(() => loadTraffic(tier.minutes, tier.bucket), 15000);
-    return () => { clearInterval(a); clearInterval(b); clearInterval(c); };
-  }, [loadStats, loadContainers, loadTraffic, tier]);
+    const d = setInterval(() => loadResHistory(resTier.minutes), 20000);
+    return () => { clearInterval(a); clearInterval(b); clearInterval(c); clearInterval(d); };
+  }, [loadStats, loadContainers, loadTraffic, loadResHistory, tier, resTier]);
 
   async function act(name: string, action: 'start' | 'stop') {
     setPending(p => ({ ...p, [name]: true }));
@@ -87,33 +104,33 @@ export default function App() {
       </div>
 
       <div className="app">
-        {/* sidebar */}
-        <div className="sidebar">
-          <div className="logo">S</div>
-          {NAV.map((ic, i) => (
-            <div key={i} className={`nav-icon ${i === 0 ? 'active' : ''}`}>{ic}</div>
-          ))}
-          <div className="nav-spacer" />
-          <div className="nav-icon">⏻</div>
-        </div>
-
-        {/* main */}
         <div className="main">
-          <div className="topbar">
-            <h1>Dashboard</h1>
-            <div className="topbar-right">
-              <div className="user">
-                <div style={{ textAlign: 'right' }}>
-                  <div className="name">ServerManager</div>
-                  <div className="sub">{SERVER_HOST}</div>
-                </div>
-                <div className="avatar">S</div>
+          {/* header */}
+          <header className="hdr">
+            <div className="brand">
+              <div className="logo">S</div>
+              <div>
+                <div className="bname">ServerManager</div>
+                <div className="bsub">{SERVER_HOST}</div>
               </div>
             </div>
-          </div>
+            <nav className="tabs">
+              <button className={`tab ${view === 'dashboard' ? 'on' : ''}`} onClick={() => setView('dashboard')}>Dashboard</button>
+              <button className={`tab ${view === 'hardware' ? 'on' : ''}`} onClick={() => setView('hardware')}>Hardware</button>
+            </nav>
+            <div className="hdr-right">
+              <div className="hchip"><span className="lbl">CPU</span><span className="v">{host ? `${host.cpu_percent.toFixed(0)}%` : '—'}</span></div>
+              <div className="hchip"><span className="lbl">MEM</span><span className="v">{memPct.toFixed(0)}%</span></div>
+              <div className="hchip"><span className="live-dot" />{running.length} up</div>
+              <div className="avatar">S</div>
+            </div>
+          </header>
 
           {err && <div className="panel col-12 err" style={{ marginBottom: 14 }}>⚠ {err}</div>}
 
+          {view === 'hardware' ? (
+            <HardwareView host={host} />
+          ) : (
           <div className="grid">
             {/* hero */}
             <div className="panel hero col-5">
@@ -172,6 +189,19 @@ export default function App() {
                 ))}
                 {!stats && <div className="loading">loading…</div>}
               </div>
+            </div>
+
+            {/* resource usage over time */}
+            <div className="panel col-12">
+              <div className="panel-head">
+                <div><h3>Resource Usage</h3><div className="sub">Host CPU · memory · disk over time</div></div>
+                <div className="seg">
+                  {RES_TIERS.map((t, i) => (
+                    <button key={t.label} className={resIdx === i ? 'on' : ''} onClick={() => setResIdx(i)}>{t.label}</button>
+                  ))}
+                </div>
+              </div>
+              <ResourceChart data={resHistory?.series ?? []} />
             </div>
 
             {/* traffic */}
@@ -279,6 +309,7 @@ export default function App() {
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
     </>

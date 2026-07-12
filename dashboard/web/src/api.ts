@@ -52,6 +52,21 @@ export interface TrafficResp {
   series: { t: number; count: number }[];
 }
 
+export interface ResSample {
+  t: number;
+  cpu: number;
+  mem: number;
+  disk: number;
+  load1: number;
+}
+
+export interface ResHistoryResp {
+  minutes: number;
+  bucket_seconds?: number;
+  series: ResSample[];
+  count: number;
+}
+
 async function j<T>(url: string, init?: RequestInit): Promise<T> {
   const r = await fetch(url, init);
   if (!r.ok) {
@@ -69,6 +84,8 @@ export const api = {
   stats: () => j<StatsResp>('/api/stats'),
   traffic: (minutes = 15, bucket = 0) =>
     j<TrafficResp>(`/api/traffic?minutes=${minutes}&bucket=${bucket}`),
+  resourceHistory: (minutes = 1440) =>
+    j<ResHistoryResp>(`/api/resources/history?minutes=${minutes}`),
   action: (name: string, action: 'start' | 'stop' | 'restart') =>
     j<{ name: string; action: string; state: string; ok: boolean }>(
       `/api/containers/${encodeURIComponent(name)}/${action}`,

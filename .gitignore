@@ -18,3 +18,7 @@ venv/
 node_modules/
 dist/
 dashboard/backend/.venv/
+
+# Resource-history sqlite (runtime data)
+*.db
+dashboard/backend/resources.db
