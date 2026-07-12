@@ -345,3 +345,13 @@ body {
   color: var(--text); white-space: pre-wrap; word-break: break-word;
   max-height: 240px; overflow: auto;
 }
+
+/* group chevron as a rounded icon-box (matches the dashboard's rounded elements) */
+.gh-chev {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 9px; font-size: 0; flex: none;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  color: var(--muted); transition: color .16s, background .16s;
+}
+.group-head:hover .gh-chev { color: var(--text); background: rgba(255,255,255,0.09); }
+.gh-chev svg { transition: transform .18s ease; }

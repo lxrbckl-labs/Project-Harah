@@ -453,7 +453,9 @@ export default function App() {
                   return (
                     <div key={proj}>
                       <div className="group-head" onClick={() => toggleGroup(proj)}>
-                        <span className="gh-chev">{open ? '▾' : '▸'}</span>
+                        <span className="gh-chev">
+                          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(90deg)' : 'none' }}><polyline points="9 6 15 12 9 18" /></svg>
+                        </span>
                         <span className="gh-name">{proj}</span>
                         <span className="chip">{cs.length} containers · {run} up</span>
                         <span className="chip" style={{ marginLeft: 'auto' }}>{cpu.toFixed(1)}% CPU</span>
@@ -465,7 +467,9 @@ export default function App() {
                 {standalone.length > 0 && (
                   <div>
                     <div className="group-head" onClick={() => toggleGroup('__standalone')}>
-                      <span className="gh-chev">{!collapsed.has('__standalone') ? '▾' : '▸'}</span>
+                      <span className="gh-chev">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ transform: !collapsed.has('__standalone') ? 'rotate(90deg)' : 'none' }}><polyline points="9 6 15 12 9 18" /></svg>
+                      </span>
                       <span className="gh-name">Standalone</span>
                       <span className="chip">{standalone.length}</span>
                     </div>
