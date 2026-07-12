@@ -9,6 +9,7 @@ design. Binds to 127.0.0.1 only; this controls Docker and must not be exposed.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -387,6 +388,193 @@ def traffic(minutes: float = 15, bucket: int = 0):
 @app.get("/api/health")
 def health():
     return {"ok": True, "ts": time.time()}
+
+
+# ---------------------------------------------------------------- guardian (auto-defense)
+# Watches the Caddy access log for brute-force / flooding and, ONLY for containers
+# explicitly armed while the master switch is on, auto-stops them (never deletes).
+# Detection always runs (informational); enforcement is opt-in and gated.
+
+GUARDIAN_CFG_PATH = Path(__file__).resolve().parent / "guardian_config.json"
+CADDYFILE_HOST_PATH = "/Users/alexarbuckle/caddyfile"
+
+_guardian_lock = threading.Lock()
+_guardian = {
+    "enabled": False,           # master enforcement switch
+    "armed": [],                # container names eligible for auto-stop
+    "window_sec": 60,
+    "ip_req_threshold": 40,     # requests from one IP in window → attack
+    "auth_fail_threshold": 20,  # 401/403/429 to a host in window → attack
+    "cooldown_sec": 300,
+    "ignore_private": True,     # don't auto-stop for private/LAN/loopback source IPs
+}
+_threats: list = []
+_actions: list = []
+_cooldowns: dict = {}
+
+
+def _load_guardian_cfg() -> None:
+    try:
+        if GUARDIAN_CFG_PATH.exists():
+            data = json.loads(GUARDIAN_CFG_PATH.read_text())
+            for k in list(_guardian):
+                if k in data:
+                    _guardian[k] = data[k]
+    except Exception:
+        pass
+
+
+def _save_guardian_cfg() -> None:
+    try:
+        GUARDIAN_CFG_PATH.write_text(json.dumps(_guardian, indent=2))
+    except Exception:
+        pass
+
+
+def _is_private_ip(ip: str) -> bool:
+    return (not ip or ip == "?" or ip.startswith(("10.", "192.168.", "127.", "172.",
+            "::1", "fd", "fe80")))
+
+
+def _host_container_map() -> dict:
+    """host → container, from Caddyfile upstream ports matched to docker published ports."""
+    port2c: dict = {}
+    try:
+        out = docker("ps", "-a", "--format", "{{.Names}}\t{{.Ports}}")
+        for line in out.splitlines():
+            if "\t" not in line:
+                continue
+            name, ports = line.split("\t", 1)
+            for p in re.findall(r":(\d+)->", ports):
+                port2c.setdefault(p, name)
+    except Exception:
+        pass
+    mapping: dict = {}
+    try:
+        txt = Path(CADDYFILE_HOST_PATH).read_text()
+        cur = None
+        for raw in txt.splitlines():
+            s = raw.strip()
+            if s.endswith("{") and "." in s.split()[0] and not s.startswith(("(", "{")):
+                cur = s[:-1].strip()
+            m = re.search(r"reverse_proxy\s+\S*?:(\d+)", s)
+            if m and cur and cur not in mapping and m.group(1) in port2c:
+                mapping[cur] = port2c[m.group(1)]
+    except Exception:
+        pass
+    return mapping
+
+
+def _detect_once() -> None:
+    global _threats
+    with _guardian_lock:
+        cfg = dict(_guardian)
+    cutoff = time.time() - cfg["window_sec"]
+    try:
+        raw = _read_caddy_logs(False)
+    except HTTPException:
+        return
+
+    per_host: dict = {}
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line or line[0] != "{":
+            continue
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        ts = e.get("ts")
+        if not isinstance(ts, (int, float)) or ts < cutoff:
+            continue
+        req = e.get("request", {})
+        host = req.get("host", "?")
+        ip = req.get("client_ip") or req.get("remote_ip") or "?"
+        status = int(e.get("status", 0) or 0)
+        h = per_host.setdefault(host, {"ips": {}, "fails": 0, "total": 0})
+        h["total"] += 1
+        h["ips"][ip] = h["ips"].get(ip, 0) + 1
+        if status in (401, 403, 429):
+            h["fails"] += 1
+
+    mapping = _host_container_map()
+    threats = []
+    for host, d in per_host.items():
+        top_ip, top_n = max(d["ips"].items(), key=lambda x: x[1]) if d["ips"] else ("?", 0)
+        if not (top_n >= cfg["ip_req_threshold"] or d["fails"] >= cfg["auth_fail_threshold"]):
+            continue
+        container = mapping.get(host)
+        sev = "high" if (top_n >= cfg["ip_req_threshold"] * 2
+                         or d["fails"] >= cfg["auth_fail_threshold"] * 2) else "elevated"
+        priv = _is_private_ip(top_ip)
+        threats.append({
+            "host": host, "container": container, "top_ip": top_ip, "top_ip_count": top_n,
+            "auth_fails": d["fails"], "total": d["total"], "window_sec": cfg["window_sec"],
+            "private": priv, "severity": sev, "ts": time.time(),
+        })
+        if (cfg["enabled"] and container and container in cfg["armed"]
+                and (not cfg["ignore_private"] or not priv)
+                and _cooldowns.get(container, 0) < time.time()):
+            try:
+                docker("stop", container, timeout=40)
+                _cooldowns[container] = time.time() + cfg["cooldown_sec"]
+                _actions.insert(0, {
+                    "container": container, "host": host, "top_ip": top_ip,
+                    "reason": f"{top_n} req / {d['fails']} auth-fails from {top_ip} in {cfg['window_sec']}s",
+                    "ts": time.time(),
+                })
+                del _actions[20:]
+            except Exception:
+                pass
+    threats.sort(key=lambda t: -max(t["top_ip_count"], t["auth_fails"]))
+    _threats = threats
+
+
+def _guardian_loop() -> None:
+    while True:
+        try:
+            _detect_once()
+        except Exception:
+            pass
+        time.sleep(15)
+
+
+@app.get("/api/guardian")
+def guardian_status():
+    with _guardian_lock:
+        cfg = dict(_guardian)
+    return {**cfg, "threats": _threats, "actions": _actions[:10], "mapping": _host_container_map()}
+
+
+class GuardianToggle(BaseModel):
+    enabled: bool
+
+
+@app.post("/api/guardian/toggle")
+def guardian_toggle(body: GuardianToggle):
+    with _guardian_lock:
+        _guardian["enabled"] = body.enabled
+        _save_guardian_cfg()
+        return {"enabled": _guardian["enabled"]}
+
+
+class GuardianArm(BaseModel):
+    container: str
+    armed: bool
+
+
+@app.post("/api/guardian/arm")
+def guardian_arm(body: GuardianArm):
+    with _guardian_lock:
+        armed = set(_guardian["armed"])
+        armed.add(body.container) if body.armed else armed.discard(body.container)
+        _guardian["armed"] = sorted(armed)
+        _save_guardian_cfg()
+        return {"armed": _guardian["armed"]}
+
+
+_load_guardian_cfg()
+threading.Thread(target=_guardian_loop, daemon=True).start()
 
 
 # ---------------------------------------------------------------- static UI

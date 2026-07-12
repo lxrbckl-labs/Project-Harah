@@ -4,9 +4,10 @@ import Gauge from './components/Gauge';
 import TrafficChart from './components/TrafficChart';
 import ResourceChart from './components/ResourceChart';
 import HardwareView from './components/HardwareView';
+import GuardianPanel from './components/GuardianPanel';
 import {
   api, fmtBytes, fmtUptime,
-  type Container, type StatsResp, type TrafficResp, type ResHistoryResp,
+  type Container, type StatsResp, type TrafficResp, type ResHistoryResp, type GuardianResp,
 } from './api';
 
 const SERVER_NAME = 'Homelab Server';
@@ -40,6 +41,7 @@ export default function App() {
   const [stats, setStats] = useState<StatsResp | null>(null);
   const [traffic, setTraffic] = useState<TrafficResp | null>(null);
   const [resHistory, setResHistory] = useState<ResHistoryResp | null>(null);
+  const [guardian, setGuardian] = useState<GuardianResp | null>(null);
   const [pending, setPending] = useState<Record<string, boolean>>({});
   const [err, setErr] = useState<string>('');
   const [tierIdx, setTierIdx] = useState(3); // default 24h
@@ -60,8 +62,11 @@ export default function App() {
   const loadResHistory = useCallback(async (minutes: number) => {
     try { setResHistory(await api.resourceHistory(minutes)); } catch { /* transient */ }
   }, []);
+  const loadGuardian = useCallback(async () => {
+    try { setGuardian(await api.guardian()); } catch { /* transient */ }
+  }, []);
 
-  useEffect(() => { loadContainers(); loadStats(); }, [loadContainers, loadStats]);
+  useEffect(() => { loadContainers(); loadStats(); loadGuardian(); }, [loadContainers, loadStats, loadGuardian]);
   useEffect(() => { loadTraffic(tier.minutes, tier.bucket); }, [tier, loadTraffic]);
   useEffect(() => { loadResHistory(resTier.minutes); }, [resTier, loadResHistory]);
 
@@ -70,8 +75,18 @@ export default function App() {
     const b = setInterval(loadContainers, 6000);
     const c = setInterval(() => loadTraffic(tier.minutes, tier.bucket), 15000);
     const d = setInterval(() => loadResHistory(resTier.minutes), 20000);
-    return () => { clearInterval(a); clearInterval(b); clearInterval(c); clearInterval(d); };
-  }, [loadStats, loadContainers, loadTraffic, loadResHistory, tier, resTier]);
+    const e = setInterval(loadGuardian, 10000);
+    return () => { clearInterval(a); clearInterval(b); clearInterval(c); clearInterval(d); clearInterval(e); };
+  }, [loadStats, loadContainers, loadTraffic, loadResHistory, loadGuardian, tier, resTier]);
+
+  async function toggleGuardian(enabled: boolean) {
+    try { await api.guardianToggle(enabled); } catch (e) { setErr(String(e)); }
+    loadGuardian();
+  }
+  async function armContainer(container: string, armed: boolean) {
+    try { await api.guardianArm(container, armed); } catch (e) { setErr(String(e)); }
+    loadGuardian();
+  }
 
   async function act(name: string, action: 'start' | 'stop') {
     setPending(p => ({ ...p, [name]: true }));
@@ -250,6 +265,9 @@ export default function App() {
                 {(traffic?.top_ips?.length ?? 0) === 0 && <div className="chip">—</div>}
               </div>
             </div>
+
+            {/* auto-defense */}
+            <GuardianPanel g={guardian} onToggle={toggleGuardian} onArm={armContainer} />
 
             {/* container management */}
             <div className="panel col-12">

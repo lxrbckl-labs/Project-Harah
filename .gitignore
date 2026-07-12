@@ -22,3 +22,4 @@ dashboard/backend/.venv/
 # Resource-history sqlite (runtime data)
 *.db
 dashboard/backend/resources.db
+dashboard/backend/guardian_config.json

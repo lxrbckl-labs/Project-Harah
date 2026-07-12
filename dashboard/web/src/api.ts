@@ -67,6 +67,40 @@ export interface ResHistoryResp {
   count: number;
 }
 
+export interface Threat {
+  host: string;
+  container: string | null;
+  top_ip: string;
+  top_ip_count: number;
+  auth_fails: number;
+  total: number;
+  window_sec: number;
+  private: boolean;
+  severity: string;
+  ts: number;
+}
+
+export interface GuardianAction {
+  container: string;
+  host: string;
+  top_ip: string;
+  reason: string;
+  ts: number;
+}
+
+export interface GuardianResp {
+  enabled: boolean;
+  armed: string[];
+  window_sec: number;
+  ip_req_threshold: number;
+  auth_fail_threshold: number;
+  cooldown_sec: number;
+  ignore_private: boolean;
+  threats: Threat[];
+  actions: GuardianAction[];
+  mapping: Record<string, string>;
+}
+
 async function j<T>(url: string, init?: RequestInit): Promise<T> {
   const r = await fetch(url, init);
   if (!r.ok) {
@@ -86,6 +120,17 @@ export const api = {
     j<TrafficResp>(`/api/traffic?minutes=${minutes}&bucket=${bucket}`),
   resourceHistory: (minutes = 1440) =>
     j<ResHistoryResp>(`/api/resources/history?minutes=${minutes}`),
+  guardian: () => j<GuardianResp>('/api/guardian'),
+  guardianToggle: (enabled: boolean) =>
+    j<{ enabled: boolean }>('/api/guardian/toggle', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled }),
+    }),
+  guardianArm: (container: string, armed: boolean) =>
+    j<{ armed: string[] }>('/api/guardian/arm', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ container, armed }),
+    }),
   action: (name: string, action: 'start' | 'stop' | 'restart') =>
     j<{ name: string; action: string; state: string; ok: boolean }>(
       `/api/containers/${encodeURIComponent(name)}/${action}`,
