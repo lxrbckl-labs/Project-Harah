@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ServerManager: scheduled Caddy traffic report (macOS launchd).
+
+  Setup:
+    1. Edit the placeholders below (<...>): repo path, window, interval, output.
+    2. Copy to ~/Library/LaunchAgents/com.servermanager.caddy-traffic.plist
+    3. launchctl load ~/Library/LaunchAgents/com.servermanager.caddy-traffic.plist
+    4. launchctl start com.servermanager.caddy-traffic   # run once now
+
+  StartInterval is in SECONDS (e.g. 600 = every 10 minutes). Match it to the -n
+  window so successive reports tile the timeline without gaps or overlap.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.servermanager.caddy-traffic</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/bin/python3</string>
+		<string><REPO_PATH>/tools/caddy-traffic.py</string>
+		<string>-n</string>
+		<string>10</string>
+	</array>
+
+	<key>StartInterval</key>
+	<integer>600</integer>
+
+	<key>StandardOutPath</key>
+	<string><OUTPUT_PATH>/caddy-traffic.log</string>
+	<key>StandardErrorPath</key>
+	<string><OUTPUT_PATH>/caddy-traffic.err</string>
+
+	<key>RunAtLoad</key>
+	<true/>
+</dict>
+</plist>

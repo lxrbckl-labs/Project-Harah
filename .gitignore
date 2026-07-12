@@ -1,0 +1,15 @@
+# Per-server config (may contain host-specific paths / secrets)
+config.env
+
+# Local scheduling artifacts and captured output
+*.log
+*.err
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# macOS
+.DS_Store

@@ -1,0 +1,19 @@
+# ServerManager access-logging snippet for Caddy.
+#
+# 1. Paste this block near the top of the Caddyfile, AFTER any global `{ ... }`
+#    options block and before the site blocks.
+# 2. Add `import accesslog` as the first line inside every site block you want
+#    monitored.
+#
+# All sites share one JSON log at /data/access.log (inside the caddy_data
+# volume). Rolls at 50MiB, keeps 5 files. Consumed by tools/caddy-traffic.py.
+
+(accesslog) {
+	log {
+		output file /data/access.log {
+			roll_size 50MiB
+			roll_keep 5
+		}
+		format json
+	}
+}
