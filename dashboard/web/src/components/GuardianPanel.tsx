@@ -2,8 +2,6 @@
 // for armed containers only (while the master switch is on), auto-stops them.
 import type { GuardianResp } from '../api';
 
-const CRITICAL = new Set(['vaultwarden', 'immich_server', 'immich_postgres']);
-
 function ago(ts: number): string {
   const s = Math.max(0, Math.floor(Date.now() / 1000 - ts));
   if (s < 60) return `${s}s ago`;
@@ -81,13 +79,11 @@ export default function GuardianPanel({ g, onToggle, onArm }: Props) {
           <div className="chip" style={{ marginBottom: 10 }}>ARM CONTAINERS FOR AUTO‑STOP</div>
           <div style={{ maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
             {containers.map(c => {
-              const isCritical = CRITICAL.has(c);
               const on = armed.has(c);
               return (
                 <div className="arm-row" key={c}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c}</div>
-                    {isCritical && <div className="chip" style={{ color: 'var(--warn)' }}>⚠ critical — stopping locks you out too</div>}
                   </div>
                   <button className={`switch sm ${on ? 'on' : ''}`} onClick={() => onArm(c, !on)} aria-label={`arm ${c}`}>
                     <span className="knob" />
