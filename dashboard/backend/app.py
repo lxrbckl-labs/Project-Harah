@@ -15,6 +15,7 @@ import sqlite3
 import subprocess
 import threading
 import time
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -45,6 +46,8 @@ def _init_history_db() -> None:
         "CREATE TABLE IF NOT EXISTS samples "
         "(ts REAL PRIMARY KEY, cpu REAL, mem REAL, disk REAL, load1 REAL)"
     )
+    con.execute("CREATE TABLE IF NOT EXISTS csamples (ts REAL, name TEXT, cpu REAL, mem REAL)")
+    con.execute("CREATE INDEX IF NOT EXISTS idx_csamples ON csamples(name, ts)")
     con.commit()
     con.close()
 
@@ -66,6 +69,20 @@ def _sampler_loop() -> None:
                 (now, cpu, vm.percent, du.percent, load1),
             )
             con.execute("DELETE FROM samples WHERE ts < ?", (now - HISTORY_RETENTION,))
+            # per-container usage (docker stats); defs resolve after import completes
+            try:
+                raw = docker("stats", "--no-stream", "--format",
+                             "{{.Name}}|{{.CPUPerc}}|{{.MemPerc}}", timeout=20)
+                cs = []
+                for line in raw.splitlines():
+                    p = line.split("|")
+                    if len(p) == 3:
+                        cs.append((now, p[0], _pct(p[1]), _pct(p[2])))
+                if cs:
+                    con.executemany("INSERT INTO csamples VALUES (?,?,?,?)", cs)
+                    con.execute("DELETE FROM csamples WHERE ts < ?", (now - HISTORY_RETENTION,))
+            except Exception:
+                pass
             con.commit()
         except Exception:
             pass
@@ -128,6 +145,17 @@ def _pct(s: str) -> float:
         return 0.0
 
 
+def _health_from_status(status: str) -> str:
+    s = status.lower()
+    if "(unhealthy)" in s:
+        return "unhealthy"
+    if "(healthy)" in s:
+        return "healthy"
+    if "health: starting" in s or "(starting)" in s:
+        return "starting"
+    return "none"
+
+
 # ---------------------------------------------------------------- containers
 
 def list_container_names() -> set[str]:
@@ -142,22 +170,33 @@ def containers():
         "ps", "-a", "--no-trunc", "--format", "{{json .}}"
     ).splitlines() if l.strip()]
 
-    # batch inspect for precise StartedAt
-    started: dict[str, str] = {}
+    # batch inspect: StartedAt, restart count, restarting, compose project.
+    # (health comes from the ps Status string — inspecting .State.Health errors on
+    #  containers that have no healthcheck.)
+    meta: dict[str, dict] = {}
     ids = [r["ID"] for r in rows]
     if ids:
-        insp = docker("inspect", "-f", "{{.Id}}|{{.State.StartedAt}}", *ids)
-        for line in insp.splitlines():
-            if "|" in line:
-                cid, ts = line.split("|", 1)
-                started[cid] = ts
+        fmt = ('{{.Id}}|{{.State.StartedAt}}|{{.RestartCount}}|{{.State.Restarting}}|'
+               '{{if .Config.Labels}}{{index .Config.Labels "com.docker.compose.project"}}{{end}}')
+        for line in docker("inspect", "-f", fmt, *ids).splitlines():
+            parts = line.split("|")
+            if len(parts) >= 5:
+                meta[parts[0]] = {
+                    "started": parts[1],
+                    "restart_count": int(parts[2]) if parts[2].lstrip("-").isdigit() else 0,
+                    "restarting": parts[3] == "true",
+                    "project": parts[4] if parts[4] not in ("", "<no value>") else "",
+                }
 
     now = time.time()
     result = []
     for r in rows:
         state = r.get("State", "")
-        start_epoch = parse_docker_time(started.get(r["ID"], ""))
+        m = meta.get(r["ID"], {})
+        start_epoch = parse_docker_time(m.get("started", ""))
         uptime = int(now - start_epoch) if (state == "running" and start_epoch) else 0
+        rc = m.get("restart_count", 0)
+        crash = bool(m.get("restarting")) or (rc >= 3 and state == "running" and uptime < 600)
         result.append({
             "id": r["ID"][:12],
             "name": r.get("Names", ""),
@@ -167,8 +206,12 @@ def containers():
             "ports": r.get("Ports", ""),
             "uptime_seconds": uptime,
             "started_at": start_epoch,
+            "health": _health_from_status(r.get("Status", "")),  # healthy|unhealthy|starting|none
+            "restart_count": rc,
+            "crash_looping": crash,
+            "project": m.get("project", ""),
         })
-    result.sort(key=lambda c: (c["state"] != "running", c["name"]))
+    result.sort(key=lambda c: (c["state"] != "running", c["project"] or "~", c["name"]))
     return {"containers": result, "count": len(result)}
 
 
@@ -196,6 +239,47 @@ def container_action(name: str, action: str) -> ActionResult:
     # report resulting state
     state = docker("inspect", "-f", "{{.State.Status}}", name).strip()
     return ActionResult(name=name, action=action, state=state, ok=True)
+
+
+@app.get("/api/containers/{name}/logs")
+def container_logs(name: str, tail: int = 200):
+    """Recent stdout+stderr for a container (read-only). Many apps log to stderr."""
+    if name not in list_container_names():
+        raise HTTPException(404, f"no such container: {name}")
+    tail = max(1, min(tail, 2000))
+    try:
+        p = subprocess.run(
+            ["docker", "logs", "--tail", str(tail), "--timestamps", name],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=25)
+    except subprocess.TimeoutExpired:
+        raise HTTPException(504, "docker logs timed out")
+    return {"name": name, "tail": tail, "logs": p.stdout or ""}
+
+
+@app.get("/api/containers/{name}/history")
+def container_history(name: str, minutes: float = 360, points: int = 200):
+    """Downsampled per-container CPU% / mem% over the last `minutes`."""
+    cutoff = time.time() - minutes * 60
+    con = sqlite3.connect(_DB)
+    try:
+        rows = con.execute(
+            "SELECT ts, cpu, mem FROM csamples WHERE name=? AND ts>=? ORDER BY ts",
+            (name, cutoff),
+        ).fetchall()
+    finally:
+        con.close()
+    if not rows:
+        return {"name": name, "series": [], "count": 0}
+    bucket = max(1.0, (minutes * 60) / max(points, 1))
+    agg: dict[int, list] = {}
+    for ts, cpu, mem in rows:
+        a = agg.setdefault(int(ts // bucket), [0, 0.0, 0.0])
+        a[0] += 1
+        a[1] += cpu
+        a[2] += mem
+    series = [{"t": k * bucket, "cpu": round(c / n, 1), "mem": round(m / n, 1)}
+              for k, (n, c, m) in sorted(agg.items())]
+    return {"name": name, "series": series, "count": len(rows)}
 
 
 # ---------------------------------------------------------------- stats
@@ -385,6 +469,86 @@ def traffic(minutes: float = 15, bucket: int = 0):
     }
 
 
+# ---------------------------------------------------------------- db backups
+
+BACKUP_DIR = Path("/Users/alexarbuckle/servermanager-backups")
+_backup_status: dict = {}   # container -> {state, ts, size?, file?, error?}
+
+
+def _pg_containers() -> list:
+    """Postgres containers with their POSTGRES_USER/DB from env."""
+    out = docker("ps", "-a", "--format", "{{.Names}}\t{{.Image}}\t{{.State}}")
+    result = []
+    for line in out.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 3 or "postgres" not in parts[1].lower():
+            continue
+        name, image, state = parts[0], parts[1], parts[2]
+        user, db = "postgres", ""
+        try:
+            env = docker("inspect", "-f", "{{range .Config.Env}}{{println .}}{{end}}", name)
+            for e in env.splitlines():
+                if e.startswith("POSTGRES_USER="):
+                    user = e.split("=", 1)[1]
+                elif e.startswith("POSTGRES_DB="):
+                    db = e.split("=", 1)[1]
+        except Exception:
+            pass
+        result.append({"name": name, "image": image, "state": state, "user": user, "db": db})
+    return result
+
+
+def _latest_backup(name: str):
+    if not BACKUP_DIR.exists():
+        return None
+    files = sorted(BACKUP_DIR.glob(f"{name}-*.sql.gz"), key=lambda p: p.stat().st_mtime, reverse=True)
+    if not files:
+        return None
+    st = files[0].stat()
+    return {"file": files[0].name, "ts": st.st_mtime, "size": st.st_size}
+
+
+def _run_backup(name: str, user: str) -> None:
+    _backup_status[name] = {"state": "running", "ts": time.time()}
+    out_path = BACKUP_DIR / f"{name}-{time.strftime('%Y%m%d-%H%M%S', time.localtime())}.sql.gz"
+    try:
+        BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+        proc = subprocess.run(
+            f"docker exec {name} pg_dumpall -U {user} | gzip > '{out_path}'",
+            shell=True, capture_output=True, text=True, timeout=900)
+        if proc.returncode != 0:
+            out_path.unlink(missing_ok=True)
+            _backup_status[name] = {"state": "error", "ts": time.time(),
+                                    "error": (proc.stderr.strip()[-300:] or "pg_dumpall failed")}
+            return
+        _backup_status[name] = {"state": "done", "ts": time.time(),
+                                "size": out_path.stat().st_size, "file": out_path.name}
+    except Exception as e:
+        _backup_status[name] = {"state": "error", "ts": time.time(), "error": str(e)}
+
+
+@app.get("/api/backups")
+def backups():
+    dbs = _pg_containers()
+    for d in dbs:
+        d["last_backup"] = _latest_backup(d["name"])
+        d["status"] = _backup_status.get(d["name"], {"state": "idle"})
+    return {"databases": dbs, "backup_dir": str(BACKUP_DIR)}
+
+
+@app.post("/api/backups/{name}")
+def backup_now(name: str):
+    dbs = {d["name"]: d for d in _pg_containers()}
+    if name not in dbs:
+        raise HTTPException(404, f"no postgres container named {name}")
+    if dbs[name]["state"] != "running":
+        raise HTTPException(409, "container is not running — start it before backing up")
+    if _backup_status.get(name, {}).get("state") == "running":
+        raise HTTPException(409, "a backup is already running for this database")
+    threading.Thread(target=_run_backup, args=(name, dbs[name]["user"]), daemon=True).start()
+    return {"started": name}
+
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "ts": time.time()}
@@ -408,7 +572,11 @@ _guardian = {
     "cooldown_sec": 300,
     "ignore_private": True,     # fully exempt private/LAN/loopback source IPs from detection
     "allowlist": [],            # extra exact IPs / prefixes to always permit
+    "banned_ips": [],           # IPs blocked at Caddy (respond 403)
 }
+
+CADDY_IMAGE = "caddy-ratelimit:latest"
+CADDY_COMPOSE = "/Users/alexarbuckle/docker-bare-run/caddy/docker-compose.yml"
 _threats: list = []
 _actions: list = []
 _cooldowns: dict = {}
@@ -442,6 +610,27 @@ def _exempt(ip: str, cfg: dict) -> bool:
     if cfg.get("ignore_private") and _is_private_ip(ip):
         return True
     return any(ip == a or ip.startswith(a) for a in cfg.get("allowlist", []))
+
+
+_geoip_cache: dict = {}
+
+
+def _geoip(ip: str):
+    """Best-effort country/city for a public IP (cached). None for private/unknown."""
+    if ip in _geoip_cache:
+        return _geoip_cache[ip]
+    result = None
+    if not _is_private_ip(ip):
+        try:
+            url = f"http://ip-api.com/json/{ip}?fields=status,country,countryCode,city"
+            with urllib.request.urlopen(url, timeout=4) as r:
+                d = json.loads(r.read().decode())
+            if d.get("status") == "success":
+                result = {"country": d.get("country"), "cc": d.get("countryCode"), "city": d.get("city")}
+        except Exception:
+            result = None
+    _geoip_cache[ip] = result
+    return result
 
 
 def _host_container_map() -> dict:
@@ -520,7 +709,7 @@ def _detect_once() -> None:
         threats.append({
             "host": host, "container": container, "top_ip": top_ip, "top_ip_count": top_n,
             "auth_fails": d["fails"], "total": d["total"], "window_sec": cfg["window_sec"],
-            "private": priv, "severity": sev, "ts": time.time(),
+            "private": priv, "severity": sev, "ts": time.time(), "geo": _geoip(top_ip),
         })
         if (cfg["enabled"] and container and container in cfg["armed"]
                 and _cooldowns.get(container, 0) < time.time()):
@@ -546,6 +735,93 @@ def _guardian_loop() -> None:
         except Exception:
             pass
         time.sleep(15)
+
+
+def _render_accesslog_snippet(banned: list) -> list:
+    out = ["(accesslog) {"]
+    if banned:
+        out.append("\t@__sm_banned remote_ip " + " ".join(banned))
+        out.append("\trespond @__sm_banned 403")
+    out += [
+        "\tlog {",
+        "\t\toutput file /data/access.log {",
+        "\t\t\troll_size 50MiB",
+        "\t\t\troll_keep 5",
+        "\t\t}",
+        "\t\tformat json",
+        "\t}",
+        "}",
+    ]
+    return out
+
+
+def _rewrite_caddyfile(text: str, banned: list) -> str | None:
+    """Replace the (accesslog) snippet block, injecting a ban matcher if needed."""
+    lines = text.splitlines()
+    start = next((i for i, l in enumerate(lines) if l.strip() == "(accesslog) {"), None)
+    if start is None:
+        return None
+    depth, end = 0, None
+    for j in range(start, len(lines)):
+        depth += lines[j].count("{") - lines[j].count("}")
+        if depth == 0:
+            end = j
+            break
+    if end is None:
+        return None
+    return "\n".join(lines[:start] + _render_accesslog_snippet(banned) + lines[end + 1:]) + "\n"
+
+
+def _apply_bans(banned: list) -> None:
+    """Write banned IPs into the Caddyfile (validated) and reload Caddy."""
+    text = Path(CADDYFILE_HOST_PATH).read_text()
+    new = _rewrite_caddyfile(text, banned)
+    if new is None:
+        raise RuntimeError("could not locate the (accesslog) snippet in the Caddyfile")
+    tmp = CADDYFILE_HOST_PATH + ".smnew"
+    Path(tmp).write_text(new)
+    try:
+        v = subprocess.run(
+            ["docker", "run", "--rm", "-v", f"{tmp}:/etc/caddy/Caddyfile:ro", CADDY_IMAGE,
+             "caddy", "validate", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"],
+            capture_output=True, text=True, timeout=60)
+        if v.returncode != 0:
+            raise RuntimeError("caddy validate failed: " + (v.stderr.strip()[-300:] or "unknown"))
+        shutil.copy2(CADDYFILE_HOST_PATH, CADDYFILE_HOST_PATH + ".bak.bans")
+        with open(CADDYFILE_HOST_PATH, "w") as f:   # in-place write keeps inode → reload works
+            f.write(new)
+    finally:
+        Path(tmp).unlink(missing_ok=True)
+    r = subprocess.run(
+        ["docker", "exec", CADDY_CONTAINER, "caddy", "reload",
+         "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"],
+        capture_output=True, text=True, timeout=40)
+    if r.returncode != 0:  # reload flaky on Docker Desktop bind mounts → force-recreate
+        subprocess.run(["docker", "compose", "-f", CADDY_COMPOSE, "up", "-d", "--force-recreate"],
+                       capture_output=True, text=True, timeout=90)
+
+
+class BanReq(BaseModel):
+    ip: str
+    banned: bool
+
+
+@app.post("/api/guardian/ban")
+def guardian_ban(body: BanReq):
+    ip = body.ip.strip()
+    if not ip or _is_private_ip(ip):
+        raise HTTPException(400, "refusing to ban a private/LAN/loopback IP")
+    with _guardian_lock:
+        bans = set(_guardian.get("banned_ips", []))
+        bans.add(ip) if body.banned else bans.discard(ip)
+        _guardian["banned_ips"] = sorted(bans)
+        _save_guardian_cfg()
+        current = list(_guardian["banned_ips"])
+    try:
+        _apply_bans(current)
+    except Exception as e:
+        raise HTTPException(500, f"saved, but applying to Caddy failed: {e}")
+    return {"banned_ips": current}
 
 
 @app.get("/api/guardian")

@@ -23,3 +23,6 @@ dashboard/backend/.venv/
 *.db
 dashboard/backend/resources.db
 dashboard/backend/guardian_config.json
+
+# local backup output (also lives outside the repo)
+servermanager-backups/

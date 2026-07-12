@@ -4,6 +4,8 @@ import Gauge from './components/Gauge';
 import TrafficChart from './components/TrafficChart';
 import ResourceChart from './components/ResourceChart';
 import HardwareView from './components/HardwareView';
+import ContainerDrawer from './components/ContainerDrawer';
+import BackupPanel from './components/BackupPanel';
 import {
   api, fmtBytes, fmtUptime,
   type Container, type StatsResp, type TrafficResp, type ResHistoryResp, type GuardianResp,
@@ -42,6 +44,8 @@ export default function App() {
   const [resHistory, setResHistory] = useState<ResHistoryResp | null>(null);
   const [guardian, setGuardian] = useState<GuardianResp | null>(null);
   const [pending, setPending] = useState<Record<string, boolean>>({});
+  const [drawerName, setDrawerName] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [err, setErr] = useState<string>('');
   const [tierIdx, setTierIdx] = useState(3); // default 24h
   const [resIdx, setResIdx] = useState(1);   // default 24h
@@ -95,6 +99,13 @@ export default function App() {
     try { await api.guardianConfig({ ignore_private: v }); } catch (e) { setErr(String(e)); }
     loadGuardian();
   }
+  async function banIp(ip: string, banned: boolean) {
+    setErr('');
+    try { await api.guardianBan(ip, banned); } catch (e) { setErr(`ban ${ip}: ${e}`); }
+    loadGuardian();
+  }
+  const toggleGroup = (k: string) =>
+    setCollapsed(s => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; });
 
   async function act(name: string, action: 'start' | 'stop') {
     setPending(p => ({ ...p, [name]: true }));
@@ -124,6 +135,61 @@ export default function App() {
     (guardian?.threats ?? []).filter(t => t.container).map(t => [t.container as string, t]));
   const allNames = containers.map(c => c.name);
   const allArmed = allNames.length > 0 && allNames.every(n => armedSet.has(n));
+
+  // group containers by compose project; multi-container = stacks, rest = standalone
+  const byProject = new Map<string, Container[]>();
+  containers.forEach(c => {
+    const k = c.project || c.name;
+    (byProject.get(k) ?? byProject.set(k, []).get(k)!).push(c);
+  });
+  const stacks = [...byProject.entries()]
+    .filter(([, cs]) => cs.length > 1)
+    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+  const standalone = [...byProject.entries()]
+    .filter(([, cs]) => cs.length === 1)
+    .flatMap(([, cs]) => cs)
+    .sort((a, b) => (a.state !== 'running' ? 1 : 0) - (b.state !== 'running' ? 1 : 0) || a.name.localeCompare(b.name));
+
+  const renderRow = (c: Container) => {
+    const isRun = c.state === 'running';
+    const busy = pending[c.name];
+    const upW = Math.min(100, (c.uptime_seconds / 86400 / 14) * 100);
+    const st = statByName.get(c.name);
+    const threat = threatByContainer.get(c.name);
+    const armedOn = armedSet.has(c.name);
+    return (
+      <div className={`row ${threat ? 'under-attack' : ''}`} key={c.id}>
+        <div className="cname" style={{ cursor: 'pointer' }} onClick={() => setDrawerName(c.name)} title="View logs & history">
+          <div className="cicon">{isRun ? '▣' : '▢'}</div>
+          <div className="t">
+            <div className="n">{c.name}</div>
+            <div className="i">{c.image}</div>
+          </div>
+        </div>
+        <div>
+          <span className={`badge ${isRun ? 'running' : 'stopped'}`}><span className="dot" />{isRun ? 'running' : c.state}</span>
+          {c.health !== 'none' && <span className={`hbadge ${c.health}`} title={`healthcheck: ${c.health}`}>{c.health === 'healthy' ? '♥' : c.health === 'unhealthy' ? '✕' : '…'}</span>}
+          {c.crash_looping && <div className="chip" style={{ color: 'var(--bad)', marginTop: 4 }}>⟳ crash-loop ({c.restart_count})</div>}
+          {threat && <div className="chip" style={{ color: 'var(--bad)', marginTop: 4 }}>⚠ {threat.top_ip_count} req · {threat.top_ip}</div>}
+        </div>
+        <div>
+          <div className="uptime">{isRun ? fmtUptime(c.uptime_seconds) : <small>—</small>}</div>
+          {isRun && <div className="uptrack"><span style={{ width: `${upW}%` }} /></div>}
+        </div>
+        <div>{st ? (<><div className="uptime" style={{ fontSize: 13 }}>{st.cpu_percent.toFixed(1)}%</div><div className="uptrack"><span style={{ width: `${Math.min(100, st.cpu_percent)}%`, background: 'linear-gradient(90deg,var(--accent-2),var(--accent))' }} /></div></>) : <small style={{ color: 'var(--faint)' }}>—</small>}</div>
+        <div>{st ? (<><div className="uptime" style={{ fontSize: 12.5 }}>{st.mem_usage.split(' / ')[0]}</div><div className="uptrack"><span style={{ width: `${Math.min(100, st.mem_percent)}%`, background: 'linear-gradient(90deg,var(--good),var(--accent-2))' }} /></div></>) : <small style={{ color: 'var(--faint)' }}>—</small>}</div>
+        <div className="codes">{c.ports ? c.ports.split(', ').map((p, i) => <span key={i} className="code" style={{ fontSize: 11 }}>{p}</span>) : <span className="chip">—</span>}</div>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <button className={`switch sm ${armedOn ? 'on' : ''}`} onClick={() => armContainer(c.name, !armedOn)} aria-label={`arm ${c.name}`}><span className="knob" /></button>
+        </div>
+        <div className="actions">
+          {isRun
+            ? <button className="btn stop" disabled={busy} onClick={() => act(c.name, 'stop')}>{busy ? <span className="spin" /> : 'Stop'}</button>
+            : <button className="btn start" disabled={busy} onClick={() => act(c.name, 'start')}>{busy ? <span className="spin" /> : 'Start'}</button>}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -308,79 +374,79 @@ export default function App() {
                   </div>
                 </div>
               </div>
+              {/* active-threat banner (geo + ban) + banned list */}
+              {((guardian?.threats?.length ?? 0) > 0 || (guardian?.banned_ips?.length ?? 0) > 0) && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                  {(guardian?.threats ?? []).map((t, i) => (
+                    <div key={i} className={`threat-row ${t.severity === 'high' ? '' : 'elevated'}`}>
+                      <span className="sev-dot" style={{ background: t.severity === 'high' ? 'var(--bad)' : 'var(--warn)' }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 600 }}>{t.host}{t.container && <span className="chip" style={{ marginLeft: 8 }}>→ {t.container}</span>}</div>
+                        <div className="chip" style={{ marginTop: 2 }}>
+                          <span className="code" style={{ fontSize: 11 }}>{t.top_ip}</span>
+                          {t.geo && <span style={{ marginLeft: 6 }}>🌐 {t.geo.cc}{t.geo.city ? ` · ${t.geo.city}` : ''}</span>}
+                          {t.private && <span style={{ marginLeft: 6, color: 'var(--faint)' }}>· LAN/local</span>}
+                          {' · '}{t.top_ip_count} req · {t.auth_fails} auth-fails
+                        </div>
+                      </div>
+                      {!t.private && (guardian?.banned_ips ?? []).includes(t.top_ip)
+                        ? <span className="chip" style={{ color: 'var(--bad)' }}>banned</span>
+                        : !t.private && <button className="btn stop" onClick={() => banIp(t.top_ip, true)}>Ban IP</button>}
+                    </div>
+                  ))}
+                  {(guardian?.banned_ips?.length ?? 0) > 0 && (
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span className="chip">BANNED (403 at Caddy):</span>
+                      {(guardian?.banned_ips ?? []).map(ip => (
+                        <span key={ip} className="code" style={{ fontSize: 11 }}>{ip}
+                          <span onClick={() => banIp(ip, false)} style={{ cursor: 'pointer', color: 'var(--muted)', marginLeft: 6 }} title="unban">✕</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="ctable">
                 <div className="row head">
                   <div>Container</div><div>Status</div><div>Uptime</div><div>CPU</div><div>Memory</div><div>Ports</div><div style={{ textAlign: 'center' }}>Defense</div><div style={{ textAlign: 'right' }}>Control</div>
                 </div>
-                {containers.map(c => {
-                  const isRun = c.state === 'running';
-                  const busy = pending[c.name];
-                  const days = c.uptime_seconds / 86400;
-                  const upW = Math.min(100, (days / 14) * 100);
-                  const st = statByName.get(c.name);
-                  const threat = threatByContainer.get(c.name);
-                  const armedOn = armedSet.has(c.name);
+                {stacks.map(([proj, cs]) => {
+                  const open = !collapsed.has(proj);
+                  const run = cs.filter(c => c.state === 'running').length;
+                  const cpu = cs.reduce((s, c) => s + (statByName.get(c.name)?.cpu_percent ?? 0), 0);
                   return (
-                    <div className={`row ${threat ? 'under-attack' : ''}`} key={c.id}>
-                      <div className="cname">
-                        <div className="cicon">{isRun ? '▣' : '▢'}</div>
-                        <div className="t">
-                          <div className="n">{c.name}</div>
-                          <div className="i">{c.image}</div>
-                        </div>
+                    <div key={proj}>
+                      <div className="group-head" onClick={() => toggleGroup(proj)}>
+                        <span className="gh-chev">{open ? '▾' : '▸'}</span>
+                        <span className="gh-name">{proj}</span>
+                        <span className="chip">{cs.length} containers · {run} up</span>
+                        <span className="chip" style={{ marginLeft: 'auto' }}>{cpu.toFixed(1)}% CPU</span>
                       </div>
-                      <div>
-                        <span className={`badge ${isRun ? 'running' : 'stopped'}`}>
-                          <span className="dot" />{isRun ? 'running' : c.state}
-                        </span>
-                        {threat && <div className="chip" style={{ color: 'var(--bad)', marginTop: 4 }}>⚠ {threat.top_ip_count} req · {threat.top_ip}</div>}
-                      </div>
-                      <div>
-                        <div className="uptime">{isRun ? fmtUptime(c.uptime_seconds) : <small>—</small>}</div>
-                        {isRun && <div className="uptrack"><span style={{ width: `${upW}%` }} /></div>}
-                      </div>
-                      <div>
-                        {st ? (
-                          <>
-                            <div className="uptime" style={{ fontSize: 13 }}>{st.cpu_percent.toFixed(1)}%</div>
-                            <div className="uptrack"><span style={{ width: `${Math.min(100, st.cpu_percent)}%`, background: 'linear-gradient(90deg,var(--accent-2),var(--accent))' }} /></div>
-                          </>
-                        ) : <small style={{ color: 'var(--faint)' }}>—</small>}
-                      </div>
-                      <div>
-                        {st ? (
-                          <>
-                            <div className="uptime" style={{ fontSize: 12.5 }}>{st.mem_usage.split(' / ')[0]}</div>
-                            <div className="uptrack"><span style={{ width: `${Math.min(100, st.mem_percent)}%`, background: 'linear-gradient(90deg,var(--good),var(--accent-2))' }} /></div>
-                          </>
-                        ) : <small style={{ color: 'var(--faint)' }}>—</small>}
-                      </div>
-                      <div className="codes">{c.ports ? c.ports.split(', ').map((p, i) => <span key={i} className="code" style={{ fontSize: 11 }}>{p}</span>) : <span className="chip">—</span>}</div>
-                      <div style={{ display: 'flex', justifyContent: 'center' }}>
-                        <button className={`switch sm ${armedOn ? 'on' : ''}`} onClick={() => armContainer(c.name, !armedOn)} aria-label={`arm ${c.name}`}>
-                          <span className="knob" />
-                        </button>
-                      </div>
-                      <div className="actions">
-                        {isRun ? (
-                          <button className="btn stop" disabled={busy} onClick={() => act(c.name, 'stop')}>
-                            {busy ? <span className="spin" /> : 'Stop'}
-                          </button>
-                        ) : (
-                          <button className="btn start" disabled={busy} onClick={() => act(c.name, 'start')}>
-                            {busy ? <span className="spin" /> : 'Start'}
-                          </button>
-                        )}
-                      </div>
+                      {open && cs.map(renderRow)}
                     </div>
                   );
                 })}
+                {standalone.length > 0 && (
+                  <div>
+                    <div className="group-head" onClick={() => toggleGroup('__standalone')}>
+                      <span className="gh-chev">{!collapsed.has('__standalone') ? '▾' : '▸'}</span>
+                      <span className="gh-name">Standalone</span>
+                      <span className="chip">{standalone.length}</span>
+                    </div>
+                    {!collapsed.has('__standalone') && standalone.map(renderRow)}
+                  </div>
+                )}
                 {containers.length === 0 && <div className="loading">Loading containers…</div>}
               </div>
             </div>
+
+            {/* db backups */}
+            <BackupPanel />
           </div>
         </div>
       </div>
+      <ContainerDrawer name={drawerName} onClose={() => setDrawerName(null)} />
     </>
   );
 }

@@ -9,7 +9,31 @@ export interface Container {
   ports: string;
   uptime_seconds: number;
   started_at: number | null;
+  health: 'healthy' | 'unhealthy' | 'starting' | 'none';
+  restart_count: number;
+  crash_looping: boolean;
+  project: string;
 }
+
+export interface Geo { country: string; cc: string; city: string; }
+
+export interface ContainerHistoryResp {
+  name: string;
+  series: { t: number; cpu: number; mem: number }[];
+  count: number;
+}
+
+export interface BackupDb {
+  name: string;
+  image: string;
+  state: string;
+  user: string;
+  db: string;
+  last_backup: { file: string; ts: number; size: number } | null;
+  status: { state: string; ts?: number; size?: number; file?: string; error?: string };
+}
+
+export interface BackupsResp { databases: BackupDb[]; backup_dir: string; }
 
 export interface ContainersResp {
   containers: Container[];
@@ -78,6 +102,7 @@ export interface Threat {
   private: boolean;
   severity: string;
   ts: number;
+  geo: Geo | null;
 }
 
 export interface GuardianAction {
@@ -97,6 +122,7 @@ export interface GuardianResp {
   cooldown_sec: number;
   ignore_private: boolean;
   allowlist: string[];
+  banned_ips: string[];
   threats: Threat[];
   actions: GuardianAction[];
   mapping: Record<string, string>;
@@ -137,11 +163,25 @@ export const api = {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(patch),
     }),
+  guardianBan: (ip: string, banned: boolean) =>
+    j<{ banned_ips: string[] }>('/api/guardian/ban', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ip, banned }),
+    }),
   action: (name: string, action: 'start' | 'stop' | 'restart') =>
     j<{ name: string; action: string; state: string; ok: boolean }>(
       `/api/containers/${encodeURIComponent(name)}/${action}`,
       { method: 'POST' },
     ),
+  logs: (name: string, tail = 300) =>
+    j<{ name: string; tail: number; logs: string }>(
+      `/api/containers/${encodeURIComponent(name)}/logs?tail=${tail}`),
+  containerHistory: (name: string, minutes = 360) =>
+    j<ContainerHistoryResp>(
+      `/api/containers/${encodeURIComponent(name)}/history?minutes=${minutes}`),
+  backups: () => j<BackupsResp>('/api/backups'),
+  backupNow: (name: string) =>
+    j<{ started: string }>(`/api/backups/${encodeURIComponent(name)}`, { method: 'POST' }),
 };
 
 // ---- formatters ----
