@@ -96,6 +96,7 @@ export interface GuardianResp {
   auth_fail_threshold: number;
   cooldown_sec: number;
   ignore_private: boolean;
+  allowlist: string[];
   threats: Threat[];
   actions: GuardianAction[];
   mapping: Record<string, string>;
@@ -130,6 +131,11 @@ export const api = {
     j<{ armed: string[] }>('/api/guardian/arm', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ container, armed }),
+    }),
+  guardianConfig: (patch: Partial<Pick<GuardianResp, 'ignore_private' | 'allowlist' | 'ip_req_threshold' | 'auth_fail_threshold'>>) =>
+    j<Record<string, unknown>>('/api/guardian/config', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
     }),
   action: (name: string, action: 'start' | 'stop' | 'restart') =>
     j<{ name: string; action: string; state: string; ok: boolean }>(

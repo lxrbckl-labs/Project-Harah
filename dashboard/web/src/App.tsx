@@ -91,6 +91,10 @@ export default function App() {
     catch (e) { setErr(String(e)); }
     loadGuardian();
   }
+  async function setTrustLocal(v: boolean) {
+    try { await api.guardianConfig({ ignore_private: v }); } catch (e) { setErr(String(e)); }
+    loadGuardian();
+  }
 
   async function act(name: string, action: 'start' | 'stop') {
     setPending(p => ({ ...p, [name]: true }));
@@ -288,6 +292,11 @@ export default function App() {
                   {(guardian?.threats?.length ?? 0) > 0 &&
                     <span className="chip" style={{ color: 'var(--bad)', fontWeight: 700 }}>⚠ {guardian?.threats.length} under attack</span>}
                   <span className="chip">{running.length} running · {stopped.length} stopped</span>
+                  <span className="chip" style={{ cursor: 'pointer', color: (guardian?.ignore_private ?? true) ? 'var(--good)' : 'var(--muted)' }}
+                    title="When on, LAN/local IPs are never treated as attackers"
+                    onClick={() => setTrustLocal(!(guardian?.ignore_private ?? true))}>
+                    {(guardian?.ignore_private ?? true) ? '✓ LAN trusted' : 'LAN watched'}
+                  </span>
                   <span className="chip" style={{ cursor: 'pointer' }} onClick={() => armAll(allNames, !allArmed)}>
                     {allArmed ? 'disarm all' : 'arm all'}
                   </span>

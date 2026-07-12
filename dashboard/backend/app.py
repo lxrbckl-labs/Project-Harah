@@ -406,7 +406,8 @@ _guardian = {
     "ip_req_threshold": 40,     # requests from one IP in window → attack
     "auth_fail_threshold": 20,  # 401/403/429 to a host in window → attack
     "cooldown_sec": 300,
-    "ignore_private": True,     # don't auto-stop for private/LAN/loopback source IPs
+    "ignore_private": True,     # fully exempt private/LAN/loopback source IPs from detection
+    "allowlist": [],            # extra exact IPs / prefixes to always permit
 }
 _threats: list = []
 _actions: list = []
@@ -434,6 +435,13 @@ def _save_guardian_cfg() -> None:
 def _is_private_ip(ip: str) -> bool:
     return (not ip or ip == "?" or ip.startswith(("10.", "192.168.", "127.", "172.",
             "::1", "fd", "fe80")))
+
+
+def _exempt(ip: str, cfg: dict) -> bool:
+    """Permitted sources that never count toward attack detection."""
+    if cfg.get("ignore_private") and _is_private_ip(ip):
+        return True
+    return any(ip == a or ip.startswith(a) for a in cfg.get("allowlist", []))
 
 
 def _host_container_map() -> dict:
@@ -490,6 +498,8 @@ def _detect_once() -> None:
         req = e.get("request", {})
         host = req.get("host", "?")
         ip = req.get("client_ip") or req.get("remote_ip") or "?"
+        if _exempt(ip, cfg):        # permitted source (LAN/local or allowlisted) — ignore
+            continue
         status = int(e.get("status", 0) or 0)
         h = per_host.setdefault(host, {"ips": {}, "fails": 0, "total": 0})
         h["total"] += 1
@@ -513,7 +523,6 @@ def _detect_once() -> None:
             "private": priv, "severity": sev, "ts": time.time(),
         })
         if (cfg["enabled"] and container and container in cfg["armed"]
-                and (not cfg["ignore_private"] or not priv)
                 and _cooldowns.get(container, 0) < time.time()):
             try:
                 docker("stop", container, timeout=40)
@@ -571,6 +580,24 @@ def guardian_arm(body: GuardianArm):
         _guardian["armed"] = sorted(armed)
         _save_guardian_cfg()
         return {"armed": _guardian["armed"]}
+
+
+class GuardianConfig(BaseModel):
+    ignore_private: bool | None = None
+    allowlist: list[str] | None = None
+    ip_req_threshold: int | None = None
+    auth_fail_threshold: int | None = None
+
+
+@app.post("/api/guardian/config")
+def guardian_config(body: GuardianConfig):
+    with _guardian_lock:
+        for k, v in body.model_dump(exclude_none=True).items():
+            if k in _guardian:
+                _guardian[k] = v
+        _save_guardian_cfg()
+        return {k: _guardian[k] for k in ("ignore_private", "allowlist",
+                                          "ip_req_threshold", "auth_fail_threshold")}
 
 
 _load_guardian_cfg()
