@@ -4,7 +4,6 @@ import Gauge from './components/Gauge';
 import TrafficChart from './components/TrafficChart';
 import ResourceChart from './components/ResourceChart';
 import HardwareView from './components/HardwareView';
-import GuardianPanel from './components/GuardianPanel';
 import {
   api, fmtBytes, fmtUptime,
   type Container, type StatsResp, type TrafficResp, type ResHistoryResp, type GuardianResp,
@@ -87,6 +86,11 @@ export default function App() {
     try { await api.guardianArm(container, armed); } catch (e) { setErr(String(e)); }
     loadGuardian();
   }
+  async function armAll(names: string[], armed: boolean) {
+    try { await Promise.all(names.map(n => api.guardianArm(n, armed))); }
+    catch (e) { setErr(String(e)); }
+    loadGuardian();
+  }
 
   async function act(name: string, action: 'start' | 'stop') {
     setPending(p => ({ ...p, [name]: true }));
@@ -109,6 +113,13 @@ export default function App() {
   const maxHost = Math.max(1, ...Object.values(traffic?.by_host ?? {}));
   // per-container live resource usage, keyed by name (running containers only)
   const statByName = new Map((stats?.containers ?? []).map(c => [c.name, c]));
+  // auto-defense state, merged into the container table
+  const gEnabled = guardian?.enabled ?? false;
+  const armedSet = new Set(guardian?.armed ?? []);
+  const threatByContainer = new Map(
+    (guardian?.threats ?? []).filter(t => t.container).map(t => [t.container as string, t]));
+  const allNames = containers.map(c => c.name);
+  const allArmed = allNames.length > 0 && allNames.every(n => armedSet.has(n));
 
   return (
     <>
@@ -266,18 +277,31 @@ export default function App() {
               </div>
             </div>
 
-            {/* auto-defense */}
-            <GuardianPanel g={guardian} onToggle={toggleGuardian} onArm={armContainer} />
-
-            {/* container management */}
+            {/* container management + auto-defense */}
             <div className="panel col-12">
               <div className="panel-head">
-                <div><h3>Container Management</h3><div className="sub">Uptime &amp; lifecycle · start / stop only — never removed</div></div>
-                <div className="chip">{running.length} running · {stopped.length} stopped</div>
+                <div>
+                  <h3>Container Management</h3>
+                  <div className="sub">Uptime, resources &amp; auto‑defense · start / stop only — never removed</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  {(guardian?.threats?.length ?? 0) > 0 &&
+                    <span className="chip" style={{ color: 'var(--bad)', fontWeight: 700 }}>⚠ {guardian?.threats.length} under attack</span>}
+                  <span className="chip">{running.length} running · {stopped.length} stopped</span>
+                  <span className="chip" style={{ cursor: 'pointer' }} onClick={() => armAll(allNames, !allArmed)}>
+                    {allArmed ? 'disarm all' : 'arm all'}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className="chip">AUTO‑DEFENSE</span>
+                    <button className={`switch ${gEnabled ? 'on' : ''}`} onClick={() => toggleGuardian(!gEnabled)} aria-label="toggle auto-defense">
+                      <span className="knob" />
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="ctable">
                 <div className="row head">
-                  <div>Container</div><div>Status</div><div>Uptime</div><div>CPU</div><div>Memory</div><div>Ports</div><div style={{ textAlign: 'right' }}>Control</div>
+                  <div>Container</div><div>Status</div><div>Uptime</div><div>CPU</div><div>Memory</div><div>Ports</div><div style={{ textAlign: 'center' }}>Defense</div><div style={{ textAlign: 'right' }}>Control</div>
                 </div>
                 {containers.map(c => {
                   const isRun = c.state === 'running';
@@ -285,8 +309,10 @@ export default function App() {
                   const days = c.uptime_seconds / 86400;
                   const upW = Math.min(100, (days / 14) * 100);
                   const st = statByName.get(c.name);
+                  const threat = threatByContainer.get(c.name);
+                  const armedOn = armedSet.has(c.name);
                   return (
-                    <div className="row" key={c.id}>
+                    <div className={`row ${threat ? 'under-attack' : ''}`} key={c.id}>
                       <div className="cname">
                         <div className="cicon">{isRun ? '▣' : '▢'}</div>
                         <div className="t">
@@ -298,6 +324,7 @@ export default function App() {
                         <span className={`badge ${isRun ? 'running' : 'stopped'}`}>
                           <span className="dot" />{isRun ? 'running' : c.state}
                         </span>
+                        {threat && <div className="chip" style={{ color: 'var(--bad)', marginTop: 4 }}>⚠ {threat.top_ip_count} req · {threat.top_ip}</div>}
                       </div>
                       <div>
                         <div className="uptime">{isRun ? fmtUptime(c.uptime_seconds) : <small>—</small>}</div>
@@ -320,6 +347,11 @@ export default function App() {
                         ) : <small style={{ color: 'var(--faint)' }}>—</small>}
                       </div>
                       <div className="codes">{c.ports ? c.ports.split(', ').map((p, i) => <span key={i} className="code" style={{ fontSize: 11 }}>{p}</span>) : <span className="chip">—</span>}</div>
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <button className={`switch sm ${armedOn ? 'on' : ''}`} onClick={() => armContainer(c.name, !armedOn)} aria-label={`arm ${c.name}`}>
+                          <span className="knob" />
+                        </button>
+                      </div>
                       <div className="actions">
                         {isRun ? (
                           <button className="btn stop" disabled={busy} onClick={() => act(c.name, 'stop')}>

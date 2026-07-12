@@ -304,3 +304,12 @@ body {
 }
 .guard-status.on { color: var(--good); background: rgba(55,224,166,0.1); }
 .guard-status.off { color: var(--muted); background: rgba(255,255,255,0.05); }
+
+/* ---------- container table: 8 cols (add Defense) + threat highlight ---------- */
+.ctable .row {
+  grid-template-columns: 1.5fr 0.9fr 0.7fr 0.62fr 0.8fr 1.05fr 0.5fr 112px;
+}
+.ctable .row.under-attack {
+  background: rgba(255,92,122,0.07);
+  box-shadow: inset 3px 0 0 var(--bad);
+}
