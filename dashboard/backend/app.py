@@ -156,6 +156,17 @@ def _health_from_status(status: str) -> str:
     return "none"
 
 
+_BYTE_UNITS = {"B": 1, "KB": 1e3, "KIB": 1024, "MB": 1e6, "MIB": 1024 ** 2,
+               "GB": 1e9, "GIB": 1024 ** 3, "TB": 1e12, "TIB": 1024 ** 4}
+
+
+def _parse_bytes(s: str) -> float:
+    m = re.match(r"\s*([\d.]+)\s*([KMGT]?i?B)", s or "", re.I)
+    if not m:
+        return 0.0
+    return float(m.group(1)) * _BYTE_UNITS.get(m.group(2).upper(), 1)
+
+
 # ---------------------------------------------------------------- containers
 
 def list_container_names() -> set[str]:
@@ -302,8 +313,10 @@ def stats():
         "disk": {"used": du.used, "total": du.total, "percent": du.percent},
     }
 
-    # per-container usage
+    # per-container usage + aggregate Docker VM memory
     per = []
+    docker_used = 0.0
+    docker_total = 0.0   # the Docker Desktop VM's memory limit (shared across containers)
     try:
         raw = docker(
             "stats", "--no-stream", "--format",
@@ -312,6 +325,9 @@ def stats():
         for line in raw.splitlines():
             parts = line.split("|")
             if len(parts) == 4:
+                used_str, _, limit_str = parts[2].partition("/")
+                docker_used += _parse_bytes(used_str)
+                docker_total = max(docker_total, _parse_bytes(limit_str))
                 per.append({
                     "name": parts[0],
                     "cpu_percent": _pct(parts[1]),
@@ -322,7 +338,40 @@ def stats():
         pass
     per.sort(key=lambda c: c["cpu_percent"], reverse=True)
 
-    return {"host": host, "containers": per, "container_count": len(per)}
+    docker_mem = {
+        "used": int(docker_used),
+        "total": int(docker_total),
+        "percent": round(docker_used / docker_total * 100, 1) if docker_total else 0.0,
+    }
+    return {"host": host, "containers": per, "container_count": len(per), "docker_mem": docker_mem}
+
+
+@app.get("/api/storage")
+def storage():
+    """Mounted volumes — the boot disk plus external drives under /Volumes/."""
+    mounts, seen = [], set()
+    for p in psutil.disk_partitions(all=True):
+        mp = p.mountpoint
+        if mp in seen or not p.device.startswith("/dev/"):
+            continue
+        if not (mp == "/" or mp.startswith("/Volumes/")):
+            continue
+        try:
+            u = psutil.disk_usage(mp)
+        except OSError:
+            continue
+        if u.total == 0:
+            continue
+        seen.add(mp)
+        mounts.append({
+            "mount": mp,
+            "name": "Macintosh HD" if mp == "/" else mp.split("/")[-1],
+            "device": p.device, "fstype": p.fstype,
+            "total": u.total, "used": u.used, "free": u.free, "percent": u.percent,
+            "external": mp.startswith("/Volumes/"),
+        })
+    mounts.sort(key=lambda m: (not m["external"], -m["total"]))
+    return {"volumes": mounts}
 
 
 # ---------------------------------------------------------------- resource history

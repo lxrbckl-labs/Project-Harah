@@ -6,6 +6,7 @@ import ResourceChart from './components/ResourceChart';
 import HardwareView from './components/HardwareView';
 import ContainerDrawer from './components/ContainerDrawer';
 import BackupPanel from './components/BackupPanel';
+import StoragePanel from './components/StoragePanel';
 import {
   api, fmtBytes, fmtUptime,
   type Container, type StatsResp, type TrafficResp, type ResHistoryResp, type GuardianResp,
@@ -225,7 +226,7 @@ export default function App() {
               <div className="host">{SERVER_NAME}</div>
               <div className="hero-stat">
                 <span className="big">{host ? fmtBytes(host.mem.used) : '—'}</span>
-                <span className="unit">/ {host ? fmtBytes(host.mem.total) : '—'} RAM</span>
+                <span className="unit">/ {host ? fmtBytes(host.mem.total) : '—'} system RAM</span>
               </div>
               <div className="gradient-bar">
                 <div className="mask" style={{ width: `${100 - memPct}%` }} />
@@ -234,10 +235,11 @@ export default function App() {
                 <span>Memory {memPct.toFixed(0)}% used</span>
                 <span>{host ? fmtBytes(host.mem.total - host.mem.used) : '—'} free</span>
               </div>
-              <div style={{ display: 'flex', gap: 22, marginTop: 20 }}>
+              <div style={{ display: 'flex', gap: 22, marginTop: 20, flexWrap: 'wrap' }}>
                 <div><div className="chip">LOAD AVG</div><div className="codes" style={{ marginTop: 4 }}>{host ? host.load_avg.map((v, i) => <span key={i} className="code">{v.toFixed(2)}</span>) : '—'}</div></div>
                 <div><div className="chip">CPU CORES</div><div style={{ fontWeight: 700, fontSize: 18 }}>{host?.cpu_count ?? '—'}</div></div>
                 <div><div className="chip">CONTAINERS</div><div style={{ fontWeight: 700, fontSize: 18 }}>{running.length}<small style={{ color: 'var(--faint)' }}> / {containers.length}</small></div></div>
+                <div><div className="chip">DOCKER RAM</div><div style={{ fontWeight: 700, fontSize: 18 }}>{stats ? fmtBytes(stats.docker_mem.used) : '—'}<small style={{ color: 'var(--faint)' }}> / {stats ? fmtBytes(stats.docker_mem.total) : '—'}</small></div></div>
               </div>
             </div>
 
@@ -441,8 +443,9 @@ export default function App() {
               </div>
             </div>
 
-            {/* db backups */}
+            {/* db backups + storage */}
             <BackupPanel />
+            <StoragePanel />
           </div>
         </div>
       </div>

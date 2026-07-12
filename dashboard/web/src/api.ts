@@ -59,7 +59,22 @@ export interface StatsResp {
   host: HostStats;
   containers: ContainerStat[];
   container_count: number;
+  docker_mem: { used: number; total: number; percent: number };
 }
+
+export interface StorageVol {
+  mount: string;
+  name: string;
+  device: string;
+  fstype: string;
+  total: number;
+  used: number;
+  free: number;
+  percent: number;
+  external: boolean;
+}
+
+export interface StorageResp { volumes: StorageVol[]; }
 
 export interface TrafficResp {
   available: boolean;
@@ -143,6 +158,7 @@ async function j<T>(url: string, init?: RequestInit): Promise<T> {
 export const api = {
   containers: () => j<ContainersResp>('/api/containers'),
   stats: () => j<StatsResp>('/api/stats'),
+  storage: () => j<StorageResp>('/api/storage'),
   traffic: (minutes = 15, bucket = 0) =>
     j<TrafficResp>(`/api/traffic?minutes=${minutes}&bucket=${bucket}`),
   resourceHistory: (minutes = 1440) =>
