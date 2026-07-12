@@ -18,8 +18,8 @@ export default function HardwareView({ host }: { host?: HostStats }) {
       <div className="panel-head"><div><h3>Hardware</h3><div className="sub">Apple M4 Pro Mac mini (2024)</div></div></div>
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 18 }}>
-        <img src="/mac-mini.jpg" alt="Apple Mac mini (2024)" loading="lazy"
-          style={{ width: 92, height: 92, objectFit: 'cover', borderRadius: 16, border: '1px solid var(--border-strong)', flex: 'none', boxShadow: '0 10px 26px -14px #000' }} />
+        <img src="/mac-mini.png" alt="Apple Mac mini (2024)" loading="lazy"
+          style={{ width: 116, height: 78, objectFit: 'contain', flex: 'none', filter: 'drop-shadow(0 12px 16px rgba(0,0,0,0.55))' }} />
         <div>
           <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>Mac mini</div>
           <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 2 }}>M4 Pro · 48 GB</div>
