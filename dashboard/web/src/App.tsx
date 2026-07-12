@@ -92,6 +92,8 @@ export default function App() {
   const host = stats?.host;
   const memPct = host?.mem.percent ?? 0;
   const maxHost = Math.max(1, ...Object.values(traffic?.by_host ?? {}));
+  // per-container live resource usage, keyed by name (running containers only)
+  const statByName = new Map((stats?.containers ?? []).map(c => [c.name, c]));
 
   return (
     <>
@@ -115,7 +117,6 @@ export default function App() {
               <div className="hchip"><span className="lbl">CPU</span><span className="v">{host ? `${host.cpu_percent.toFixed(0)}%` : '—'}</span></div>
               <div className="hchip"><span className="lbl">MEM</span><span className="v">{memPct.toFixed(0)}%</span></div>
               <div className="hchip"><span className="live-dot" />{running.length} up</div>
-              <div className="avatar">S</div>
             </div>
           </header>
 
@@ -258,13 +259,14 @@ export default function App() {
               </div>
               <div className="ctable">
                 <div className="row head">
-                  <div>Container</div><div>Status</div><div>Uptime</div><div>Ports</div><div style={{ textAlign: 'right' }}>Control</div>
+                  <div>Container</div><div>Status</div><div>Uptime</div><div>CPU</div><div>Memory</div><div>Ports</div><div style={{ textAlign: 'right' }}>Control</div>
                 </div>
                 {containers.map(c => {
                   const isRun = c.state === 'running';
                   const busy = pending[c.name];
                   const days = c.uptime_seconds / 86400;
                   const upW = Math.min(100, (days / 14) * 100);
+                  const st = statByName.get(c.name);
                   return (
                     <div className="row" key={c.id}>
                       <div className="cname">
@@ -282,6 +284,22 @@ export default function App() {
                       <div>
                         <div className="uptime">{isRun ? fmtUptime(c.uptime_seconds) : <small>—</small>}</div>
                         {isRun && <div className="uptrack"><span style={{ width: `${upW}%` }} /></div>}
+                      </div>
+                      <div>
+                        {st ? (
+                          <>
+                            <div className="uptime" style={{ fontSize: 13 }}>{st.cpu_percent.toFixed(1)}%</div>
+                            <div className="uptrack"><span style={{ width: `${Math.min(100, st.cpu_percent)}%`, background: 'linear-gradient(90deg,var(--accent-2),var(--accent))' }} /></div>
+                          </>
+                        ) : <small style={{ color: 'var(--faint)' }}>—</small>}
+                      </div>
+                      <div>
+                        {st ? (
+                          <>
+                            <div className="uptime" style={{ fontSize: 12.5 }}>{st.mem_usage.split(' / ')[0]}</div>
+                            <div className="uptrack"><span style={{ width: `${Math.min(100, st.mem_percent)}%`, background: 'linear-gradient(90deg,var(--good),var(--accent-2))' }} /></div>
+                          </>
+                        ) : <small style={{ color: 'var(--faint)' }}>—</small>}
                       </div>
                       <div className="codes">{c.ports ? c.ports.split(', ').map((p, i) => <span key={i} className="code" style={{ fontSize: 11 }}>{p}</span>) : <span className="chip">—</span>}</div>
                       <div className="actions">
