@@ -1,0 +1,278 @@
+import { useEffect, useState, useCallback } from 'react';
+import Aurora from './components/Aurora';
+import Gauge from './components/Gauge';
+import TrafficChart from './components/TrafficChart';
+import {
+  api, fmtBytes, fmtUptime,
+  type Container, type StatsResp, type TrafficResp,
+} from './api';
+
+const SERVER_NAME = 'Homelab Server';
+const SERVER_HOST = '192.168.68.200';
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+const NAV = ['◱', '▤', '◈', '⛁', '⋔', '◐', '⚙'];
+
+export default function App() {
+  const [containers, setContainers] = useState<Container[]>([]);
+  const [stats, setStats] = useState<StatsResp | null>(null);
+  const [traffic, setTraffic] = useState<TrafficResp | null>(null);
+  const [pending, setPending] = useState<Record<string, boolean>>({});
+  const [err, setErr] = useState<string>('');
+  const [window_, setWindow] = useState(15);
+
+  const loadContainers = useCallback(async () => {
+    try { setContainers((await api.containers()).containers); }
+    catch (e) { setErr(String(e)); }
+  }, []);
+  const loadStats = useCallback(async () => {
+    try { setStats(await api.stats()); } catch { /* transient */ }
+  }, []);
+  const loadTraffic = useCallback(async (m: number) => {
+    try { setTraffic(await api.traffic(m)); } catch { /* transient */ }
+  }, []);
+
+  useEffect(() => { loadContainers(); loadStats(); }, [loadContainers, loadStats]);
+  useEffect(() => { loadTraffic(window_); }, [window_, loadTraffic]);
+
+  useEffect(() => {
+    const a = setInterval(loadStats, 4000);
+    const b = setInterval(loadContainers, 6000);
+    const c = setInterval(() => loadTraffic(window_), 15000);
+    return () => { clearInterval(a); clearInterval(b); clearInterval(c); };
+  }, [loadStats, loadContainers, loadTraffic, window_]);
+
+  async function act(name: string, action: 'start' | 'stop') {
+    setPending(p => ({ ...p, [name]: true }));
+    setErr('');
+    try {
+      await api.action(name, action);
+      await loadContainers();
+      loadStats();
+    } catch (e) {
+      setErr(`${action} ${name}: ${e}`);
+    } finally {
+      setPending(p => ({ ...p, [name]: false }));
+    }
+  }
+
+  const running = containers.filter(c => c.state === 'running');
+  const stopped = containers.filter(c => c.state !== 'running');
+  const host = stats?.host;
+  const memPct = host?.mem.percent ?? 0;
+  const maxHost = Math.max(1, ...Object.values(traffic?.by_host ?? {}));
+
+  return (
+    <>
+      <div className="bg-layer" />
+      <div className="aurora-wrap">
+        <Aurora colorStops={['#5227FF', '#22d3ee', '#8b5cff']} amplitude={1.1} blend={0.55} speed={0.6} />
+      </div>
+
+      <div className="app">
+        {/* sidebar */}
+        <div className="sidebar">
+          <div className="logo">S</div>
+          {NAV.map((ic, i) => (
+            <div key={i} className={`nav-icon ${i === 0 ? 'active' : ''}`}>{ic}</div>
+          ))}
+          <div className="nav-spacer" />
+          <div className="nav-icon">⏻</div>
+        </div>
+
+        {/* main */}
+        <div className="main">
+          <div className="topbar">
+            <h1>Dashboard</h1>
+            <div className="search"><span>⌕</span><span>Search containers, hosts, traffic…</span></div>
+            <div className="topbar-right">
+              <div className="pill-btn">◔</div>
+              <div className="pill-btn">⚑</div>
+              <div className="user">
+                <div style={{ textAlign: 'right' }}>
+                  <div className="name">ServerManager</div>
+                  <div className="sub">{SERVER_HOST}</div>
+                </div>
+                <div className="avatar">S</div>
+              </div>
+            </div>
+          </div>
+
+          {err && <div className="panel col-12 err" style={{ marginBottom: 14 }}>⚠ {err}</div>}
+
+          <div className="grid">
+            {/* hero */}
+            <div className="panel hero col-5">
+              <div className="greet">{greeting()},</div>
+              <div className="host">{SERVER_NAME}</div>
+              <div className="hero-stat">
+                <span className="big">{host ? fmtBytes(host.mem.used) : '—'}</span>
+                <span className="unit">/ {host ? fmtBytes(host.mem.total) : '—'} RAM</span>
+              </div>
+              <div className="gradient-bar">
+                <div className="mask" style={{ width: `${100 - memPct}%` }} />
+              </div>
+              <div className="bar-legend">
+                <span>Memory {memPct.toFixed(0)}% used</span>
+                <span>{host ? fmtBytes(host.mem.total - host.mem.used) : '—'} free</span>
+              </div>
+              <div style={{ display: 'flex', gap: 22, marginTop: 20 }}>
+                <div><div className="chip">LOAD AVG</div><div style={{ fontWeight: 700, fontSize: 18 }}>{host?.load_avg.join('  ') ?? '—'}</div></div>
+                <div><div className="chip">CPU CORES</div><div style={{ fontWeight: 700, fontSize: 18 }}>{host?.cpu_count ?? '—'}</div></div>
+                <div><div className="chip">CONTAINERS</div><div style={{ fontWeight: 700, fontSize: 18 }}>{running.length}<small style={{ color: 'var(--faint)' }}> / {containers.length}</small></div></div>
+              </div>
+            </div>
+
+            {/* resources */}
+            <div className="panel col-4">
+              <div className="panel-head"><div><h3>Resources</h3><div className="sub">Live host utilization</div></div></div>
+              <div className="ring-wrap">
+                <Gauge value={host?.cpu_percent ?? 0} label="CPU" />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <div className="chip">MEMORY</div>
+                    <div style={{ fontWeight: 750, fontSize: 20 }}>{memPct.toFixed(0)}%</div>
+                    <div className="mini-bar"><span style={{ width: `${memPct}%`, background: 'linear-gradient(90deg,var(--accent),var(--violet))' }} /></div>
+                  </div>
+                  <div>
+                    <div className="chip">DISK</div>
+                    <div style={{ fontWeight: 750, fontSize: 20 }}>{host?.disk.percent.toFixed(0) ?? '—'}%</div>
+                    <div className="mini-bar"><span style={{ width: `${host?.disk.percent ?? 0}%`, background: 'linear-gradient(90deg,var(--good),var(--accent-2))' }} /></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* top consumers */}
+            <div className="panel col-3">
+              <div className="panel-head"><div><h3>Top Load</h3><div className="sub">By CPU</div></div></div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {(stats?.containers ?? []).slice(0, 5).map(c => (
+                  <div key={c.name}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}>
+                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{c.name}</span>
+                      <span style={{ color: 'var(--muted)' }}>{c.cpu_percent.toFixed(1)}%</span>
+                    </div>
+                    <div className="mini-bar" style={{ marginTop: 6 }}><span style={{ width: `${Math.min(100, c.cpu_percent)}%`, background: 'linear-gradient(90deg,var(--accent-2),var(--accent))' }} /></div>
+                  </div>
+                ))}
+                {!stats && <div className="loading">loading…</div>}
+              </div>
+            </div>
+
+            {/* traffic */}
+            <div className="panel col-8">
+              <div className="panel-head">
+                <div><h3>Caddy Traffic</h3><div className="sub">Requests through the reverse proxy</div></div>
+                <div className="seg">
+                  {[15, 60, 180].map(m => (
+                    <button key={m} className={window_ === m ? 'on' : ''} onClick={() => setWindow(m)}>{m < 60 ? `${m}m` : `${m / 60}h`}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="traffic-stats">
+                <div className="s"><div className="n">{traffic?.requests ?? 0}</div><div className="l">requests</div></div>
+                <div className="s"><div className="n">{traffic?.requests_per_min?.toFixed(1) ?? '0'}</div><div className="l">req / min</div></div>
+                <div className="s"><div className="n">{fmtBytes(traffic?.bytes_out ?? 0)}</div><div className="l">served</div></div>
+                <div className="s"><div className="n" style={{ color: (traffic?.rate_limited_429 ?? 0) > 0 ? 'var(--bad)' : undefined }}>{traffic?.rate_limited_429 ?? 0}</div><div className="l">rate-limited (429)</div></div>
+              </div>
+              <TrafficChart data={(traffic?.series ?? []).map(s => s.count)} />
+              <div className="host-list">
+                {Object.entries(traffic?.by_host ?? {}).slice(0, 5).map(([h, n]) => (
+                  <div className="host-row" key={h}>
+                    <span className="h">{h}</span>
+                    <span className="track"><span style={{ width: `${(n / maxHost) * 100}%` }} /></span>
+                    <span className="c">{n}</span>
+                  </div>
+                ))}
+                {traffic && !traffic.available && <div className="chip">Caddy access log not available.</div>}
+              </div>
+            </div>
+
+            {/* status + ips */}
+            <div className="panel col-4">
+              <div className="panel-head"><div><h3>Request Mix</h3><div className="sub">Last {window_}m</div></div></div>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
+                {Object.entries(traffic?.status_class ?? {}).map(([k, v]) => {
+                  const col = k.startsWith('2') ? 'var(--good)' : k.startsWith('3') ? 'var(--accent-2)' : k.startsWith('4') ? 'var(--warn)' : 'var(--bad)';
+                  return <div key={k} className="tile" style={{ padding: '10px 14px', flex: '1 0 60px' }}>
+                    <div style={{ fontSize: 20, fontWeight: 750, color: col }}>{v}</div>
+                    <div className="chip">{k}</div>
+                  </div>;
+                })}
+              </div>
+              <div className="chip" style={{ marginBottom: 8 }}>TOP CLIENT IPS</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {(traffic?.top_ips ?? []).map(t => (
+                  <div key={t.ip} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>{t.ip}</span>
+                    <span style={{ color: 'var(--muted)' }}>{t.count}</span>
+                  </div>
+                ))}
+                {(traffic?.top_ips?.length ?? 0) === 0 && <div className="chip">—</div>}
+              </div>
+            </div>
+
+            {/* container management */}
+            <div className="panel col-12">
+              <div className="panel-head">
+                <div><h3>Container Management</h3><div className="sub">Uptime &amp; lifecycle · start / stop only — never removed</div></div>
+                <div className="chip">{running.length} running · {stopped.length} stopped</div>
+              </div>
+              <div className="ctable">
+                <div className="row head">
+                  <div>Container</div><div>Status</div><div>Uptime</div><div>Ports</div><div style={{ textAlign: 'right' }}>Control</div>
+                </div>
+                {containers.map(c => {
+                  const isRun = c.state === 'running';
+                  const busy = pending[c.name];
+                  const days = c.uptime_seconds / 86400;
+                  const upW = Math.min(100, (days / 14) * 100);
+                  return (
+                    <div className="row" key={c.id}>
+                      <div className="cname">
+                        <div className="cicon">{isRun ? '▣' : '▢'}</div>
+                        <div className="t">
+                          <div className="n">{c.name}</div>
+                          <div className="i">{c.image}</div>
+                        </div>
+                      </div>
+                      <div>
+                        <span className={`badge ${isRun ? 'running' : 'stopped'}`}>
+                          <span className="dot" />{isRun ? 'running' : c.state}
+                        </span>
+                      </div>
+                      <div>
+                        <div className="uptime">{isRun ? fmtUptime(c.uptime_seconds) : <small>—</small>}</div>
+                        {isRun && <div className="uptrack"><span style={{ width: `${upW}%` }} /></div>}
+                      </div>
+                      <div className="chip" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.ports || '—'}</div>
+                      <div className="actions">
+                        {isRun ? (
+                          <button className="btn stop" disabled={busy} onClick={() => act(c.name, 'stop')}>
+                            {busy ? <span className="spin" /> : 'Stop'}
+                          </button>
+                        ) : (
+                          <button className="btn start" disabled={busy} onClick={() => act(c.name, 'start')}>
+                            {busy ? <span className="spin" /> : 'Start'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {containers.length === 0 && <div className="loading">Loading containers…</div>}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}

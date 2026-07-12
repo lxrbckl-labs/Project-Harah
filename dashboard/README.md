@@ -1,0 +1,46 @@
+# ServerManager Dashboard
+
+A dark, glassmorphic web dashboard for monitoring a Docker + Caddy server —
+host resource usage, Caddy traffic, and container lifecycle control.
+
+- **Frontend:** React + TypeScript (Vite), with a [ReactBits](https://reactbits.dev)
+  **Aurora** WebGL background.
+- **Backend:** FastAPI. Reads Docker + the Caddy access log; exposes host stats,
+  traffic, and a **start / stop / restart only** container-control API.
+
+## Safety model
+
+- **No delete, ever.** The backend's `ALLOWED_ACTIONS` is `{start, stop, restart}`.
+  There is no code path that removes a container; `remove`/`rm`/`kill`/`delete`
+  return HTTP 400.
+- **Localhost-only.** The API controls Docker — run it bound to `127.0.0.1` and do
+  **not** expose it through Caddy. Add authenticated remote access as a deliberate
+  step later if needed.
+
+## Run it
+
+Backend (terminal 1):
+```sh
+cd backend
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # first time
+.venv/bin/uvicorn app:app --host 127.0.0.1 --port 8770
+```
+
+Frontend (terminal 2):
+```sh
+cd web
+npm install          # first time
+npm run dev          # http://localhost:5173  (proxies /api to :8770)
+```
+
+Open http://localhost:5173.
+
+## API
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET  | `/api/containers` | all containers: state, uptime, ports |
+| POST | `/api/containers/{name}/{start\|stop\|restart}` | lifecycle (never delete) |
+| GET  | `/api/stats` | host CPU/mem/disk + per-container usage |
+| GET  | `/api/traffic?minutes=N` | Caddy traffic aggregate + per-minute series |
+| GET  | `/api/health` | liveness |

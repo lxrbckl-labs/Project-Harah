@@ -13,3 +13,8 @@ venv/
 
 # macOS
 .DS_Store
+
+# Dashboard build/deps
+node_modules/
+dist/
+dashboard/backend/.venv/
