@@ -355,3 +355,13 @@ body {
 }
 .group-head:hover .gh-chev { color: var(--text); background: rgba(255,255,255,0.09); }
 .gh-chev svg { transition: transform .18s ease; }
+
+/* pin (star) button + room for it in the control column */
+.pin-btn {
+  background: transparent; border: none; color: var(--faint); cursor: pointer;
+  font-size: 17px; padding: 3px 6px; border-radius: 8px; line-height: 1;
+  transition: color .15s, background .15s;
+}
+.pin-btn:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+.pin-btn.on { color: var(--warn); }
+.ctable .row { grid-template-columns: 1.5fr 0.9fr 0.7fr 0.62fr 0.8fr 1fr 0.5fr 150px; }

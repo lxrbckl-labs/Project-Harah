@@ -44,7 +44,7 @@ export interface HostStats {
   cpu_percent: number;
   cpu_count: number;
   load_avg: number[];
-  mem: { used: number; total: number; percent: number };
+  mem: { used: number; total: number; free: number; percent: number };
   disk: { used: number; total: number; percent: number };
 }
 
@@ -199,6 +199,12 @@ export const api = {
   backups: () => j<BackupsResp>('/api/backups'),
   backupNow: (name: string) =>
     j<{ started: string }>(`/api/backups/${encodeURIComponent(name)}`, { method: 'POST' }),
+  pins: () => j<{ pinned: string[] }>('/api/pins'),
+  setPin: (name: string, pinned: boolean) =>
+    j<{ pinned: string[] }>('/api/pins', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, pinned }),
+    }),
 };
 
 // ---- formatters ----

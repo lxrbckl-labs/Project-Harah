@@ -305,11 +305,16 @@ def stats():
     except (AttributeError, OSError):
         load = (0.0, 0.0, 0.0)
 
+    # macOS: psutil.used (active+wired) diverges from .percent (total-available).
+    # Use total-available consistently so used / free / percent all correlate
+    # (and match Activity Monitor's "Memory Used").
+    mem_used = vm.total - vm.available
     host = {
         "cpu_percent": psutil.cpu_percent(interval=0.15),
         "cpu_count": psutil.cpu_count(),
         "load_avg": [round(x, 2) for x in load],
-        "mem": {"used": vm.used, "total": vm.total, "percent": vm.percent},
+        "mem": {"used": mem_used, "total": vm.total,
+                "free": vm.available, "percent": round(mem_used / vm.total * 100, 1)},
         "disk": {"used": du.used, "total": du.total, "percent": du.percent},
     }
 
@@ -622,6 +627,41 @@ def backup_now(name: str):
         raise HTTPException(409, "a backup is already running for this database")
     threading.Thread(target=_run_backup, args=(name, dbs[name]["user"]), daemon=True).start()
     return {"started": name}
+
+
+# ---------------------------------------------------------------- pinned containers
+
+_PINS_PATH = Path(__file__).resolve().parent / "pins.json"
+
+
+def _load_pins() -> list:
+    try:
+        if _PINS_PATH.exists():
+            return sorted(set(json.loads(_PINS_PATH.read_text())))
+    except Exception:
+        pass
+    return []
+
+
+@app.get("/api/pins")
+def get_pins():
+    return {"pinned": _load_pins()}
+
+
+class PinReq(BaseModel):
+    name: str
+    pinned: bool
+
+
+@app.post("/api/pins")
+def set_pin(body: PinReq):
+    pins = set(_load_pins())
+    pins.add(body.name) if body.pinned else pins.discard(body.name)
+    try:
+        _PINS_PATH.write_text(json.dumps(sorted(pins)))
+    except Exception as e:
+        raise HTTPException(500, f"could not save pins: {e}")
+    return {"pinned": sorted(pins)}
 
 
 @app.get("/api/health")

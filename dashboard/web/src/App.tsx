@@ -60,6 +60,8 @@ export default function App() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set()); // default: all groups closed
   const [err, setErr] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const [view, setView] = useState<'dashboard' | 'containers'>('dashboard');
+  const [pinned, setPinned] = useState<string[]>([]);
   const [tierIdx, setTierIdx] = useState(3); // default 24h
   const [resIdx, setResIdx] = useState(1);   // default 24h
   const tier = TIERS[tierIdx];
@@ -81,8 +83,11 @@ export default function App() {
   const loadGuardian = useCallback(async () => {
     try { setGuardian(await api.guardian()); } catch { /* transient */ }
   }, []);
+  const loadPins = useCallback(async () => {
+    try { setPinned((await api.pins()).pinned); } catch { /* transient */ }
+  }, []);
 
-  useEffect(() => { loadContainers(); loadStats(); loadGuardian(); }, [loadContainers, loadStats, loadGuardian]);
+  useEffect(() => { loadContainers(); loadStats(); loadGuardian(); loadPins(); }, [loadContainers, loadStats, loadGuardian, loadPins]);
   useEffect(() => { loadTraffic(tier.minutes, tier.bucket); }, [tier, loadTraffic]);
   useEffect(() => { loadResHistory(resTier.minutes); }, [resTier, loadResHistory]);
 
@@ -116,6 +121,9 @@ export default function App() {
     setErr('');
     try { await api.guardianBan(ip, banned); } catch (e) { setErr(`ban ${ip}: ${e}`); }
     loadGuardian();
+  }
+  async function togglePin(name: string, p: boolean) {
+    try { setPinned((await api.setPin(name, p)).pinned); } catch (e) { setErr(String(e)); }
   }
   const toggleGroup = (k: string) =>
     setExpanded(s => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; });
@@ -173,6 +181,10 @@ export default function App() {
     .flatMap(([, cs]) => cs)
     .sort((a, b) => (a.state !== 'running' ? 1 : 0) - (b.state !== 'running' ? 1 : 0) || a.name.localeCompare(b.name));
 
+  const pinnedContainers = pinned
+    .map(n => containers.find(c => c.name === n))
+    .filter((c): c is Container => !!c);
+
   const renderRow = (c: Container) => {
     const isRun = c.state === 'running';
     const busy = pending[c.name];
@@ -206,6 +218,9 @@ export default function App() {
           <button className={`switch sm ${armedOn ? 'on' : ''}`} onClick={() => armContainer(c.name, !armedOn)} aria-label={`arm ${c.name}`}><span className="knob" /></button>
         </div>
         <div className="actions">
+          <button className={`pin-btn ${pinned.includes(c.name) ? 'on' : ''}`}
+            title={pinned.includes(c.name) ? 'Unpin from dashboard' : 'Pin to dashboard'}
+            onClick={() => togglePin(c.name, !pinned.includes(c.name))}>{pinned.includes(c.name) ? '★' : '☆'}</button>
           {isRun
             ? <button className="btn stop" disabled={busy} onClick={() => act(c.name, 'stop')}>{busy ? <span className="spin" /> : 'Stop'}</button>
             : <button className="btn start" disabled={busy} onClick={() => act(c.name, 'start')}>{busy ? <span className="spin" /> : 'Start'}</button>}
@@ -232,6 +247,10 @@ export default function App() {
                 <div className="bsub">{SERVER_HOST}</div>
               </div>
             </div>
+            <nav className="tabs">
+              <button className={`tab ${view === 'dashboard' ? 'on' : ''}`} onClick={() => setView('dashboard')}>Dashboard</button>
+              <button className={`tab ${view === 'containers' ? 'on' : ''}`} onClick={() => setView('containers')}>Containers</button>
+            </nav>
             <div className="hdr-right">
               <div className="hchip"><span className="lbl">CPU</span><span className="v">{host ? `${host.cpu_percent.toFixed(0)}%` : '—'}</span></div>
               <div className="hchip"><span className="lbl">MEM</span><span className="v">{memPct.toFixed(0)}%</span></div>
@@ -253,6 +272,7 @@ export default function App() {
           )}
 
           <div className="grid">
+            {view === 'dashboard' && (<>
             {/* hero */}
             <div className="panel hero col-5">
               <div className="greet">{greeting()},</div>
@@ -382,6 +402,44 @@ export default function App() {
               </div>
             </div>
 
+            {/* pinned containers (starred on the Containers tab) */}
+            <div className="panel col-12">
+              <div className="panel-head">
+                <div><h3>Pinned Containers</h3><div className="sub">Quick view of your starred containers</div></div>
+                <span className="chip">{pinnedContainers.length} pinned</span>
+              </div>
+              {pinnedContainers.length === 0
+                ? <div className="chip">Star containers on the <b style={{ color: 'var(--text)' }}>Containers</b> tab to pin them here.</div>
+                : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 12 }}>
+                    {pinnedContainers.map(c => {
+                      const st = statByName.get(c.name);
+                      const isRun = c.state === 'running';
+                      const busy = pending[c.name];
+                      return (
+                        <div key={c.id} className="tile" style={{ padding: 14 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontWeight: 650, fontSize: 13.5, cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} onClick={() => setDrawerName(c.name)}>{c.name}</span>
+                            <span className={`badge ${isRun ? 'running' : 'stopped'}`}><span className="dot" />{isRun ? 'up' : c.state}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: 16, marginTop: 10, fontSize: 12 }}>
+                            <span className="chip">CPU {st ? `${st.cpu_percent.toFixed(1)}%` : '—'}</span>
+                            <span className="chip">MEM {st ? st.mem_usage.split(' / ')[0] : '—'}</span>
+                            <span className="chip">UP {isRun ? fmtUptime(c.uptime_seconds) : '—'}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                            {isRun
+                              ? <button className="btn stop" disabled={busy} style={{ flex: 1 }} onClick={() => act(c.name, 'stop')}>{busy ? <span className="spin" /> : 'Stop'}</button>
+                              : <button className="btn start" disabled={busy} style={{ flex: 1 }} onClick={() => act(c.name, 'start')}>{busy ? <span className="spin" /> : 'Start'}</button>}
+                            <button className="pin-btn on" title="Unpin from dashboard" onClick={() => togglePin(c.name, false)}>★</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>}
+            </div>
+            </>)}
+
+            {view === 'containers' && (<>
             {/* container management + auto-defense */}
             <div className="panel col-12">
               <div className="panel-head">
@@ -480,9 +538,13 @@ export default function App() {
               </div>
             </div>
 
+            </>)}
+
+            {view === 'dashboard' && (<>
             {/* db backups + storage */}
             <BackupPanel />
             <StoragePanel />
+            </>)}
           </div>
         </div>
       </div>

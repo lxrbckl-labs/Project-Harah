@@ -26,3 +26,4 @@ dashboard/backend/guardian_config.json
 
 # local backup output (also lives outside the repo)
 servermanager-backups/
+dashboard/backend/pins.json
