@@ -18,23 +18,8 @@ export default function HardwareView({ host }: { host?: HostStats }) {
       <div className="panel-head"><div><h3>Hardware</h3><div className="sub">Apple M4 Pro Mac mini (2024)</div></div></div>
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 18 }}>
-        <svg width="84" height="62" viewBox="0 0 200 150" style={{ flex: 'none' }}>
-          <defs>
-            <linearGradient id="mm2" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#3a4260" />
-              <stop offset="100%" stopColor="#1a1f34" />
-            </linearGradient>
-            <radialGradient id="mmg2" cx="50%" cy="30%" r="70%">
-              <stop offset="0%" stopColor="rgba(109,139,255,0.5)" />
-              <stop offset="100%" stopColor="rgba(109,139,255,0)" />
-            </radialGradient>
-          </defs>
-          <ellipse cx="100" cy="126" rx="72" ry="9" fill="rgba(0,0,0,0.35)" />
-          <rect x="34" y="40" width="132" height="80" rx="18" fill="url(#mm2)" stroke="rgba(255,255,255,0.14)" />
-          <rect x="34" y="40" width="132" height="80" rx="18" fill="url(#mmg2)" />
-          <circle cx="100" cy="80" r="11" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" />
-          <circle cx="100" cy="80" r="3" fill="rgba(255,255,255,0.5)" />
-        </svg>
+        <img src="/mac-mini.jpg" alt="Apple Mac mini (2024)" loading="lazy"
+          style={{ width: 92, height: 92, objectFit: 'cover', borderRadius: 16, border: '1px solid var(--border-strong)', flex: 'none', boxShadow: '0 10px 26px -14px #000' }} />
         <div>
           <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>Mac mini</div>
           <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 2 }}>M4 Pro · 48 GB</div>
