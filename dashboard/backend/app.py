@@ -13,10 +13,12 @@ import shutil
 import subprocess
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 
 import psutil
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 # The ONLY container actions this server will ever perform. `rm`/`remove` is
@@ -261,3 +263,12 @@ def traffic(minutes: float = 15):
 @app.get("/api/health")
 def health():
     return {"ok": True, "ts": time.time()}
+
+
+# ---------------------------------------------------------------- static UI
+# Serve the built frontend (web/dist) from the same origin as the API, so the
+# whole dashboard is one URL with no CORS/proxy. Only mounted if a build exists;
+# in dev, use the Vite server instead. Registered LAST so /api routes win.
+_DIST = Path(__file__).resolve().parent.parent / "web" / "dist"
+if _DIST.is_dir():
+    app.mount("/", StaticFiles(directory=str(_DIST), html=True), name="ui")

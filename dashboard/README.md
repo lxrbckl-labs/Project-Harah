@@ -35,6 +35,21 @@ npm run dev          # http://localhost:5173  (proxies /api to :8770)
 
 Open http://localhost:5173.
 
+## Serve on the LAN (single service)
+
+Build the frontend once; FastAPI then serves the UI **and** API from one port.
+Bind to `0.0.0.0` to reach it from other devices:
+
+```sh
+cd web && npm run build          # produces web/dist (served automatically if present)
+cd ../backend
+.venv/bin/uvicorn app:app --host 0.0.0.0 --port 8770
+```
+
+Then browse to `http://<server-lan-ip>:8770` from any device on the network.
+macOS may prompt to allow incoming connections the first time. ⚠️ There is **no
+auth** — only do this on a fully trusted network.
+
 ## API
 
 | Method | Path | Purpose |
