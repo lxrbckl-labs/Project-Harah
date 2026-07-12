@@ -36,6 +36,14 @@ export default function StoragePanel() {
                 <span className="chip">{v.percent}% used</span>
                 <span className="chip">{fmtBytes(v.free)} free</span>
               </div>
+              {v.containers.length > 0 && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8, alignItems: 'center' }}>
+                  <span className="chip">USED BY</span>
+                  {v.containers.map(c => (
+                    <span key={c} className="code" style={{ fontSize: 11 }}>{c}</span>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}

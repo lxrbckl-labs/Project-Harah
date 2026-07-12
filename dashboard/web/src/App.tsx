@@ -12,7 +12,7 @@ import {
   type Container, type StatsResp, type TrafficResp, type ResHistoryResp, type GuardianResp,
 } from './api';
 
-const SERVER_NAME = 'Homelab Server';
+const SERVER_NAME = 'Alex Arbuckle';
 const SERVER_HOST = '192.168.68.200';
 
 function greeting() {
@@ -20,6 +20,17 @@ function greeting() {
   if (h < 12) return 'Good morning';
   if (h < 18) return 'Good afternoon';
   return 'Good evening';
+}
+
+function fallbackCopy(text: string, done: () => void) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); done(); } catch { /* */ }
+  document.body.removeChild(ta);
 }
 
 // Traffic time-range tiers → window (minutes) + bucket granularity (seconds).
@@ -48,6 +59,7 @@ export default function App() {
   const [drawerName, setDrawerName] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [err, setErr] = useState<string>('');
+  const [copied, setCopied] = useState(false);
   const [tierIdx, setTierIdx] = useState(3); // default 24h
   const [resIdx, setResIdx] = useState(1);   // default 24h
   const tier = TIERS[tierIdx];
@@ -107,6 +119,16 @@ export default function App() {
   }
   const toggleGroup = (k: string) =>
     setCollapsed(s => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; });
+  function copyErr() {
+    const text = `ServerManager dashboard error\nat ${new Date().toISOString()} · ${SERVER_HOST}:8770\n\n${err}`;
+    const done = () => { setCopied(true); setTimeout(() => setCopied(false), 1600); };
+    // navigator.clipboard is unavailable over plain http on a LAN IP → textarea fallback
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+    } else {
+      fallbackCopy(text, done);
+    }
+  }
 
   async function act(name: string, action: 'start' | 'stop') {
     setPending(p => ({ ...p, [name]: true }));
@@ -217,7 +239,18 @@ export default function App() {
             </div>
           </header>
 
-          {err && <div className="panel col-12 err" style={{ marginBottom: 14 }}>⚠ {err}</div>}
+          {err && (
+            <div className="panel col-12 err-banner" style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <span style={{ color: 'var(--bad)', fontWeight: 700, fontSize: 14 }}>⚠ Something went wrong</span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn" onClick={copyErr}>{copied ? 'Copied ✓' : '⧉ Copy for agent'}</button>
+                  <button className="btn" onClick={() => setErr('')}>Dismiss</button>
+                </div>
+              </div>
+              <pre className="code-block">{err}</pre>
+            </div>
+          )}
 
           <div className="grid">
             {/* hero */}
@@ -236,7 +269,7 @@ export default function App() {
                 <span>{host ? fmtBytes(host.mem.total - host.mem.used) : '—'} free</span>
               </div>
               <div style={{ display: 'flex', gap: 22, marginTop: 20, flexWrap: 'wrap' }}>
-                <div><div className="chip">LOAD AVG</div><div className="codes" style={{ marginTop: 4 }}>{host ? host.load_avg.map((v, i) => <span key={i} className="code">{v.toFixed(2)}</span>) : '—'}</div></div>
+                <div><div className="chip">LOAD AVG</div><div className="codes" style={{ marginTop: 4 }}>{host ? <span className="code">{host.load_avg[0].toFixed(2)}</span> : '—'}</div></div>
                 <div><div className="chip">CPU CORES</div><div style={{ fontWeight: 700, fontSize: 18 }}>{host?.cpu_count ?? '—'}</div></div>
                 <div><div className="chip">CONTAINERS</div><div style={{ fontWeight: 700, fontSize: 18 }}>{running.length}<small style={{ color: 'var(--faint)' }}> / {containers.length}</small></div></div>
                 <div><div className="chip">DOCKER RAM</div><div style={{ fontWeight: 700, fontSize: 18 }}>{stats ? fmtBytes(stats.docker_mem.used) : '—'}<small style={{ color: 'var(--faint)' }}> / {stats ? fmtBytes(stats.docker_mem.total) : '—'}</small></div></div>

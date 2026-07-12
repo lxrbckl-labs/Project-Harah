@@ -72,6 +72,7 @@ export interface StorageVol {
   free: number;
   percent: number;
   external: boolean;
+  containers: string[];
 }
 
 export interface StorageResp { volumes: StorageVol[]; }

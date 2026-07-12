@@ -369,8 +369,34 @@ def storage():
             "device": p.device, "fstype": p.fstype,
             "total": u.total, "used": u.used, "free": u.free, "percent": u.percent,
             "external": mp.startswith("/Volumes/"),
+            "containers": [],
         })
     mounts.sort(key=lambda m: (not m["external"], -m["total"]))
+
+    # attribute running containers to the drives they bind-mount onto
+    vol_c: dict[str, set] = {m["mount"]: set() for m in mounts}
+    try:
+        ids = docker("ps", "-q").split()
+        if ids:
+            fmt = '{{.Name}}~{{range .Mounts}}{{if eq .Type "bind"}}{{.Source}}|{{end}}{{end}}'
+            for line in docker("inspect", "-f", fmt, *ids).splitlines():
+                name, _, srcs = line.partition("~")
+                name = name.lstrip("/")
+                for src in filter(None, srcs.split("|")):
+                    p = src[len("/host_mnt"):] if src.startswith("/host_mnt") else src  # Docker Desktop prefix
+                    p = p or "/"
+                    best = None
+                    for m in mounts:
+                        mp = m["mount"]
+                        if p == mp or p.startswith(mp.rstrip("/") + "/"):
+                            if best is None or len(mp) > len(best):
+                                best = mp
+                    if best:
+                        vol_c[best].add(name)
+    except Exception:
+        pass
+    for m in mounts:
+        m["containers"] = sorted(vol_c[m["mount"]])
     return {"volumes": mounts}
 
 

@@ -331,3 +331,17 @@ body {
 .hbadge.healthy { color: var(--good); background: rgba(55,224,166,0.14); }
 .hbadge.unhealthy { color: var(--bad); background: rgba(255,92,122,0.16); }
 .hbadge.starting { color: var(--warn); background: rgba(255,184,77,0.14); }
+
+/* larger collapsible chevrons */
+.gh-chev { font-size: 20px; width: 24px; line-height: 1; color: var(--muted); }
+.group-head:hover .gh-chev { color: var(--text); }
+
+/* error banner + copyable code block */
+.err-banner { border: 1px solid rgba(255,92,122,0.35); background: rgba(255,92,122,0.06); }
+.code-block {
+  margin: 0; padding: 12px 14px; border-radius: 10px;
+  background: rgba(0,0,0,0.38); border: 1px solid var(--border);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; line-height: 1.55;
+  color: var(--text); white-space: pre-wrap; word-break: break-word;
+  max-height: 240px; overflow: auto;
+}
