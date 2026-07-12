@@ -28,6 +28,11 @@ ServerManager is deliberately **Docker- and Caddy-oriented**. It assumes:
   volume, throughput, status-code mix, per-site breakdown, top client IPs, and
   rate-limit (429) activity over a rolling window. `--watch` to loop, `--json`
   for machine output.
+- **`tools/caddy-ensure-logging.py`** — coverage guard. Caddy logs per-site, so a
+  newly-added subdomain with no `import accesslog` is invisible to the monitor.
+  This scans the Caddyfile and flags (`--check`) or auto-injects (`--fix`) the
+  logging snippet into any site block that's missing it. Run it after adding
+  channels so coverage never drifts.
 
 ## Quickstart
 

@@ -61,6 +61,17 @@ writing to a single JSON log inside the `caddy_data` volume.
 The log lands at `/data/access.log` inside the container (in the `caddy_data`
 volume) — no new mounts required.
 
+> **Coverage is per-site — keep it from drifting.** Caddy has no global "log
+> everything" switch; a site block without `import accesslog` is silently absent
+> from the log and invisible to the monitor. Use the guard to verify/repair
+> coverage — run it now, and again every time you add a subdomain/channel:
+> ```sh
+> tools/caddy-ensure-logging.py --caddyfile <caddyfile>          # report gaps
+> tools/caddy-ensure-logging.py --caddyfile <caddyfile> --fix    # inject the import
+> ```
+> Then re-validate and re-apply (Step 2). Treat "add a site" and "run the guard"
+> as a single action.
+
 ---
 
 ## Step 2 — Apply the config
