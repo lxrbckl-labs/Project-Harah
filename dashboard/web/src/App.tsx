@@ -35,10 +35,7 @@ const RES_TIERS = [
   { label: '48h', minutes: 2880 },
 ];
 
-type View = 'dashboard' | 'hardware';
-
 export default function App() {
-  const [view, setView] = useState<View>('dashboard');
   const [containers, setContainers] = useState<Container[]>([]);
   const [stats, setStats] = useState<StatsResp | null>(null);
   const [traffic, setTraffic] = useState<TrafficResp | null>(null);
@@ -114,10 +111,6 @@ export default function App() {
                 <div className="bsub">{SERVER_HOST}</div>
               </div>
             </div>
-            <nav className="tabs">
-              <button className={`tab ${view === 'dashboard' ? 'on' : ''}`} onClick={() => setView('dashboard')}>Dashboard</button>
-              <button className={`tab ${view === 'hardware' ? 'on' : ''}`} onClick={() => setView('hardware')}>Hardware</button>
-            </nav>
             <div className="hdr-right">
               <div className="hchip"><span className="lbl">CPU</span><span className="v">{host ? `${host.cpu_percent.toFixed(0)}%` : '—'}</span></div>
               <div className="hchip"><span className="lbl">MEM</span><span className="v">{memPct.toFixed(0)}%</span></div>
@@ -128,9 +121,6 @@ export default function App() {
 
           {err && <div className="panel col-12 err" style={{ marginBottom: 14 }}>⚠ {err}</div>}
 
-          {view === 'hardware' ? (
-            <HardwareView host={host} />
-          ) : (
           <div className="grid">
             {/* hero */}
             <div className="panel hero col-5">
@@ -148,7 +138,7 @@ export default function App() {
                 <span>{host ? fmtBytes(host.mem.total - host.mem.used) : '—'} free</span>
               </div>
               <div style={{ display: 'flex', gap: 22, marginTop: 20 }}>
-                <div><div className="chip">LOAD AVG</div><div style={{ fontWeight: 700, fontSize: 18 }}>{host?.load_avg.join('  ') ?? '—'}</div></div>
+                <div><div className="chip">LOAD AVG</div><div className="codes" style={{ marginTop: 4 }}>{host ? host.load_avg.map((v, i) => <span key={i} className="code">{v.toFixed(2)}</span>) : '—'}</div></div>
                 <div><div className="chip">CPU CORES</div><div style={{ fontWeight: 700, fontSize: 18 }}>{host?.cpu_count ?? '—'}</div></div>
                 <div><div className="chip">CONTAINERS</div><div style={{ fontWeight: 700, fontSize: 18 }}>{running.length}<small style={{ color: 'var(--faint)' }}> / {containers.length}</small></div></div>
               </div>
@@ -192,7 +182,7 @@ export default function App() {
             </div>
 
             {/* resource usage over time */}
-            <div className="panel col-12">
+            <div className="panel col-8">
               <div className="panel-head">
                 <div><h3>Resource Usage</h3><div className="sub">Host CPU · memory · disk over time</div></div>
                 <div className="seg">
@@ -203,6 +193,9 @@ export default function App() {
               </div>
               <ResourceChart data={resHistory?.series ?? []} />
             </div>
+
+            {/* hardware (Mac mini) — folded into the dashboard as one card */}
+            <HardwareView host={host} />
 
             {/* traffic */}
             <div className="panel col-8">
@@ -290,7 +283,7 @@ export default function App() {
                         <div className="uptime">{isRun ? fmtUptime(c.uptime_seconds) : <small>—</small>}</div>
                         {isRun && <div className="uptrack"><span style={{ width: `${upW}%` }} /></div>}
                       </div>
-                      <div className="chip" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.ports || '—'}</div>
+                      <div className="codes">{c.ports ? c.ports.split(', ').map((p, i) => <span key={i} className="code" style={{ fontSize: 11 }}>{p}</span>) : <span className="chip">—</span>}</div>
                       <div className="actions">
                         {isRun ? (
                           <button className="btn stop" disabled={busy} onClick={() => act(c.name, 'stop')}>
@@ -309,7 +302,6 @@ export default function App() {
               </div>
             </div>
           </div>
-          )}
         </div>
       </div>
     </>

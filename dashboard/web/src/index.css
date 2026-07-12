@@ -254,3 +254,14 @@ body {
   .hdr { flex-wrap: wrap; gap: 12px; }
   .hchip .lbl { display: none; }
 }
+
+/* ---------- inline code chips (values) ---------- */
+.codes { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px; font-weight: 600;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: 6px; padding: 2px 7px;
+  color: var(--text); white-space: nowrap;
+}
