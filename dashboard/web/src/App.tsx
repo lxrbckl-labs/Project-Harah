@@ -57,7 +57,7 @@ export default function App() {
   const [guardian, setGuardian] = useState<GuardianResp | null>(null);
   const [pending, setPending] = useState<Record<string, boolean>>({});
   const [drawerName, setDrawerName] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set()); // default: all groups closed
   const [err, setErr] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [tierIdx, setTierIdx] = useState(3); // default 24h
@@ -118,7 +118,7 @@ export default function App() {
     loadGuardian();
   }
   const toggleGroup = (k: string) =>
-    setCollapsed(s => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; });
+    setExpanded(s => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; });
   function copyErr() {
     const text = `ServerManager dashboard error\nat ${new Date().toISOString()} · ${SERVER_HOST}:8770\n\n${err}`;
     const done = () => { setCopied(true); setTimeout(() => setCopied(false), 1600); };
@@ -447,7 +447,7 @@ export default function App() {
                   <div>Container</div><div>Status</div><div>Uptime</div><div>CPU</div><div>Memory</div><div>Ports</div><div style={{ textAlign: 'center' }}>Defense</div><div style={{ textAlign: 'right' }}>Control</div>
                 </div>
                 {stacks.map(([proj, cs]) => {
-                  const open = !collapsed.has(proj);
+                  const open = expanded.has(proj);
                   const run = cs.filter(c => c.state === 'running').length;
                   const cpu = cs.reduce((s, c) => s + (statByName.get(c.name)?.cpu_percent ?? 0), 0);
                   return (
@@ -468,12 +468,12 @@ export default function App() {
                   <div>
                     <div className="group-head" onClick={() => toggleGroup('__standalone')}>
                       <span className="gh-chev">
-                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ transform: !collapsed.has('__standalone') ? 'rotate(90deg)' : 'none' }}><polyline points="9 6 15 12 9 18" /></svg>
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ transform: expanded.has('__standalone') ? 'rotate(90deg)' : 'none' }}><polyline points="9 6 15 12 9 18" /></svg>
                       </span>
                       <span className="gh-name">Standalone</span>
                       <span className="chip">{standalone.length}</span>
                     </div>
-                    {!collapsed.has('__standalone') && standalone.map(renderRow)}
+                    {expanded.has('__standalone') && standalone.map(renderRow)}
                   </div>
                 )}
                 {containers.length === 0 && <div className="loading">Loading containers…</div>}
