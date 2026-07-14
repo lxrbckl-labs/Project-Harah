@@ -156,6 +156,8 @@ export default function App() {
   const stopped = containers.filter(c => c.state !== 'running');
   const host = stats?.host;
   const memPct = host?.mem.percent ?? 0;
+  const dm = stats?.docker_mem;
+  const dPct = dm?.percent ?? 0;
   const maxHost = Math.max(1, ...Object.values(traffic?.by_host ?? {}));
   // per-container live resource usage, keyed by name (running containers only)
   const statByName = new Map((stats?.containers ?? []).map(c => [c.name, c]));
@@ -278,21 +280,21 @@ export default function App() {
               <div className="greet">{greeting()},</div>
               <div className="host">{SERVER_NAME}</div>
               <div className="hero-stat">
-                <span className="big">{host ? fmtBytes(host.mem.used) : '—'}</span>
-                <span className="unit">/ {host ? fmtBytes(host.mem.total) : '—'} system RAM</span>
+                <span className="big">{dm ? fmtBytes(dm.used) : '—'}</span>
+                <span className="unit">/ {dm ? fmtBytes(dm.total) : '—'} Docker RAM</span>
               </div>
               <div className="gradient-bar">
-                <div className="mask" style={{ width: `${100 - memPct}%` }} />
+                <div className="mask" style={{ width: `${100 - dPct}%` }} />
               </div>
               <div className="bar-legend">
-                <span>Memory {memPct.toFixed(0)}% used</span>
-                <span>{host ? fmtBytes(host.mem.total - host.mem.used) : '—'} free</span>
+                <span>Docker memory {dPct.toFixed(0)}% used</span>
+                <span>{dm ? fmtBytes(dm.total - dm.used) : '—'} free</span>
               </div>
               <div style={{ display: 'flex', gap: 22, marginTop: 20, flexWrap: 'wrap' }}>
                 <div><div className="chip">LOAD AVG</div><div className="codes" style={{ marginTop: 4 }}>{host ? <span className="code">{host.load_avg[0].toFixed(2)}</span> : '—'}</div></div>
                 <div><div className="chip">CPU CORES</div><div style={{ fontWeight: 700, fontSize: 18 }}>{host?.cpu_count ?? '—'}</div></div>
                 <div><div className="chip">CONTAINERS</div><div style={{ fontWeight: 700, fontSize: 18 }}>{running.length}<small style={{ color: 'var(--faint)' }}> / {containers.length}</small></div></div>
-                <div><div className="chip">DOCKER RAM</div><div style={{ fontWeight: 700, fontSize: 18 }}>{stats ? fmtBytes(stats.docker_mem.used) : '—'}<small style={{ color: 'var(--faint)' }}> / {stats ? fmtBytes(stats.docker_mem.total) : '—'}</small></div></div>
+                <div><div className="chip">SYSTEM RAM</div><div style={{ fontWeight: 700, fontSize: 18 }}>{host ? fmtBytes(host.mem.used) : '—'}<small style={{ color: 'var(--faint)' }}> / {host ? fmtBytes(host.mem.total) : '—'}</small></div></div>
               </div>
             </div>
 
