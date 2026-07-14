@@ -157,7 +157,7 @@ export default function App() {
   const host = stats?.host;
   const memPct = host?.mem.percent ?? 0;
   const dm = stats?.docker_mem;
-  const dPct = dm?.percent ?? 0;
+  const dOfTotal = host && dm ? (dm.used / host.mem.total) * 100 : 0; // Docker usage vs total machine RAM
   const maxHost = Math.max(1, ...Object.values(traffic?.by_host ?? {}));
   // per-container live resource usage, keyed by name (running containers only)
   const statByName = new Map((stats?.containers ?? []).map(c => [c.name, c]));
@@ -281,14 +281,14 @@ export default function App() {
               <div className="host">{SERVER_NAME}</div>
               <div className="hero-stat">
                 <span className="big">{dm ? fmtBytes(dm.used) : '—'}</span>
-                <span className="unit">/ {dm ? fmtBytes(dm.total) : '—'} Docker RAM</span>
+                <span className="unit">Docker · of {host ? fmtBytes(host.mem.total) : '—'} RAM</span>
               </div>
               <div className="gradient-bar">
-                <div className="mask" style={{ width: `${100 - dPct}%` }} />
+                <div className="mask" style={{ width: `${100 - dOfTotal}%` }} />
               </div>
               <div className="bar-legend">
-                <span>Docker memory {dPct.toFixed(0)}% used</span>
-                <span>{dm ? fmtBytes(dm.total - dm.used) : '—'} free</span>
+                <span>Docker using {dOfTotal.toFixed(1)}% of total RAM</span>
+                <span>{host ? fmtBytes(host.mem.free) : '—'} free</span>
               </div>
               <div style={{ display: 'flex', gap: 22, marginTop: 20, flexWrap: 'wrap' }}>
                 <div><div className="chip">LOAD AVG</div><div className="codes" style={{ marginTop: 4 }}>{host ? <span className="code">{host.load_avg[0].toFixed(2)}</span> : '—'}</div></div>
