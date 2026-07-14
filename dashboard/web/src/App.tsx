@@ -57,7 +57,7 @@ export default function App() {
   const [guardian, setGuardian] = useState<GuardianResp | null>(null);
   const [pending, setPending] = useState<Record<string, boolean>>({});
   const [drawerName, setDrawerName] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set()); // default: all groups closed
+  const [expanded, setExpanded] = useState<Set<string>>(new Set(['__standalone'])); // stacks closed, Standalone open
   const [err, setErr] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [view, setView] = useState<'dashboard' | 'containers'>('dashboard');
