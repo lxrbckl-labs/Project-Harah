@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import Aurora from './components/Aurora';
+import DarkVeil from './components/DarkVeil';
 import Gauge from './components/Gauge';
 import TrafficChart from './components/TrafficChart';
 import ResourceChart from './components/ResourceChart';
@@ -238,7 +238,7 @@ export default function App() {
     <>
       <div className="bg-layer" />
       <div className="aurora-wrap">
-        <Aurora colorStops={['#5227FF', '#22d3ee', '#8b5cff']} amplitude={1.1} blend={0.55} speed={0.6} />
+        <DarkVeil hueShift={25} scanlineIntensity={0.05} warpAmount={0.08} speed={0.4} />
       </div>
 
       <div className="app">

@@ -365,3 +365,6 @@ body {
 .pin-btn:hover { color: var(--text); background: rgba(255,255,255,0.06); }
 .pin-btn.on { color: var(--warn); }
 .ctable .row { grid-template-columns: 1.5fr 0.9fr 0.7fr 0.62fr 0.8fr 1fr 0.5fr 150px; }
+
+/* Dark Veil background: full-bleed (override the aurora fade/opacity) */
+.aurora-wrap { opacity: 0.9; mask-image: none; -webkit-mask-image: none; }
