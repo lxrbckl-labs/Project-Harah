@@ -368,3 +368,47 @@ body {
 
 /* Dark Veil background: full-bleed (override the aurora fade/opacity) */
 .aurora-wrap { opacity: 0.9; mask-image: none; -webkit-mask-image: none; }
+
+/* ============ MOBILE (phones ≤ 680px) ============ */
+@media (max-width: 680px) {
+  .app { padding: 10px; }
+  .grid { gap: 12px; }
+  .panel { padding: 16px; }
+
+  /* every panel goes full width */
+  .col-3, .col-4, .col-5, .col-6, .col-7, .col-8, .col-9, .col-12 { grid-column: 1 / -1; }
+
+  .panel-head { flex-wrap: wrap; gap: 10px; }
+  .seg { flex-wrap: wrap; }
+
+  /* header: tabs on their own full-width row */
+  .hdr { gap: 12px; padding: 12px 14px; }
+  .tabs { order: 3; width: 100%; }
+  .tab { flex: 1; text-align: center; }
+  .hdr-right { gap: 8px; flex-wrap: wrap; }
+
+  /* resources: let the memory/disk bars wrap below the ring instead of clipping */
+  .ring-wrap { flex-wrap: wrap; }
+
+  /* container table → stacked cards */
+  .ctable .row.head { display: none; }
+  .ctable .row {
+    grid-template-columns: 1fr 1fr auto !important;
+    grid-template-areas:
+      "name   name   control"
+      "status uptime control"
+      "cpu    mem    defense"
+      "ports  ports  ports";
+    gap: 6px 12px; padding: 14px 8px; align-items: center;
+  }
+  .ctable .row > div:nth-child(1) { grid-area: name; min-width: 0; }
+  .ctable .row > div:nth-child(2) { grid-area: status; }
+  .ctable .row > div:nth-child(3) { grid-area: uptime; }
+  .ctable .row > div:nth-child(4) { grid-area: cpu; }
+  .ctable .row > div:nth-child(5) { grid-area: mem; }
+  .ctable .row > div:nth-child(6) { grid-area: ports; }
+  .ctable .row > div:nth-child(7) { grid-area: defense; justify-self: start; }
+  .ctable .row > div:nth-child(8) { grid-area: control; }
+  .actions { flex-direction: column; align-items: flex-end; gap: 6px; }
+  .actions .btn { width: 100%; }
+}
