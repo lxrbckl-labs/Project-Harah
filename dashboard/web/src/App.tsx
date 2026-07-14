@@ -7,6 +7,7 @@ import HardwareView from './components/HardwareView';
 import ContainerDrawer from './components/ContainerDrawer';
 import BackupPanel from './components/BackupPanel';
 import StoragePanel from './components/StoragePanel';
+import AnimatedNumber from './components/AnimatedNumber';
 import {
   api, fmtBytes, fmtUptime,
   type Container, type StatsResp, type TrafficResp, type ResHistoryResp, type GuardianResp,
@@ -283,7 +284,7 @@ export default function App() {
               <div className="greet">{greeting()},</div>
               <div className="host">{SERVER_NAME}</div>
               <div className="hero-stat">
-                <span className="big">{stats ? fmtBytes(ramUsed) : '—'}</span>
+                <span className="big">{stats ? <AnimatedNumber value={ramUsed} format={fmtBytes} /> : '—'}</span>
                 <span className="unit">/ {host ? fmtBytes(host.mem.total) : '—'} RAM</span>
               </div>
               <div className="gradient-bar">
@@ -309,12 +310,12 @@ export default function App() {
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div>
                     <div className="chip">MEMORY</div>
-                    <div style={{ fontWeight: 750, fontSize: 20 }}>{memPct.toFixed(0)}%</div>
+                    <div style={{ fontWeight: 750, fontSize: 20 }}><AnimatedNumber value={memPct} format={n => `${n.toFixed(0)}%`} /></div>
                     <div className="mini-bar"><span style={{ width: `${memPct}%`, background: 'linear-gradient(90deg,var(--accent),var(--violet))' }} /></div>
                   </div>
                   <div>
                     <div className="chip">DISK</div>
-                    <div style={{ fontWeight: 750, fontSize: 20 }}>{host?.disk.percent.toFixed(0) ?? '—'}%</div>
+                    <div style={{ fontWeight: 750, fontSize: 20 }}>{host ? <AnimatedNumber value={host.disk.percent} format={n => `${n.toFixed(0)}%`} /> : '—'}</div>
                     <div className="mini-bar"><span style={{ width: `${host?.disk.percent ?? 0}%`, background: 'linear-gradient(90deg,var(--good),var(--accent-2))' }} /></div>
                   </div>
                 </div>
@@ -365,10 +366,10 @@ export default function App() {
                 </div>
               </div>
               <div className="traffic-stats">
-                <div className="s"><div className="n">{traffic?.requests ?? 0}</div><div className="l">requests</div></div>
-                <div className="s"><div className="n">{traffic?.requests_per_min?.toFixed(1) ?? '0'}</div><div className="l">req / min</div></div>
-                <div className="s"><div className="n">{fmtBytes(traffic?.bytes_out ?? 0)}</div><div className="l">served</div></div>
-                <div className="s"><div className="n" style={{ color: (traffic?.rate_limited_429 ?? 0) > 0 ? 'var(--bad)' : undefined }}>{traffic?.rate_limited_429 ?? 0}</div><div className="l">rate-limited (429)</div></div>
+                <div className="s"><div className="n"><AnimatedNumber value={traffic?.requests ?? 0} /></div><div className="l">requests</div></div>
+                <div className="s"><div className="n"><AnimatedNumber value={traffic?.requests_per_min ?? 0} format={n => n.toFixed(1)} /></div><div className="l">req / min</div></div>
+                <div className="s"><div className="n"><AnimatedNumber value={traffic?.bytes_out ?? 0} format={fmtBytes} /></div><div className="l">served</div></div>
+                <div className="s"><div className="n" style={{ color: (traffic?.rate_limited_429 ?? 0) > 0 ? 'var(--bad)' : undefined }}><AnimatedNumber value={traffic?.rate_limited_429 ?? 0} /></div><div className="l">rate-limited (429)</div></div>
               </div>
               <TrafficChart data={traffic?.series ?? []} bucketSeconds={traffic?.bucket_seconds ?? tier.bucket} />
               <div className="host-list">

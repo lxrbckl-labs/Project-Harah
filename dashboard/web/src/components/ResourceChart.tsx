@@ -89,7 +89,7 @@ export default function ResourceChart({ data, height = 200 }: Props) {
             {SERIES.map(s => {
               const pts = data.map((d, i) => `${xi(i).toFixed(1)},${yi(d[s.key]).toFixed(1)}`);
               return (
-                <path key={s.key} d={`M ${pts.join(' L ')}`} fill="none" stroke={s.color}
+                <path key={s.key} d={`M ${pts.join(' L ')}`} pathLength={1} className="chart-line" fill="none" stroke={s.color}
                   strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" opacity={0.95} />
               );
             })}

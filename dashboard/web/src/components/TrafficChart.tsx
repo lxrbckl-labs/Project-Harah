@@ -88,8 +88,8 @@ export default function TrafficChart({ data, bucketSeconds, height = 160 }: Prop
             </g>
           );
         })}
-        <path d={area} fill="url(#tg)" />
-        <path d={line} fill="none" stroke="var(--accent-2)" strokeWidth={2}
+        <path d={area} fill="url(#tg)" className="chart-area" />
+        <path d={line} pathLength={1} className="chart-line" fill="none" stroke="var(--accent-2)" strokeWidth={2}
           strokeLinejoin="round" strokeLinecap="round" />
         {counts[peakI] > 0 && (
           <circle cx={xi(peakI)} cy={yi(counts[peakI])} r={3} fill="var(--accent-2)" />
