@@ -371,7 +371,16 @@ body {
 
 /* ============ MOBILE (phones ≤ 680px) ============ */
 @media (max-width: 680px) {
-  .app { padding: 10px; }
+  /* Scroll the DOCUMENT naturally instead of a nested overflow container.
+     The nested .main scroll + sticky header + fixed WebGL canvas was the source
+     of the scroll jank/flicker on phones. */
+  html, body, #root { height: auto; }
+  body { overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .app { padding: 10px; height: auto; min-height: 100dvh; display: block; }
+  .main { height: auto; overflow: visible; padding-right: 0; }
+  .hdr { position: static; }                 /* no sticky-in-scroll glitches */
+  .aurora-wrap { display: none; }            /* drop the animated WebGL veil on phones */
+
   .grid { gap: 12px; }
   .panel { padding: 16px; }
 
