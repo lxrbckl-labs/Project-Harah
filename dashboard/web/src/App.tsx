@@ -157,7 +157,10 @@ export default function App() {
   const host = stats?.host;
   const memPct = host?.mem.percent ?? 0;
   const dm = stats?.docker_mem;
-  const dOfTotal = host && dm ? (dm.used / host.mem.total) * 100 : 0; // Docker usage vs total machine RAM
+  // RAM formula: docker's real usage + (host used − docker's allocation), over total RAM.
+  // De-dupes Docker's reserved allocation, counting only what Docker actually uses.
+  const ramUsed = host && dm ? Math.max(0, dm.used + (host.mem.used - dm.total)) : 0;
+  const ramPct = host ? Math.min(100, (ramUsed / host.mem.total) * 100) : 0;
   const maxHost = Math.max(1, ...Object.values(traffic?.by_host ?? {}));
   // per-container live resource usage, keyed by name (running containers only)
   const statByName = new Map((stats?.containers ?? []).map(c => [c.name, c]));
@@ -280,15 +283,15 @@ export default function App() {
               <div className="greet">{greeting()},</div>
               <div className="host">{SERVER_NAME}</div>
               <div className="hero-stat">
-                <span className="big">{dm ? fmtBytes(dm.used) : '—'}</span>
-                <span className="unit">Docker · of {host ? fmtBytes(host.mem.total) : '—'} RAM</span>
+                <span className="big">{stats ? fmtBytes(ramUsed) : '—'}</span>
+                <span className="unit">/ {host ? fmtBytes(host.mem.total) : '—'} RAM</span>
               </div>
               <div className="gradient-bar">
-                <div className="mask" style={{ width: `${100 - dOfTotal}%` }} />
+                <div className="mask" style={{ width: `${100 - ramPct}%` }} />
               </div>
               <div className="bar-legend">
-                <span>Docker using {dOfTotal.toFixed(1)}% of total RAM</span>
-                <span>{host ? fmtBytes(host.mem.free) : '—'} free</span>
+                <span>{ramPct.toFixed(1)}% of total RAM used</span>
+                <span>{stats && host ? fmtBytes(host.mem.total - ramUsed) : '—'} free</span>
               </div>
               <div style={{ display: 'flex', gap: 22, marginTop: 20, flexWrap: 'wrap' }}>
                 <div><div className="chip">LOAD AVG</div><div className="codes" style={{ marginTop: 4 }}>{host ? <span className="code">{host.load_avg[0].toFixed(2)}</span> : '—'}</div></div>
