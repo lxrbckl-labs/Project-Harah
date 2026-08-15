@@ -6,6 +6,7 @@ import ResourceChart from './components/ResourceChart';
 import HardwareView from './components/HardwareView';
 import ContainerDrawer from './components/ContainerDrawer';
 import BackupPanel from './components/BackupPanel';
+import GroomingPanel from './components/GroomingPanel';
 import StoragePanel from './components/StoragePanel';
 import AnimatedNumber from './components/AnimatedNumber';
 import {
@@ -549,6 +550,7 @@ export default function App() {
             {view === 'dashboard' && (<>
             {/* db backups + storage */}
             <BackupPanel />
+            <GroomingPanel />
             <StoragePanel />
             </>)}
           </div>

@@ -629,6 +629,25 @@ def backup_now(name: str):
     return {"started": name}
 
 
+# ---------------------------------------------------------------- repo grooming (harah)
+
+GROOMING_STATE = Path.home() / ".harah" / "grooming-state.json"
+
+
+@app.get("/api/grooming")
+def grooming():
+    """State of the harah repo-grooming routine (dependabot upkeep).
+
+    Written by ~/.claude/skills/harah/grooming/groom.sh after every pass."""
+    try:
+        if GROOMING_STATE.exists():
+            return json.loads(GROOMING_STATE.read_text())
+    except Exception as e:
+        return {"error": str(e)}
+    return {"last_run": None, "dry_run": False, "merged": [], "queued": [],
+            "totals": {"merged": 0, "queued": 0, "repos_with_prs": 0}}
+
+
 # ---------------------------------------------------------------- pinned containers
 
 _PINS_PATH = Path(__file__).resolve().parent / "pins.json"

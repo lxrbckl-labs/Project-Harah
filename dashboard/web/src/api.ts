@@ -35,6 +35,16 @@ export interface BackupDb {
 
 export interface BackupsResp { databases: BackupDb[]; backup_dir: string; }
 
+export interface GroomingItem { kind: string; repo: string; pr: number; title: string; reason: string; }
+
+export interface GroomingResp {
+  last_run: number | null;
+  dry_run: boolean;
+  merged: GroomingItem[];
+  queued: GroomingItem[];
+  totals: { merged: number; queued: number; repos_with_prs: number };
+}
+
 export interface ContainersResp {
   containers: Container[];
   count: number;
@@ -197,6 +207,7 @@ export const api = {
     j<ContainerHistoryResp>(
       `/api/containers/${encodeURIComponent(name)}/history?minutes=${minutes}`),
   backups: () => j<BackupsResp>('/api/backups'),
+  grooming: () => j<GroomingResp>('/api/grooming'),
   backupNow: (name: string) =>
     j<{ started: string }>(`/api/backups/${encodeURIComponent(name)}`, { method: 'POST' }),
   pins: () => j<{ pinned: string[] }>('/api/pins'),
