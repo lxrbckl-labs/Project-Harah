@@ -45,6 +45,28 @@ export interface GroomingResp {
   totals: { merged: number; queued: number; repos_with_prs: number };
 }
 
+export interface AlertItem {
+  repo: string; number: number; severity: string;
+  package: string; summary: string; url: string; created_at: string;
+}
+
+export interface AlertRepo {
+  repo: string; open: number;
+  critical: number; high: number; medium: number; low: number;
+}
+
+export interface AlertsResp {
+  last_run: number | null;
+  totals: { critical: number; high: number; medium: number; low: number; open: number };
+  new_since_last: AlertItem[];
+  new_count: number;
+  by_repo: AlertRepo[];
+  alerts_disabled: string[];
+  errors: string[];
+  first_run?: boolean;
+  cadence: { tier: string; interval_seconds: number | null; reason: string };
+}
+
 export interface ContainersResp {
   containers: Container[];
   count: number;
@@ -208,6 +230,7 @@ export const api = {
       `/api/containers/${encodeURIComponent(name)}/history?minutes=${minutes}`),
   backups: () => j<BackupsResp>('/api/backups'),
   grooming: () => j<GroomingResp>('/api/grooming'),
+  alerts: () => j<AlertsResp>('/api/alerts'),
   backupNow: (name: string) =>
     j<{ started: string }>(`/api/backups/${encodeURIComponent(name)}`, { method: 'POST' }),
   pins: () => j<{ pinned: string[] }>('/api/pins'),

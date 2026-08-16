@@ -50,6 +50,46 @@ dependabot auto-merge carve-out, the resolve-and-verify mandate, the
 `— Harah` signature rule, reporting/state, and the post-merge deployment
 check. When in doubt, queue it for Alex.
 
+### Alert watch — the sensor that sets grooming's cadence
+
+`groom.sh` only ever sees open dependabot **pull requests**. Dependabot
+**alerts** fire whenever a vulnerable dependency is detected, PR or no PR
+(no version-update config, no published fix yet, or the PR was closed). The
+gap is not marginal: on 2026-08-16 grooming saw **3 PRs** while **228 alerts**
+were open, 6 of them critical.
+
+So a second routine reads the alerts and **feeds grooming's schedule**:
+
+```bash
+<checkout>/skill/alerts/alerts.sh      # one manual pass (any Mac with gh auth)
+<checkout>/skill/alerts/enable.sh      # install launchd job (mini, every 6h)
+<checkout>/skill/alerts/disable.sh     # remove it
+tail -20 ~/Library/Logs/harah-alerts.log
+```
+
+| Worst open severity | Grooming cadence |
+|---|---|
+| any **critical** | every **6h** |
+| any **high** | every **12h** |
+| neither | **daily 04:30** (baseline) |
+
+- **The alert routine is READ-ONLY against GitHub.** It never merges,
+  comments, or writes to a repo. Its only side effect is local state plus
+  grooming's schedule.
+- **Escalating cadence makes grooming run sooner — it never widens what
+  grooming may merge.** POLICY.md remains the sole merge authority.
+- [`grooming/set-cadence.sh`](grooming/set-cadence.sh) is the **single owner
+  of the grooming plist**; `grooming/enable.sh` delegates to it, so the two
+  can't drift. It is idempotent, refuses a cadence faster than 1h, and
+  preserves an escalated cadence across re-installs.
+- Only **new-since-last-pass** alerts are reported, diffed against a `seen`
+  set in `~/.harah/alerts-state.json`. The first pass records a baseline and
+  deliberately flags nothing.
+- Dependabot alerts are **disabled** on the personal `lxRbckl` repos
+  (`.claude`, `Obsidian`, `lxRbckl`, `roulette-skill`) — they will never
+  alert until Alex enables them; the routine reports them as disabled rather
+  than as clean.
+
 **Project dev notes (the convention harah owns, Alex 2026-08-15):**
 per-repo development knowledge lives in the **Obsidian vault**, not in
 skills: `Projects/<Repo-Name>/` (e.g. `Dev-Notes.md`, `Dev-Pipeline.md`),
@@ -179,6 +219,16 @@ so a helper that only captures stdout returns empty. Merge the streams.
 **Mobile scroll jank** came from three things stacking: a nested `.main` overflow scroller,
 a fixed continuously-animating WebGL background, and a sticky header. On phones: scroll the
 document naturally, drop the animated veil, un-stick the header.
+
+**launchd's PATH does not include `/usr/local/bin`** — where Docker Desktop
+symlinks the `docker` CLI. The dashboard ran for months as a hand-started
+process inheriting Alex's shell PATH; the moment it became a launchd job the
+API still answered `/api/health` **200** while every Docker call failed with
+`docker not found on PATH` — containers, stats, top-load, and backups all
+silently empty. The plist therefore sets `EnvironmentVariables → PATH`
+explicitly. Health-checking a service is **not** the same as checking it can
+still reach Docker; verify a Docker-backed endpoint (`/api/containers`) after
+any change to how the dashboard is launched. (Hit and fixed 2026-08-16.)
 
 **Python 3.14** is the system Python and FastAPI/psutil/pydantic wheels *do* install on it.
 

@@ -40,6 +40,15 @@ Nothing in this carve-out extends to non-dependabot PRs, any repo Alex
 does not own, or merging without verification. When in doubt, queue it
 for Alex.
 
+**Cadence is not authority (2026-08-16).** The alert-watch routine
+(`../alerts/`) changes how *often* grooming runs — up to every 6h when
+critical alerts are open — by rewriting the launchd schedule via
+`set-cadence.sh`. That is a scheduling change and nothing more. It does not
+enlarge this carve-out by a single PR: the same author, bump-size,
+prerelease, and check rules apply on an escalated pass exactly as they do on
+the daily one. An agent that reads "we're in critical mode" as license to
+merge something this policy would otherwise queue has misread it.
+
 **Reporting:** merged (list), queued-for-Alex (list, with why), errors —
 honestly. Each queued PR also gets one signed explanatory comment on
 GitHub (`Queued for Alex: <reason>… — Harah`) — once per reason, deduped

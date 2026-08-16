@@ -27,6 +27,17 @@ The dashboard's Database Backups panel runs `pg_dumpall` per Postgres
 container into `~/servermanager-backups/`. There is **no schedule yet** —
 backups are manual.
 
+### Check security alerts / why grooming's schedule changed
+```sh
+tail -20 ~/Library/Logs/harah-alerts.log        # last pass + any cadence change
+cat ~/.harah/grooming-cadence                   # baseline | seconds
+bash skill/alerts/alerts.sh                     # force a pass now (read-only)
+bash skill/grooming/set-cadence.sh baseline     # manually return to daily 04:30
+```
+The dashboard's **Security Alerts** panel renders the same state
+(`/api/alerts` ← `~/.harah/alerts-state.json`). Escalated cadence only makes
+grooming run sooner — see `grooming/POLICY.md`, "Cadence is not authority".
+
 ### Ship a change
 Build the frontend if you touched it, then commit **and push** — the repo
 tracks `origin/main`, and Alex expects this to happen automatically without

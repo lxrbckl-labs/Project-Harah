@@ -632,13 +632,14 @@ def backup_now(name: str):
 # ---------------------------------------------------------------- repo grooming (harah)
 
 GROOMING_STATE = Path.home() / ".harah" / "grooming-state.json"
+ALERTS_STATE = Path.home() / ".harah" / "alerts-state.json"
 
 
 @app.get("/api/grooming")
 def grooming():
     """State of the harah repo-grooming routine (dependabot upkeep).
 
-    Written by ~/.claude/skills/harah/grooming/groom.sh after every pass."""
+    Written by <Project-Harah checkout>/skill/grooming/groom.sh after each pass."""
     try:
         if GROOMING_STATE.exists():
             return json.loads(GROOMING_STATE.read_text())
@@ -646,6 +647,27 @@ def grooming():
         return {"error": str(e)}
     return {"last_run": None, "dry_run": False, "merged": [], "queued": [],
             "totals": {"merged": 0, "queued": 0, "repos_with_prs": 0}}
+
+
+@app.get("/api/alerts")
+def alerts():
+    """Open Dependabot alerts + the grooming cadence they drive.
+
+    Written by <Project-Harah checkout>/skill/alerts/collect.py after each pass.
+    Grooming sees only dependabot *PRs*; this covers alerts with no PR."""
+    empty = {"last_run": None, "totals": {"critical": 0, "high": 0, "medium": 0,
+                                          "low": 0, "open": 0},
+             "new_since_last": [], "new_count": 0, "by_repo": [],
+             "alerts_disabled": [], "errors": [],
+             "cadence": {"tier": "baseline", "interval_seconds": None, "reason": ""}}
+    try:
+        if ALERTS_STATE.exists():
+            data = json.loads(ALERTS_STATE.read_text())
+            data.pop("seen", None)   # internal dedup set; can be thousands of keys
+            return data
+    except Exception as e:
+        return {**empty, "errors": [str(e)]}
+    return empty
 
 
 # ---------------------------------------------------------------- pinned containers

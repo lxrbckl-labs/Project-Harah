@@ -47,6 +47,13 @@ cat > "$PLIST" <<EOF
     <string>--log-level</string><string>warning</string>
   </array>
   <key>WorkingDirectory</key><string>$BACKEND</string>
+  <!-- launchd's default PATH is minimal and does NOT include /usr/local/bin,
+       where Docker Desktop symlinks the docker CLI. Without this the API
+       answers but every Docker call fails with "docker not found on PATH"
+       (containers/stats/backups all empty). Learned the hard way 2026-08-16. -->
+  <key>EnvironmentVariables</key><dict>
+    <key>PATH</key><string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
   <key>KeepAlive</key><true/>
   <key>RunAtLoad</key><true/>
   <key>StandardOutPath</key><string>$LOG</string>
