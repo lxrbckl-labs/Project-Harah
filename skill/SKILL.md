@@ -292,6 +292,64 @@ meaningful work.
 
 ---
 
+## Standing rules for changing this system
+
+Each of these was paid for on 2026-08-16. They are cheap to follow and were
+expensive to learn.
+
+**1. Doctrine must name its mechanism, or say it's hand-run.**
+This repo spent a day describing a resolve-and-verify mandate that *nothing
+scheduled could execute* — `groom.sh` has no resolution logic, and the mandate
+silently assumed a human-started agent session. Doctrine that describes what
+"Harah does" without naming the script, the schedule, and the log that does it
+is a wish, not a routine. When adding or editing a duty here: name the runner,
+or write plainly that it only happens in a hand-run session. Then check the
+runner actually exists.
+
+**2. A scheduled job is verified by `launchctl kickstart`, never by hand.**
+Running the script yourself proves nothing about the scheduled path — TCC
+permissions, `PATH`, working directory and environment all differ. Both harah
+routines were declared "live and verified" off manual runs while every real
+fire failed with exit 126. **The only acceptable evidence is: kickstart it,
+read the exit code, read the log.** Report the exit code you actually saw.
+
+**3. Liveness is not function.** `/api/health` returning 200 said nothing about
+whether the dashboard could reach Docker — it couldn't, and the UI showed zero
+containers. After any change to how a service starts, exercise an endpoint that
+*uses the dependency* (`/api/containers`), not just the one that proves the
+process is breathing.
+
+**4. Re-derive from live data; every brief goes stale — including this file.**
+Version targets, alert counts, and "the fix is in X" age badly. The resolver's
+own standing brief was wrong about two criticals within hours of being written:
+a human PR already shipped a better version, and a higher patch on the same
+line closed double the alerts. Before acting on any recorded target, re-check
+it against the API. Treat numbers here as a starting point, never as truth.
+
+**5. Enumerate human PRs before starting work.** Alex authors PRs too. Check
+`gh pr list -R <repo> --state open` in full — not just dependabot's — or you
+will duplicate finished work and collide with a branch you are forbidden to
+touch.
+
+**6. On this host, merging is deploying.** CI tags images by branch and a global
+`watchtower` polls every 300s with rolling restart, so a merge to `main`
+replaces the live container within ~5 minutes, unattended. That is why POLICY's
+post-merge deployment check exists — wait out the poll and confirm the service
+serves. Branch pushes are safe; they don't tag `:main`.
+
+**7. Read the doctrine before extending the machinery, not after.** The
+on-demand stance in [README.md](README.md) is right for *doing a task*. It is
+wrong for *adding to this system*: read SKILL.md, POLICY.md, and
+[docs/dev-notes.md](../docs/dev-notes.md) first, or you will rebuild something
+that exists, contradict a rule, or miss the gate.
+
+**8. Careful with bulk path edits.** A blanket find/replace across docs
+corrupts *historical* statements — it rewrote "moved here from `<old path>`"
+into the new path, making the record claim the repo moved from itself. After
+any sweep, re-read the sentences that describe history.
+
+---
+
 ## Open items → [OPEN-ITEMS.md](OPEN-ITEMS.md)
 
 Mutable status (exposed PATs, missing backup schedule, stale Caddy blocks,

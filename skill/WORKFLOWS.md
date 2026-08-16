@@ -27,6 +27,21 @@ The dashboard's Database Backups panel runs `pg_dumpall` per Postgres
 container into `~/servermanager-backups/`. There is **no schedule yet** —
 backups are manual.
 
+### Add or change a scheduled routine
+Machinery goes in `skill/<name>/` with a self-locating `enable.sh`/`disable.sh`
+(plist points at the script beside it, so moving the checkout is survivable).
+Then verify it **the way launchd runs it** — a manual run proves nothing:
+```sh
+bash skill/<name>/enable.sh
+launchctl kickstart -k gui/$(id -u)/com.alex.<label>
+launchctl list | grep <label>          # exit code MUST be 0 — 126 = TCC block
+tail -20 ~/Library/Logs/harah-<name>.log
+```
+Keep the checkout out of `~/Documents`, `~/Desktop`, `~/Downloads` (TCC blocks
+launchd there). Anything driving a `claude -p` agent must be a **GUI-domain**
+LaunchAgent — the OAuth token lives in the login Keychain. Give any agent
+routine a `--dry-run` and use it before the first live pass.
+
 ### Check security alerts / why grooming's schedule changed
 ```sh
 tail -20 ~/Library/Logs/harah-alerts.log        # last pass + any cadence change

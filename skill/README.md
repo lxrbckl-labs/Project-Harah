@@ -31,3 +31,9 @@ This directory is the version-controlled home of the Harah agent doctrine
 An agent asked to work the homelab should read SKILL.md, then pull the
 specific file the task needs. Changes to doctrine are commits to this
 repo — push them.
+
+**Extending the machinery is different from doing a task.** Before adding or
+changing a routine, script, or policy here, read SKILL.md (especially
+*Standing rules for changing this system*), `grooming/POLICY.md`, and
+[`docs/dev-notes.md`](../docs/dev-notes.md) **first** — the on-demand stance
+above applies to using this system, not to building on it.
