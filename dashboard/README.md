@@ -47,6 +47,22 @@ cd ../backend
 ```
 
 Then browse to `http://<server-lan-ip>:8770` from any device on the network.
+
+## Run it as a service (the mini)
+
+Don't hand-start it in a terminal — that leaves an orphan process that dies
+with the terminal and never comes back after a reboot. Install the launchd
+job instead (builds are still your job: `cd web && npm run build` first):
+
+```sh
+./enable.sh          # installs com.lxrbckl.servermanager-dashboard, verifies /api/health
+./disable.sh         # stops and uninstalls it
+```
+
+`enable.sh` is self-locating — re-run it after moving the checkout. It sets
+`KeepAlive` (respawns on crash) and `RunAtLoad` (survives reboot), releases
+`:8770` from any hand-started uvicorn, and logs to
+`~/Library/Logs/servermanager-dashboard.log`.
 macOS may prompt to allow incoming connections the first time. ⚠️ There is **no
 auth** — only do this on a fully trusted network.
 
