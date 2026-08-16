@@ -2,7 +2,64 @@
 // drive. Grooming only ever sees dependabot *PRs*; this covers the alerts that
 // have no PR behind them (no version-update config, or no fix published yet).
 import { useEffect, useState, useCallback } from 'react';
-import { api, type AlertsResp, type AlertItem, type AlertRepo } from '../api';
+import { api, type AlertsResp, type AlertItem, type AlertRepo, type ResolverResp } from '../api';
+
+const CADENCE_LABEL: Record<string, string> = {
+  '6h': 'every 6h', '12h': 'every 12h', daily: 'daily 05:30',
+};
+
+/** How often the resolver runs. Each pass is a full agent session doing real
+ *  migration work, and a merge here deploys within ~5 min — so the backend
+ *  allowlists these choices and floors them at 6h. */
+function ResolverControl() {
+  const [r, setR] = useState<ResolverResp | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try { setR(await api.resolver()); } catch { /* */ }
+  }, []);
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 30000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  async function pick(choice: string) {
+    setBusy(choice); setErr(null);
+    try { setR(await api.setResolverCadence(choice)); }
+    catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    finally { setBusy(null); }
+  }
+
+  if (!r) return null;
+  const choices = r.choices?.length ? r.choices : ['6h', '12h', 'daily'];
+  return (
+    <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="chip" style={{ marginBottom: 6 }}>
+        Resolver — how often Harah does the fixing
+        {r.running && <span style={{ color: 'var(--good)' }}> · running now</span>}
+        {r.last_end && !r.running && <span> · last run {r.last_end.slice(11, 16)}</span>}
+      </div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {choices.map(c => {
+          const active = r.label === c || r.cadence === c;
+          return (
+            <button key={c} className="btn" onClick={() => pick(c)} disabled={busy !== null}
+              style={{
+                fontSize: 11, padding: '4px 10px', cursor: 'pointer', opacity: busy && busy !== c ? 0.5 : 1,
+                borderColor: active ? 'var(--good)' : undefined,
+                color: active ? 'var(--good)' : undefined,
+              }}>
+              {busy === c ? '…' : CADENCE_LABEL[c] ?? c}
+            </button>
+          );
+        })}
+      </div>
+      {err && <div className="err" style={{ marginTop: 6 }}>{err}</div>}
+    </div>
+  );
+}
 
 function ago(ts?: number | null): string {
   if (!ts) return 'never';
@@ -152,6 +209,8 @@ export default function AlertsPanel() {
           {data.errors?.length > 0 && (
             <div className="err" style={{ marginTop: 8 }}>{data.errors[0]}</div>
           )}
+
+          <ResolverControl />
         </>
       )}
     </div>

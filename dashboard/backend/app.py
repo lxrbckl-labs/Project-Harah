@@ -9,6 +9,7 @@ design. Binds to 127.0.0.1 only; this controls Docker and must not be exposed.
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import sqlite3
@@ -647,6 +648,68 @@ def grooming():
         return {"error": str(e)}
     return {"last_run": None, "dry_run": False, "merged": [], "queued": [],
             "totals": {"merged": 0, "queued": 0, "repos_with_prs": 0}}
+
+
+# The resolver's schedule, driven from the dashboard's Resolver panel.
+# ALLOWLIST, not free-form input: this endpoint shells out, and the dashboard
+# has no auth by design, so only these exact choices are ever accepted and the
+# value passed to the script is our own constant — never the request string.
+# Floored at 6h in set-cadence.sh too: a pass is unattended migration work, and
+# on this host a merge deploys within ~5 minutes.
+RESOLVER_CADENCES = {"6h": "21600", "12h": "43200", "daily": "daily"}
+RESOLVER_MARK = Path.home() / ".harah" / "resolver-cadence"
+RESOLVER_SETTER = Path(__file__).resolve().parents[2] / "skill" / "resolver" / "set-cadence.sh"
+RESOLVER_LOG = Path.home() / "Library" / "Logs" / "harah-resolver.log"
+
+
+def _resolver_state() -> dict:
+    mode = "daily"
+    try:
+        if RESOLVER_MARK.exists():
+            mode = RESOLVER_MARK.read_text().strip() or "daily"
+    except Exception:
+        pass
+    label = {v: k for k, v in RESOLVER_CADENCES.items()}.get(mode, mode)
+    last_start = last_end = None
+    try:
+        if RESOLVER_LOG.exists():
+            for line in RESOLVER_LOG.read_text(errors="replace").splitlines():
+                if "START harah-resolver" in line:
+                    last_start = line.split()[1]
+                elif "END harah-resolver" in line:
+                    last_end = line.split()[1]
+    except Exception:
+        pass
+    return {"cadence": mode, "label": label, "choices": sorted(RESOLVER_CADENCES),
+            "last_start": last_start, "last_end": last_end,
+            "running": bool(last_start and not last_end) or
+                       Path(os.environ.get("TMPDIR", "/tmp"), "harah-resolver.lock").exists()}
+
+
+@app.get("/api/resolver")
+def resolver():
+    """Harah resolver schedule + last run (written by skill/resolver/)."""
+    return _resolver_state()
+
+
+@app.post("/api/resolver/cadence/{choice}")
+def resolver_cadence(choice: str):
+    """Set how often the resolver runs. Allowlisted choices only."""
+    if choice not in RESOLVER_CADENCES:
+        raise HTTPException(
+            400,
+            f"cadence '{choice}' not allowed. Permitted: {sorted(RESOLVER_CADENCES)} "
+            "— the resolver runs unattended migration work and is floored at 6h.",
+        )
+    if not RESOLVER_SETTER.exists():
+        raise HTTPException(500, f"set-cadence.sh not found at {RESOLVER_SETTER}")
+    p = subprocess.run(
+        ["bash", str(RESOLVER_SETTER), RESOLVER_CADENCES[choice], "set from dashboard", "--force"],
+        capture_output=True, text=True, timeout=60,
+    )
+    if p.returncode != 0:
+        raise HTTPException(500, (p.stderr or p.stdout or "set-cadence failed").strip()[:300])
+    return {**_resolver_state(), "ok": True, "message": (p.stdout or "").strip()}
 
 
 @app.get("/api/alerts")

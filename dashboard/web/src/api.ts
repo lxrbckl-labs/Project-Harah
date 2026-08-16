@@ -45,6 +45,17 @@ export interface GroomingResp {
   totals: { merged: number; queued: number; repos_with_prs: number };
 }
 
+export interface ResolverResp {
+  cadence: string;
+  label: string;
+  choices: string[];
+  last_start: string | null;
+  last_end: string | null;
+  running: boolean;
+  ok?: boolean;
+  message?: string;
+}
+
 export interface AlertItem {
   repo: string; number: number; severity: string;
   package: string; summary: string; url: string; created_at: string;
@@ -231,6 +242,9 @@ export const api = {
   backups: () => j<BackupsResp>('/api/backups'),
   grooming: () => j<GroomingResp>('/api/grooming'),
   alerts: () => j<AlertsResp>('/api/alerts'),
+  resolver: () => j<ResolverResp>('/api/resolver'),
+  setResolverCadence: (choice: string) =>
+    j<ResolverResp>(`/api/resolver/cadence/${encodeURIComponent(choice)}`, { method: 'POST' }),
   backupNow: (name: string) =>
     j<{ started: string }>(`/api/backups/${encodeURIComponent(name)}`, { method: 'POST' }),
   pins: () => j<{ pinned: string[] }>('/api/pins'),

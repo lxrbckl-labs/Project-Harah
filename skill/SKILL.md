@@ -104,6 +104,14 @@ Harah* — so one is scheduled:
 tail -40 ~/Library/Logs/harah-resolver.log
 ```
 
+**Cadence is set from the dashboard** — the Security Alerts panel has a
+Resolver control (`every 6h` / `every 12h` / `daily 05:30`).
+`resolver/set-cadence.sh` owns the plist; `enable.sh` delegates to it and
+preserves the current setting across re-installs. The API allowlists the three
+choices and passes its own constants to the script — never the request string —
+and both layers floor it at **6h**, because a pass is unattended migration work
+and a merge here deploys within ~5 minutes.
+
 launchd → headless `claude -p` with `resolver/prompt.md` as the standing brief
 (the `scheduler` pattern; GUI domain, because the OAuth token lives in the
 login Keychain). The brief re-reads POLICY.md **every run** — the agent boots
