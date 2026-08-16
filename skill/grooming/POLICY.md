@@ -1,0 +1,68 @@
+# Repo grooming — the written policy (read before ANY merge decision)
+
+Moved verbatim from SKILL.md 2026-08-16 (token audit); this file is the
+authority. The core SKILL.md summary does not license a merge on its own.
+
+**Standing merge authorization (Alex, 2026-08-15) — the carve-out from the
+global "merges only on my explicit word" rule, scoped EXACTLY to this:**
+
+- Repo is owned by `lxRbckl` or `lxrbckl-labs`, not archived, and the PR
+  author is dependabot.
+- The bump is **patch or minor** (never major), parsed from the PR title.
+- **No prerelease on either side** — any version with a `-beta`/`-rc`/etc.
+  tag disqualifies auto-merge. Prerelease transitions (beta→stable,
+  beta→rc) routinely smuggle breaking changes behind a small-looking
+  version delta (learned 2026-08-15: better-auth 1.5-beta→1.6.2 removed a
+  core plugin and changed its DB schema).
+- Checks, if the repo has any, are **passing** — a failing or errored check
+  disqualifies. No-CI repos may merge on the version rule alone.
+- Anything else — major bumps, failing checks, conflicts, non-dependabot
+  authors — is **never auto-merged**: it stays open and gets reported.
+
+**PR resolution — the left-hand-dev mandate (Alex, 2026-08-15).** Harah
+does not stop at triage: queued dependabot PRs (major bumps, merge
+conflicts) are Harah's to RESOLVE. In a session acting as Harah: read the
+repo's vault dev notes first, check out the PR branch, do the real work —
+resolve conflicts, apply the migration (read the changelog/breaking
+changes), fix callers — then run the repo's own verification (tests /
+typecheck / lint / build, whatever exists). **When verification passes,
+Harah merges on its own authority** — the carve-out extends to
+resolved-and-verified dependabot PRs of any bump size, provided ALL of:
+work happened on the PR branch and is pushed; the repo's verification
+actually ran and passed (never merge unverified); the trail is signed
+(resolution comment `Resolved & verified: <what>. — Harah` before
+merging); and the post-merge deployment check below follows. A resolution
+that can't reach passing verification gets pushed as far as it got, a
+signed comment explains what's stuck, and it goes back in the queue for
+Alex.
+
+Nothing in this carve-out extends to non-dependabot PRs, any repo Alex
+does not own, or merging without verification. When in doubt, queue it
+for Alex.
+
+**Reporting:** merged (list), queued-for-Alex (list, with why), errors —
+honestly. Each queued PR also gets one signed explanatory comment on
+GitHub (`Queued for Alex: <reason>… — Harah`) — once per reason, deduped
+across passes, never in dry runs — so the PR explains itself when Alex
+opens it. Every pass writes machine-readable state to
+`~/.harah/grooming-state.json`; the dashboard renders it (`/api/grooming`
+→ the **Repo Grooming** panel).
+
+**Signature (standing instruction, Alex 2026-08-15):** whenever Harah
+writes something others will read out of context — a PR comment, an issue
+comment, a PR body, a commit that isn't a plain merge — it signs with its
+name so the reader knows which agent acted: end with `— Harah` (e.g.
+`Queued for Alex: major bump. — Harah`). Applies to the grooming routine
+and to any session acting as Harah. Don't sign chat replies to Alex —
+only outward artifacts.
+
+**Post-merge deployment check (standing instruction, Alex 2026-08-15):**
+after grooming merges land in a repo AND a deployment inherits them (the
+mini pulls/rebuilds, or its next scheduled deploy runs), **verify the
+affected running application**: is the container/service up, healthy, and
+serving (dashboard, `docker ps`, health endpoint, or a real request)?
+Notable changes are acceptable *because* this check follows them. If a
+groomed repo maps to something running on the mini and the deployment
+hasn't inherited the merge yet, say so explicitly — "merged, not yet
+deployed" is a state Alex needs to see, not silence. A failed post-merge
+check gets reported immediately with the suspect bump named.
