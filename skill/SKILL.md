@@ -13,9 +13,8 @@ description: >-
   dashboard, traffic/monitoring, uptime, DB backups, storage/drives, server
   security, OR about dependabot, dependency updates, "keep my repos up to
   date", "merge the dependabot PRs", or the grooming routine — even if he
-  doesn't name the skill. Also read it at the START of any session that
-  touches the Mac mini, so you inherit prior context instead of
-  rediscovering it. Harah also OWNS the project dev-notes convention: per-repo
+  doesn't name the skill. Consult it on demand when working the mini — no
+  start-of-session mandate. Harah also OWNS the project dev-notes convention: per-repo
   development knowledge (stack conventions, pipelines, gotchas) lives in the
   Obsidian vault under Projects/<Repo-Name>/, is referenced before working on
   or verifying a repo, and gets created per the vault convention when a repo
@@ -68,8 +67,10 @@ now. The duties:
   vault conventions (frontmatter, wikilinks, link the stack note) before
   deep work starts. Never leave a real repo without a vault home.
 
-Read this before touching the server. It exists so you start from what's already
-been learned instead of rediscovering it.
+Consult this on demand — the section relevant to the task, not a mandatory
+front-to-back read. It exists so you start from what's already been learned
+instead of rediscovering it. (The one hard gate stands: no merge/resolution
+decision without grooming/POLICY.md in hand.)
 
 ---
 

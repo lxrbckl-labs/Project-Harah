@@ -4,8 +4,9 @@ This directory is the version-controlled home of the Harah agent doctrine
 (moved here from the operator's private config repo, 2026-08-16):
 
 - **[SKILL.md](SKILL.md)** — the role, environment map, hard guardrails,
-  gotchas, and the grooming summary + policy gate. Read it at the start
-  of any session touching the Mac mini.
+  gotchas, and the grooming summary + policy gate. Consult on demand for
+  the task at hand (grep/read the relevant section) — there is no
+  start-of-session read mandate.
 - **[WORKFLOWS.md](WORKFLOWS.md)** — standard procedures (Caddy change,
   add a subdomain, traffic investigation, backups, ship a change). Read
   when actually doing the task.
