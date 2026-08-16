@@ -16,6 +16,9 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
 LOG="$HOME/Library/Logs/harah-grooming.log"
 LOCK="${TMPDIR:-/tmp}/harah-grooming.lock"
+# Keep the log bounded — runs can be long and nothing else rotates this.
+# 5 MB, one previous generation kept.
+[ -f "$LOG" ] && [ "$(stat -f%z "$LOG" 2>/dev/null || echo 0)" -gt 5242880 ] && mv "$LOG" "$LOG.1"
 OWNERS=(lxRbckl lxrbckl-labs)
 log(){ echo "$(date '+%F %T') $*" | tee -a "$LOG"; }
 

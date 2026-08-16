@@ -29,6 +29,9 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROMPT="$HERE/prompt.md"
 LOG="$HOME/Library/Logs/harah-resolver.log"
 LOCK="${TMPDIR:-/tmp}/harah-resolver.lock"
+# Keep the log bounded — runs can be long and nothing else rotates this.
+# 5 MB, one previous generation kept.
+[ -f "$LOG" ] && [ "$(stat -f%z "$LOG" 2>/dev/null || echo 0)" -gt 5242880 ] && mv "$LOG" "$LOG.1"
 CLAUDE="/opt/homebrew/bin/claude"
 MAX_SESSIONS="${HARAH_MAX_SESSIONS:-12}"   # runaway guard, not a work quota
 ORG="lxrbckl-labs"

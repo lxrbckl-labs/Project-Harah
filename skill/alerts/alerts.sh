@@ -14,6 +14,9 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 LOG="$HOME/Library/Logs/harah-alerts.log"
 LOCK="${TMPDIR:-/tmp}/harah-alerts.lock"
+# Keep the log bounded — runs can be long and nothing else rotates this.
+# 5 MB, one previous generation kept.
+[ -f "$LOG" ] && [ "$(stat -f%z "$LOG" 2>/dev/null || echo 0)" -gt 5242880 ] && mv "$LOG" "$LOG.1"
 log(){ echo "$(date '+%F %T') $*" | tee -a "$LOG"; }
 
 if ! mkdir "$LOCK" 2>/dev/null; then log "skip: another alert pass is running"; exit 0; fi

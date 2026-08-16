@@ -11,6 +11,9 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 LOG="$HOME/Library/Logs/harah-mentions.log"
 LOCK="${TMPDIR:-/tmp}/harah-mentions.lock"
+# Keep the log bounded — runs can be long and nothing else rotates this.
+# 5 MB, one previous generation kept.
+[ -f "$LOG" ] && [ "$(stat -f%z "$LOG" 2>/dev/null || echo 0)" -gt 5242880 ] && mv "$LOG" "$LOG.1"
 
 if ! mkdir "$LOCK" 2>/dev/null; then exit 0; fi   # quiet: this polls often
 trap 'rmdir "$LOCK" 2>/dev/null' EXIT
