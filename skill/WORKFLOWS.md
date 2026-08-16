@@ -43,5 +43,5 @@ Build the frontend if you touched it, then commit **and push** — the repo
 tracks `origin/main`, and Alex expects this to happen automatically without
 being asked:
 ```sh
-cd ~/Documents/ServerManager && git add -A && git commit -m "…" && git push origin main
+cd ~/lxrbckl-dev/Project-Harah && git add -A && git commit -m "…" && git push origin main
 ```

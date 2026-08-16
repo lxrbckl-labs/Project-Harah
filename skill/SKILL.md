@@ -141,7 +141,7 @@ Everything is fronted by a **Caddy** container doing automatic HTTPS + reverse p
 
 ## Where things live
 
-- **`~/Documents/ServerManager`** — the project repo. Remote: `github.com/lxrbckl-labs/Project-Harah` (**public**; was `lxRbckl/ServerManager`, transferred + renamed 2026-08-15 — old URLs redirect, but update local remotes when convenient), `main` tracks origin.
+- **`~/lxrbckl-dev/Project-Harah`** — the project repo (**one checkout only** — never clone a second). Remote: `github.com/lxrbckl-labs/Project-Harah` (**public**; was `lxRbckl/ServerManager`, transferred + renamed 2026-08-15 — old URLs redirect, but update local remotes when convenient), `main` tracks origin. **Moved here from `~/Documents/ServerManager` 2026-08-16 — macOS TCC blocks launchd from running scripts inside `~/Documents`, which silently broke every scheduled routine in this repo (exit 126). Do not move it back under `~/Documents`, `~/Desktop`, or `~/Downloads`.**
   - `dashboard/backend/app.py` — FastAPI API (Docker control, stats, traffic, guardian, backups, pins)
   - `dashboard/web/` — Vite React-TS dashboard
   - `tools/caddy-traffic.py`, `tools/caddy-ensure-logging.py` — standalone CLI tools
@@ -157,7 +157,7 @@ Everything is fronted by a **Caddy** container doing automatic HTTPS + reverse p
 Runs on **port 8770** — this is the canonical, fixed port; don't change it without being told.
 
 ```sh
-cd ~/Documents/ServerManager/dashboard/web && npm run build     # after any frontend change
+cd ~/lxrbckl-dev/Project-Harah/dashboard/web && npm run build     # after any frontend change
 cd ../backend && .venv/bin/uvicorn app:app --host 0.0.0.0 --port 8770
 ```
 

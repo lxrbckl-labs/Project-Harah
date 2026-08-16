@@ -7,9 +7,13 @@ with the code can't drift from it or go missing when the vault isn't at hand.
 
 `lxrbckl-labs/Project-Harah` (**public**; was `lxRbckl/ServerManager`,
 transferred + renamed 2026-08-15). Checked out on the mini at
-**`~/Documents/ServerManager`** — the directory name was never changed, so the
-path and the repo name disagree. There is only ever **one** checkout; never
-clone a second copy.
+**`~/lxrbckl-dev/Project-Harah`**, beside the other project checkouts. There is
+only ever **one** checkout; never clone a second copy.
+
+It lived at `~/Documents/ServerManager` until 2026-08-16 and was moved for a
+hard reason: **macOS TCC will not let launchd run scripts out of `~/Documents`**,
+so every scheduled routine in this repo failed with `Operation not permitted`
+(exit 126) while passing every manual test. Don't move it back.
 
 ## What this repo is
 
