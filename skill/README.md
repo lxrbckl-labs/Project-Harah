@@ -1,4 +1,4 @@
-# Harah — the operating doctrine (read before touching the mini)
+# Harah — the operating doctrine (consult on demand)
 
 This directory is the version-controlled home of the Harah agent doctrine
 (moved here from the operator's private config repo, 2026-08-16):
