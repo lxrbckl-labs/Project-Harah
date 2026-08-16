@@ -45,9 +45,29 @@ gh pr list -R <repo> --author "app/dependabot" --state open
 at once (a single dependency bump or lockfile refresh often clears dozens) over
 one-alert-one-PR churn.
 
-**Bound each run:** stop after **2 merged-or-queued remediations**, or **45
-minutes**, whichever comes first. Leave the rest; the next run continues. Never
-start a migration you cannot finish and verify within the run.
+**Work until there is nothing left you can resolve.** There is no quota — Alex
+wants the board cleared, not a token gesture. Keep taking the next item until
+every remaining alert is genuinely blocked (behind a human PR, no published fix,
+fix only in a major you cannot verify, or verification that won't pass).
+
+You are one session in a loop: the runner will start another session after you,
+so **you do not have to finish everything yourself**. What you must not do is
+leave things half-done. Never start a migration you cannot finish *and verify*
+in this session — push what you completed, comment, and let the next session
+pick up the rest.
+
+**End your output with exactly one status line**, which the runner reads to
+decide whether to start another session:
+
+```
+HARAH_STATUS: MORE_WORK    # actionable items remain — run me again
+HARAH_STATUS: EXHAUSTED    # nothing actionable left; only blocked items remain
+HARAH_STATUS: BLOCKED      # something is wrong and more sessions won't help
+```
+
+Use `BLOCKED` when continuing would be pointless or unsafe — auth broken, a
+repo's build so broken nothing can be verified, or you'd be repeating a failure.
+Say why on the line above it.
 
 ### Before you plan anything: check what already exists
 

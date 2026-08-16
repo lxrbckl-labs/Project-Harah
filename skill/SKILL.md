@@ -118,11 +118,25 @@ login Keychain). The brief re-reads POLICY.md **every run** — the agent boots
 with no memory and no skills, so the doctrine gate is inside the prompt, not
 assumed.
 
-Bounded on purpose: **2 remediations or 45 minutes per run**, single-flight so
-two agents never touch the same branch, highest severity first, and it prefers
-fixes that close many alerts at once. It may merge only what POLICY.md allows,
-and only when the target repo's **own** verification actually passed; anything
-it can't verify gets pushed as far as it got, commented, and queued for Alex.
+**A run is a LOOP of sessions, and it clears the board (Alex, 2026-08-16:
+"resolve everything, each run").** There is no work quota. One `claude -p`
+session has finite context and cannot clear a 200-alert board, so `resolve.sh`
+starts successive sessions — each re-reading the doctrine and re-deriving from
+live data — until one reports nothing actionable remains. Sessions end with
+`HARAH_STATUS: MORE_WORK | EXHAUSTED | BLOCKED`, which the runner reads.
+
+The loop stops on `EXHAUSTED`/`BLOCKED`, a non-zero exit, **two consecutive
+sessions that close no alerts**, or `MAX_SESSIONS` (12, override with
+`HARAH_MAX_SESSIONS`). Those are futility guards, not quotas — they fire only
+once sessions have stopped resolving anything. Single-flight matters more now
+that a run can last hours: if the next fire lands mid-run it skips rather than
+putting two agents on the same branches.
+
+What does **not** relax: severity order, preferring fixes that close many alerts
+at once, and every POLICY.md gate. It may merge only what POLICY allows and only
+when the target repo's **own** verification actually passed; anything it can't
+verify gets pushed as far as it got, commented, and queued for Alex. "Resolve
+everything" means *attempt* everything — never merge something unverified.
 
 ### Mentions — summon Harah to a specific PR with `@harah`
 
