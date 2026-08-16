@@ -390,11 +390,31 @@ it against the API. Treat numbers here as a starting point, never as truth.
 will duplicate finished work and collide with a branch you are forbidden to
 touch.
 
-**6. On this host, merging is deploying.** CI tags images by branch and a global
-`watchtower` polls every 300s with rolling restart, so a merge to `main`
-replaces the live container within ~5 minutes, unattended. That is why POLICY's
-post-merge deployment check exists — wait out the poll and confirm the service
-serves. Branch pushes are safe; they don't tag `:main`.
+**6. Merging is NOT deploying — the build is gated on a `publish` commit.**
+(Corrected 2026-08-16 from the opposite claim, which was wrong and had been
+driving sessions to queue safe work out of an imagined blast radius.) The shared
+reusable workflow `lxrbckl-labs/.github/.github/workflows/dockerhub-build-push.yml`
+builds only when the head commit message **starts with `publish`** (or is a
+`Merge …` commit containing `publish`):
+
+```yaml
+if: startsWith(inputs.caller_commit_message, 'publish') ||
+    (startsWith(inputs.caller_commit_message, 'Merge ') && contains(inputs.caller_commit_message, 'publish'))
+```
+
+So an ordinary merge to `main` reports `skipped`, produces **no image**, and
+`watchtower` has nothing new to pull — the live container keeps running. Releases
+are an explicit act: a commit literally named `publish` (see
+`Project-FlyingGitman`'s history, which is a run of them).
+
+Two consequences. **The post-merge deployment check still matters, but its usual
+honest answer is "merged, not deployed"** — say that plainly instead of waiting
+out a watchtower poll that will never fire. And **shipping is Alex's call**: never
+author a `publish` commit unattended to make a merge take effect.
+
+Verify per repo rather than assuming — check the run's conclusion (`skipped` vs
+`success`) and the image's build date (`docker image inspect <img> --format
+'{{.Created}}'`) against the container's uptime.
 
 **7. Read the doctrine before extending the machinery, not after.** The
 on-demand stance in [README.md](README.md) is right for *doing a task*. It is

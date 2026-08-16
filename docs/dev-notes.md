@@ -81,6 +81,47 @@ more. `skill/grooming/POLICY.md` remains the sole merge authorization.
   file, so scheduled passes double-log each line. Cosmetic; don't read it as
   two passes.
 
+### CI and deployment across the `lxrbckl-labs` repos (learned 2026-08-16)
+
+- **A merge does not deploy. A `publish` commit deploys.** The shared reusable
+  workflow builds only when the head commit message starts with `publish` (see
+  SKILL.md standing rule 6 for the exact `if:`). Ordinary merges report
+  `skipped` and produce no image. Doctrine previously asserted the opposite;
+  it was wrong, and it cost real work — sessions queued safe changes because
+  they believed a merge would replace a live container in ~5 minutes.
+- **`skipped` ≠ `failure` ≠ "workflow file issue".** Three distinct outcomes
+  that all leave the image unchanged, and they mean different things:
+  `skipped` = the publish gate said no (healthy); `failure` with a real job
+  = the build broke; **`failure` with `jobs: []` and the run `name` showing
+  the workflow *path*** rather than its `name:` = GitHub could not resolve the
+  workflow at all. Read `jobs.total_count` before drawing a conclusion.
+- **`reactive-resume`'s CI is genuinely broken**, and this is the third
+  symptom class above. Its workflow calls
+  `uses: lxrbckl-dev/.github/...`, and the org `lxrbckl-dev` was renamed to
+  `lxrbckl-labs`. **The REST API silently follows the rename redirect —
+  `gh api repos/lxrbckl-dev/.github` happily returns `lxrbckl-labs/.github` —
+  but GitHub Actions does not.** So the ref looks valid under every check you
+  would naturally run, while every real run dies before starting a job.
+  `Project-FlyingGitman` and `Project-Jordyn` were fixed on 2026-08-08;
+  `reactive-resume` was missed. One-line fix, still open.
+- **Always `git fetch` a target repo before branching from local `main`.** On
+  2026-08-16 a resolver session branched `Project-FlyingGitman` off a stale
+  local `main` (`747bd29`), eight days and four commits behind. It re-did
+  dependabot work Alex had already merged, and — because that old commit also
+  predated the org-ref fix — its CI run failed with the "workflow file issue"
+  signature, which then got mis-attributed to a repo-wide outage. The PR was
+  closed and redone against the real `main` for a sixth of the diff. The stale
+  base poisoned both the work *and* the diagnosis.
+
+### Verification signals per repo (as of 2026-08-16)
+
+| repo | usable verification | notes |
+|---|---|---|
+| `reactive-resume` | `pnpm typecheck` (green on `main`) | `pnpm build` is **broken on `main`** — unbounded `h3` override floated to `2.0.1-rc.20`, which dropped the `resolveDotSegments` export `h3-rules` imports. `biome check` has a pre-existing nit. Judge by delta. |
+| `Project-FlyingGitman` | `npm ci` + `npm run build` (`tsc`) + `npm audit` | `npm test` is an unimplemented stub that exits 1 on `main`. Not a signal. |
+| `Project-Jordyn` | pnpm, but **pinned to 9.15.9** by PR #13 | Local pnpm is 10.x; installing with it rewrites the lockfile format and guarantees a conflict with the in-flight human PRs. |
+| `Project-ASBC`, `Project-RCoD` | **none** — no CI, no tests, no container | Nothing can be merged here under POLICY, regardless of how good the change is. Poetry isn't installed on the mini either. |
+
 ## Conventions
 
 Ship a change = build if the frontend changed → `git add -A && git commit &&
