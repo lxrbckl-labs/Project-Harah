@@ -52,7 +52,10 @@ export interface ResolverResp {
   last_start: string | null;
   last_end: string | null;
   running: boolean;
+  run_mode?: string | null;
+  started_at?: string | null;
   ok?: boolean;
+  started?: string;
   message?: string;
 }
 
@@ -245,6 +248,8 @@ export const api = {
   resolver: () => j<ResolverResp>('/api/resolver'),
   setResolverCadence: (choice: string) =>
     j<ResolverResp>(`/api/resolver/cadence/${encodeURIComponent(choice)}`, { method: 'POST' }),
+  runResolver: (mode: 'run' | 'review') =>
+    j<ResolverResp>(`/api/resolver/run/${mode}`, { method: 'POST' }),
   backupNow: (name: string) =>
     j<{ started: string }>(`/api/backups/${encodeURIComponent(name)}`, { method: 'POST' }),
   pins: () => j<{ pinned: string[] }>('/api/pins'),

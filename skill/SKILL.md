@@ -104,6 +104,14 @@ Harah* — so one is scheduled:
 tail -40 ~/Library/Logs/harah-resolver.log
 ```
 
+**Trigger a pass by hand from the dashboard** — the Security Alerts panel has
+**Review only** (read-only: reports what it would do, changes nothing) and
+**Resolve now** (the real loop). `POST /api/resolver/run/{review|run}` launches
+it detached, since a real run lasts hours; progress shows in the panel and in
+`~/Library/Logs/harah-resolver.log`. resolve.sh writes `~/.harah/resolver-running`
+so the dashboard can see a live run regardless of `$TMPDIR`, and a second press
+is refused with 409 rather than silently no-oping on the lock.
+
 **Cadence is set from the dashboard** — the Security Alerts panel has a
 Resolver control (`every 6h` / `every 12h` / `daily 05:30`).
 `resolver/set-cadence.sh` owns the plist; `enable.sh` delegates to it and

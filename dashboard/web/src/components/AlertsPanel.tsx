@@ -32,6 +32,16 @@ function ResolverControl() {
     finally { setBusy(null); }
   }
 
+  async function trigger(mode: 'run' | 'review') {
+    setBusy(mode); setErr(null);
+    try {
+      setR(await api.runResolver(mode));
+      // A real run lasts hours; poll faster while it's live so the state shows.
+      setTimeout(load, 3000);
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    finally { setBusy(null); }
+  }
+
   if (!r) return null;
   const choices = r.choices?.length ? r.choices : ['6h', '12h', 'daily'];
   return (
@@ -55,6 +65,29 @@ function ResolverControl() {
             </button>
           );
         })}
+      </div>
+      <div className="chip" style={{ margin: '10px 0 6px' }}>Trigger a pass now</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <button className="btn" onClick={() => trigger('review')}
+          disabled={busy !== null || r.running}
+          title="Read-only: reports what it would do. No branches, pushes, merges or comments."
+          style={{ fontSize: 11, padding: '4px 10px', cursor: r.running ? 'not-allowed' : 'pointer' }}>
+          {busy === 'review' ? '…' : 'Review only'}
+        </button>
+        <button className="btn" onClick={() => trigger('run')}
+          disabled={busy !== null || r.running}
+          title="Real run: loops until the board is clear. Merges deploy within ~5 min."
+          style={{
+            fontSize: 11, padding: '4px 10px', cursor: r.running ? 'not-allowed' : 'pointer',
+            borderColor: 'var(--warn)', color: 'var(--warn)',
+          }}>
+          {busy === 'run' ? '…' : 'Resolve now'}
+        </button>
+        {r.running && (
+          <span className="chip" style={{ alignSelf: 'center', color: 'var(--good)' }}>
+            {r.run_mode === 'review' ? 'review' : 'run'} in progress — merges deploy in ~5 min
+          </span>
+        )}
       </div>
       {err && <div className="err" style={{ marginTop: 6 }}>{err}</div>}
     </div>

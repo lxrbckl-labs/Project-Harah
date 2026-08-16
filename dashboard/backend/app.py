@@ -662,6 +662,23 @@ RESOLVER_SETTER = Path(__file__).resolve().parents[2] / "skill" / "resolver" / "
 RESOLVER_LOG = Path.home() / "Library" / "Logs" / "harah-resolver.log"
 
 
+RESOLVER_RUNNER = Path(__file__).resolve().parents[2] / "skill" / "resolver" / "resolve.sh"
+RESOLVER_RUNMARK = Path.home() / ".harah" / "resolver-running"
+# Allowlist again: 'review' is the read-only pass, 'run' does real work.
+RESOLVER_MODES = {"run": [], "review": ["--dry-run"]}
+
+
+def _resolver_running() -> tuple[bool, str | None, str | None]:
+    """(running, mode, started_at) from the marker resolve.sh writes."""
+    try:
+        if RESOLVER_RUNMARK.exists():
+            parts = RESOLVER_RUNMARK.read_text().split()
+            return True, (parts[0] if parts else None), (parts[1] if len(parts) > 1 else None)
+    except Exception:
+        pass
+    return False, None, None
+
+
 def _resolver_state() -> dict:
     mode = "daily"
     try:
@@ -680,10 +697,10 @@ def _resolver_state() -> dict:
                     last_end = line.split()[1]
     except Exception:
         pass
+    running, run_mode, started_at = _resolver_running()
     return {"cadence": mode, "label": label, "choices": sorted(RESOLVER_CADENCES),
             "last_start": last_start, "last_end": last_end,
-            "running": bool(last_start and not last_end) or
-                       Path(os.environ.get("TMPDIR", "/tmp"), "harah-resolver.lock").exists()}
+            "running": running, "run_mode": run_mode, "started_at": started_at}
 
 
 @app.get("/api/resolver")
@@ -710,6 +727,38 @@ def resolver_cadence(choice: str):
     if p.returncode != 0:
         raise HTTPException(500, (p.stderr or p.stdout or "set-cadence failed").strip()[:300])
     return {**_resolver_state(), "ok": True, "message": (p.stdout or "").strip()}
+
+
+@app.post("/api/resolver/run/{mode}")
+def resolver_run(mode: str):
+    """Trigger the resolver by hand.
+
+    'review' = read-only pass (no branches, pushes, merges or comments).
+    'run'    = the real thing: loops sessions until the board is clear, and on
+               this host a merge deploys within ~5 minutes.
+
+    Detached on purpose — a real run lasts hours, so this returns immediately
+    and progress is read from the log. resolve.sh is single-flight, so a second
+    press while one is active is harmless, but we refuse it here for a clearer
+    message than a silent no-op.
+    """
+    if mode not in RESOLVER_MODES:
+        raise HTTPException(400, f"mode '{mode}' not allowed. Permitted: {sorted(RESOLVER_MODES)}")
+    if not RESOLVER_RUNNER.exists():
+        raise HTTPException(500, f"resolve.sh not found at {RESOLVER_RUNNER}")
+    running, run_mode, started_at = _resolver_running()
+    if running:
+        raise HTTPException(409, f"a resolver {run_mode or 'run'} is already active (started {started_at})")
+    try:
+        subprocess.Popen(
+            ["/bin/bash", str(RESOLVER_RUNNER), *RESOLVER_MODES[mode]],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL, start_new_session=True,
+        )
+    except Exception as e:
+        raise HTTPException(500, f"could not start resolver: {e}")
+    return {**_resolver_state(), "ok": True, "started": mode,
+            "message": f"resolver {mode} started — follow ~/Library/Logs/harah-resolver.log"}
 
 
 @app.get("/api/alerts")
