@@ -18,6 +18,10 @@ This directory is the version-controlled home of the Harah agent doctrine
   (launchd install on the mini; self-locating, re-run after moving the
   checkout), `set-cadence.sh` (single owner of the grooming plist —
   schedules the job; the alerts routine drives it).
+- **[mentions/](mentions/)** — `@harah` listener: polls Alex's repos every
+  5 min and dispatches a scoped session to the PR he mentioned. Allowlisted
+  authors only (this repo is public); a mention authorises looking, never
+  merging.
 - **[resolver/](resolver/)** — the scheduled Harah *session* that actually
   resolves alerts and queued PRs (launchd → headless `claude -p`, daily 05:30,
   `--dry-run` supported). `prompt.md` is its standing brief and re-reads

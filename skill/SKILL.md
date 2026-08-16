@@ -116,9 +116,38 @@ fixes that close many alerts at once. It may merge only what POLICY.md allows,
 and only when the target repo's **own** verification actually passed; anything
 it can't verify gets pushed as far as it got, commented, and queued for Alex.
 
-**The three routines are one loop:** `alerts/` senses → sets grooming's
+### Mentions — summon Harah to a specific PR with `@harah`
+
+Comment `@harah <what you want>` on any PR or issue in a repo Alex owns and a
+scoped Harah session picks it up within ~5 minutes, reads the PR, and replies
+signed `— Harah`.
+
+```bash
+<checkout>/skill/mentions/listen.sh             # one poll now
+<checkout>/skill/mentions/listen.sh --dry-run   # report hits, dispatch nothing
+<checkout>/skill/mentions/enable.sh             # launchd job (mini, every 5 min)
+tail -40 ~/Library/Logs/harah-mentions.log
+```
+
+Polling, not a webhook — no endpoint is exposed to the internet, and the
+session inherits the mini's Docker, vault and POLICY.md, which a cloud GitHub
+Action could not.
+
+**Security posture (this repo is PUBLIC — anyone can comment):**
+- Only authors in `ALLOWED_AUTHORS` (`scan.py`) are ever dispatched; everyone
+  else is logged and dropped. Otherwise a stranger's comment becomes a remote
+  trigger for an agent holding merge authority.
+- **A mention is a request to LOOK, never authorization to merge.** The comment
+  body reaches the session fenced as untrusted data, and the brief tells it to
+  refuse and say so if the text asks for a merge, deploy, or access change —
+  *including when the comment really is from Alex*. Merges are authorized in
+  chat and by POLICY.md, never by comment text.
+- `— Harah` signatures can't match `@harah`, and a signature guard drops them
+  anyway so the bot can't loop on its own replies.
+
+**The four routines are one loop:** `alerts/` senses → sets grooming's
 cadence → `grooming/` sweeps the safe class → `resolver/` does the real work on
-what's left.
+what's left → `mentions/` lets Alex pull Harah onto a specific PR on demand.
 
 **Project dev notes (the convention harah owns, Alex 2026-08-15):**
 per-repo development knowledge lives in the **Obsidian vault**, not in
