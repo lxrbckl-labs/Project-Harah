@@ -105,7 +105,17 @@ now. The duties:
   that repo's note and sync the vault (`librarian` skill; standing OK).
 - **New repo, no note**: create `Projects/<Repo-Name>/Dev-Notes.md` per the
   vault conventions (frontmatter, wikilinks, link the stack note) before
-  deep work starts. Never leave a real repo without a vault home.
+  deep work starts. Never leave a real repo without a home for its notes.
+
+**Exception — this repo keeps its own notes in-repo (Alex, 2026-08-16):**
+Project-Harah's development notes live at **[`docs/dev-notes.md`](../docs/dev-notes.md)**,
+*not* in the Obsidian vault. A project that already carries its own doctrine
+(`skill/`) should carry its own dev notes too: they stay independent of the
+vault and their history is tracked with the code that they describe. The same
+reasoning that moved this doctrine out of the config repo applies here — so
+when a repo owns its doctrine in-repo, put its dev notes beside it and don't
+create a vault home for it. Vault notes remain correct for repos that have no
+in-repo doctrine of their own.
 
 Consult this on demand — the section relevant to the task, not a mandatory
 front-to-back read. It exists so you start from what's already been learned
