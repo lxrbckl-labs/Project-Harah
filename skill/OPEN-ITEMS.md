@@ -3,6 +3,23 @@
 - ⚠️ **Exposed GitHub PATs** — live `ghp_…` tokens in plaintext in
   `~/.zsh_history` and in `~/docker-bare-run/*/docker-compose.yml`.
   Recommend rotating at github.com/settings/tokens.
+- 🔴 **Alert remediation is Harah's standing assignment (Alex, 2026-08-16):**
+  "get all the alerts resolved — that's your issue now." Work the list down
+  under `grooming/POLICY.md`; the resolve-and-verify mandate governs.
+  **Two findings that redirect the obvious plan — the open dependabot PRs
+  are the WRONG tool for both criticals:**
+  - `Project-Jordyn` critical (**Authorization Bypass in Next.js
+    Middleware**) is patched in **next 14.2.25** — a plain patch on the
+    current 14.2.4 line. Dependabot's PR #11 proposes **15.5.21**, a major
+    that grooming rightly refuses. **The auth bypass can be closed today
+    with a patch bump; the major upgrade is separate and optional.** Don't
+    let #11 hold the security fix hostage.
+  - `reactive-resume` critical (**better-auth OAuth refresh-token replay**)
+    needs **better-auth 1.6.11**. The prepared branch on PR #9 targets
+    **1.6.2** — so completing that whole coupled migration as planned would
+    still leave the critical OPEN. Retarget to 1.6.11 before the sitting.
+  - Remaining criticals are transitive and look cheap: `seroval` → 1.5.3,
+    `basic-ftp` → 5.2.0 (both `reactive-resume`).
 - ⚠️ **228 open Dependabot alerts** (first full count, 2026-08-16):
   **6 critical, 98 high**, 103 medium, 21 low. Concentrated in
   `reactive-resume` (127 open, 4 critical) and `Project-Jordyn` (95 open,
