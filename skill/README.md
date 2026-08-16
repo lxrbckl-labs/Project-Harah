@@ -18,6 +18,10 @@ This directory is the version-controlled home of the Harah agent doctrine
   (launchd install on the mini; self-locating, re-run after moving the
   checkout), `set-cadence.sh` (single owner of the grooming plist —
   schedules the job; the alerts routine drives it).
+- **[resolver/](resolver/)** — the scheduled Harah *session* that actually
+  resolves alerts and queued PRs (launchd → headless `claude -p`, daily 05:30,
+  `--dry-run` supported). `prompt.md` is its standing brief and re-reads
+  POLICY.md every run. This is where resolution lives; `groom.sh` has none.
 - **[alerts/](alerts/)** — the security-alert watch: `collect.py` (reads
   open Dependabot alerts, diffs against the last pass, decides grooming's
   cadence), `alerts.sh` (one pass), `enable.sh`/`disable.sh` (launchd, every

@@ -40,6 +40,19 @@ Nothing in this carve-out extends to non-dependabot PRs, any repo Alex
 does not own, or merging without verification. When in doubt, queue it
 for Alex.
 
+**Harah-authored remediation PRs are in scope (Alex, 2026-08-16):** "get all
+the alerts resolved — that's your issue now." Most Dependabot *alerts* have no
+dependabot *PR* behind them (no version-update config, or no published fix in
+a matching range), so closing them means branches Harah authors itself. Those
+PRs carry the **same authorization and the same gates** as a resolved
+dependabot PR — repo owned by `lxRbckl`/`lxrbckl-labs`; work done on the branch
+and pushed; **the repo's own verification actually ran and passed**; signed
+`Resolved & verified: <what>. — Harah` comment before merging; post-merge
+deployment check after. Nothing else widens: still no human-authored PRs, no
+repos Alex doesn't own, and **never a merge without passing verification**.
+This is the scheduled resolver's authority (`../resolver/`) as much as a
+hand-run session's.
+
 **Cadence is not authority (2026-08-16).** The alert-watch routine
 (`../alerts/`) changes how *often* grooming runs — up to every 6h when
 critical alerts are open — by rewriting the launchd schedule via

@@ -90,6 +90,36 @@ tail -20 ~/Library/Logs/harah-alerts.log
   alert until Alex enables them; the routine reports them as disabled rather
   than as clean.
 
+### The resolver — the scheduled session that actually fixes things
+
+`groom.sh` merges-the-safe-class or queues; it holds **no resolution logic**.
+POLICY.md's resolve-and-verify mandate presupposes *a session acting as
+Harah* — so one is scheduled:
+
+```bash
+<checkout>/skill/resolver/resolve.sh            # one pass now
+<checkout>/skill/resolver/resolve.sh --dry-run  # analyse + report, changes nothing
+<checkout>/skill/resolver/enable.sh             # launchd job (mini, daily 05:30)
+<checkout>/skill/resolver/disable.sh            # remove it
+tail -40 ~/Library/Logs/harah-resolver.log
+```
+
+launchd → headless `claude -p` with `resolver/prompt.md` as the standing brief
+(the `scheduler` pattern; GUI domain, because the OAuth token lives in the
+login Keychain). The brief re-reads POLICY.md **every run** — the agent boots
+with no memory and no skills, so the doctrine gate is inside the prompt, not
+assumed.
+
+Bounded on purpose: **2 remediations or 45 minutes per run**, single-flight so
+two agents never touch the same branch, highest severity first, and it prefers
+fixes that close many alerts at once. It may merge only what POLICY.md allows,
+and only when the target repo's **own** verification actually passed; anything
+it can't verify gets pushed as far as it got, commented, and queued for Alex.
+
+**The three routines are one loop:** `alerts/` senses → sets grooming's
+cadence → `grooming/` sweeps the safe class → `resolver/` does the real work on
+what's left.
+
 **Project dev notes (the convention harah owns, Alex 2026-08-15):**
 per-repo development knowledge lives in the **Obsidian vault**, not in
 skills: `Projects/<Repo-Name>/` (e.g. `Dev-Notes.md`, `Dev-Pipeline.md`),
