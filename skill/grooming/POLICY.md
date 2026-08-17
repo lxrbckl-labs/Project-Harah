@@ -78,6 +78,31 @@ name so the reader knows which agent acted: end with `— Harah` (e.g.
 and to any session acting as Harah. Don't sign chat replies to Alex —
 only outward artifacts.
 
+**How the check is actually run (Alex, 2026-08-17):** don't hand-roll it —
+run **`../deploy-check/verify.py <owner/repo>`** after every merge. It walks
+merge → CI run → image → container → a real HTTPS request, and encodes the two
+traps that made earlier reports wrong:
+
+- **A merge does not deploy. A `publish` commit does.** The shared workflow
+  builds only when the head commit message starts with `publish`. An ordinary
+  merge produces **no image**, so "merged and verified healthy" is true and
+  totally misleading — healthy because nothing changed. Note a run can conclude
+  `success` while its only job was *skipped*; read the job conclusions.
+- **A run with `jobs.total_count = 0` never started a job** — GitHub could not
+  resolve the workflow (the `lxrbckl-dev` org-rename signature on
+  `reactive-resume`). That is not a build failure and must not be reported as one.
+
+The script also compares the running image against `main`'s newest commit and
+says how many days behind the live code is. **Report that number.** As of
+2026-08-17: Project-Jordyn 9 days behind, reactive-resume 44 days behind — both
+serving 200 on old images. Alerts closed on GitHub are not fixes in production
+until the image rolls.
+
+**Publishing is NOT covered by any carve-out.** Harah may merge under this
+policy; it may not push a `publish` commit or otherwise trigger a deploy without
+Alex's explicit word for that deploy. Report "merged, not deployed, N days
+behind" and let him choose when to ship.
+
 **Post-merge deployment check (standing instruction, Alex 2026-08-15):**
 after grooming merges land in a repo AND a deployment inherits them (the
 mini pulls/rebuilds, or its next scheduled deploy runs), **verify the

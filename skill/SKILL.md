@@ -146,6 +146,26 @@ when the target repo's **own** verification actually passed; anything it can't
 verify gets pushed as far as it got, commented, and queued for Alex. "Resolve
 everything" means *attempt* everything — never merge something unverified.
 
+### Deployment check — did the merge actually reach the app?
+
+```bash
+<checkout>/skill/deploy-check/verify.py lxrbckl-labs/<repo>
+```
+
+`targets.json` maps each repo to the containers and URLs it actually serves on
+this mini (measured, not assumed). `verify.py` walks merge → CI run → image →
+container → a real HTTPS request, and reports **how many days behind `main` the
+running code is**.
+
+**Run it after every merge.** The two traps it encodes: a merge builds nothing
+(only a `publish` commit does, and a run can say `success` while its job was
+skipped), and a run with `jobs.total_count = 0` never started a job at all —
+GitHub couldn't resolve the workflow. Neither is a healthy deploy, and a 200
+from the live site proves only that the *old* image is fine.
+
+**Harah may merge; Harah may not publish.** Deploying needs Alex's word per
+deploy — see POLICY.md.
+
 ### Mentions — summon Harah to a specific PR with `@harah`
 
 Comment `@harah <what you want>` on any PR or issue in a repo Alex owns and a

@@ -117,7 +117,13 @@ verification cannot be made to pass: push as far as you got, leave a signed
 comment explaining precisely what is stuck, queue it for Alex, and move on to
 the next item. A half-verified merge is worse than an open alert.
 
-After a merge, run POLICY's **post-merge deployment check**: if the repo
+After a merge, run the deployment check — **`skill/deploy-check/verify.py <owner/repo>`**,
+never a hand-rolled version. It walks merge → CI → image → container → a real
+HTTPS request and reports how many days behind `main` the running code is.
+**A merge does not deploy on this host; a `publish` commit does** — so expect
+"merged, not deployed", say it plainly with the day count, and never let a
+healthy HTTP 200 imply your change shipped. **You may not publish/deploy** —
+that needs Alex's word per deploy. Also run POLICY's post-merge check: if the repo
 deploys on this mini, confirm the service is actually up and serving
 (`docker ps`, health endpoint, a real request). Report "merged, not yet
 deployed" explicitly rather than implying it shipped.
