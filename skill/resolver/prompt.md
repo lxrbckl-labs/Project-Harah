@@ -114,11 +114,35 @@ Consequences you must not get wrong:
 
 ## 3. Resolve it properly
 
-Per POLICY.md's resolve-and-verify mandate: work on a branch, do the **real**
-work (apply the migration, fix the callers, read the changelog for breaking
-changes), then run **the repo's own verification** — its tests, typecheck,
-lint, build, whatever exists. Judge by *delta vs main*: some repos have
-pre-existing failures, and those are not yours to be blocked by.
+**Everything goes through a pull request. Never commit or push to `main`
+directly** — not for a one-line lockfile pin, not for anything. The PR is the
+record: it is where the diff, the verification output and the signed reasoning
+live, and it is what Alex reads later to understand what you did and why. A
+change that only exists as a commit on `main` is a change nobody can review.
+
+The shape of every fix, without exception:
+
+```
+git fetch origin && git checkout -b security/<what> origin/main   # ALWAYS off fresh origin/main
+<do the real work>
+<run the repo's own verification>
+git push -u origin security/<what>
+gh pr create -R <repo> --title "security(deps): <what>" --body "<what, why, what verification said>"
+gh pr comment <n> -R <repo> --body "Resolved & verified: <detail>. — Harah"
+gh pr merge <n> -R <repo> --squash        # only if verification actually passed
+python3 skill/deploy-check/verify.py <repo>
+```
+
+**Branch off freshly-fetched `origin/main`, never a stale local `main`.** On
+2026-08-16 a session branched `Project-FlyingGitman` off a local `main` eight
+days behind, redid work Alex had already merged, and then misdiagnosed the
+resulting CI failure as a repo-wide outage. The stale base poisoned both the
+work and the diagnosis.
+
+Do the **real** work (apply the migration, fix the callers, read the changelog
+for breaking changes), then run **the repo's own verification** — its tests,
+typecheck, lint, build, whatever exists. Judge by *delta vs main*: some repos
+have pre-existing failures, and those are not yours to be blocked by.
 
 **You may merge only when the repo's own verification actually ran and
 passed**, the work is pushed, and you left a signed resolution comment. If

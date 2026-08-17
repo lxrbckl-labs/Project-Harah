@@ -23,8 +23,8 @@ This directory is the version-controlled home of the Harah agent doctrine
   authors only (this repo is public); a mention authorises looking, never
   merging.
 - **[resolver/](resolver/)** — the scheduled Harah *session* that actually
-  resolves alerts and queued PRs (launchd → headless `claude -p`, daily 05:30,
-  `--dry-run` supported). `prompt.md` is its standing brief and re-reads
+  resolves alerts and queued PRs (launchd → headless `claude -p`; cadence and
+  manual triggers are set from the dashboard's Security Alerts panel). `prompt.md` is its standing brief and re-reads
   POLICY.md every run. This is where resolution lives; `groom.sh` has none.
 - **[incident/](incident/)** — the responder the watchdog fires on a new
   failure: confirm → diagnose → restart (cheap, reversible) → verify →

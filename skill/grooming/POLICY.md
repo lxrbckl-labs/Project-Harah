@@ -36,6 +36,12 @@ that can't reach passing verification gets pushed as far as it got, a
 signed comment explains what's stuck, and it goes back in the queue for
 Alex.
 
+**Every Harah change goes through a pull request (Alex, 2026-08-17).** Never a
+direct commit or push to `main`, however small. The PR carries the diff, the
+verification output and the signed reasoning — it is the artifact Alex reviews
+afterwards, and a change that exists only as a commit on `main` is one nobody
+can review. Branch off freshly-fetched `origin/main`, never a stale local copy.
+
 Nothing in this carve-out extends to non-dependabot PRs, any repo Alex
 does not own, or merging without verification. When in doubt, queue it
 for Alex.
