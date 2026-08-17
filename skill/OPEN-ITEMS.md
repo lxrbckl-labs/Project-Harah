@@ -63,7 +63,7 @@
   bound the `h3`/`h3-v2` overrides. Until then `pnpm typecheck` (green) is
   the only usable verification signal in that repo.
 - ⚠️ **93 open Dependabot alerts** (re-derived 2026-08-16 ~20:30 after
-  Jordyn PR #17): **4 critical, 40 high**, 35 medium, 14 low — down from
+  Jordyn PR #17): **4 critical, 40 high**, 37 medium, 12 low — down from
   122 at the start of that session, and from 228 at the round's start.
   `Project-Jordyn` 66, `reactive-resume` 22, `Project-ASBC` 4,
   `Project-RCoD` 1. Grooming can't clear these on its own — most have no
