@@ -26,6 +26,14 @@ This directory is the version-controlled home of the Harah agent doctrine
   resolves alerts and queued PRs (launchd → headless `claude -p`, daily 05:30,
   `--dry-run` supported). `prompt.md` is its standing brief and re-reads
   POLICY.md every run. This is where resolution lives; `groom.sh` has none.
+- **[watchdog/](watchdog/)** — every 10 min, is everything Harah touches still
+  serving? Checks every deployed target regardless of cause and records
+  ok→down / down→ok **transitions** so a long-broken thing doesn't shout
+  forever. **Read-only** — it reports; it never restarts or rolls back.
+- **[deploy-check/](deploy-check/)** — after a merge: did it actually reach the
+  running app? Walks merge → CI → image → container → real HTTPS request and
+  reports how many days behind `main` the live code is. `targets.json` is the
+  measured repo→container→URL map.
 - **[alerts/](alerts/)** — the security-alert watch: `collect.py` (reads
   open Dependabot alerts, diffs against the last pass, decides grooming's
   cadence), `alerts.sh` (one pass), `enable.sh`/`disable.sh` (launchd, every
