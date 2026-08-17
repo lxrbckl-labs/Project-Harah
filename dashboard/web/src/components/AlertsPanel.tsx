@@ -9,7 +9,7 @@ const CADENCE_LABEL: Record<string, string> = {
 };
 
 /** How often the resolver runs. Each pass is a full agent session doing real
- *  migration work, and a merge here deploys within ~5 min — so the backend
+ *  migration work on live repos — so the backend
  *  allowlists these choices and floors them at 6h. */
 function ResolverControl() {
   const [r, setR] = useState<ResolverResp | null>(null);
@@ -76,7 +76,7 @@ function ResolverControl() {
         </button>
         <button className="btn" onClick={() => trigger('run')}
           disabled={busy !== null || r.running}
-          title="Real run: loops until the board is clear. Merges deploy within ~5 min."
+          title="Real run: loops until the board is clear. Merges do NOT deploy — a publish commit does."
           style={{
             fontSize: 11, padding: '4px 10px', cursor: r.running ? 'not-allowed' : 'pointer',
             borderColor: 'var(--warn)', color: 'var(--warn)',
@@ -85,7 +85,7 @@ function ResolverControl() {
         </button>
         {r.running && (
           <span className="chip" style={{ alignSelf: 'center', color: 'var(--good)' }}>
-            {r.run_mode === 'review' ? 'review' : 'run'} in progress — merges deploy in ~5 min
+            {r.run_mode === 'review' ? 'review' : 'run'} in progress — merges land on main, they don't deploy
           </span>
         )}
       </div>

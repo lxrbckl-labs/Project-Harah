@@ -655,7 +655,8 @@ def grooming():
 # has no auth by design, so only these exact choices are ever accepted and the
 # value passed to the script is our own constant — never the request string.
 # Floored at 6h in set-cadence.sh too: a pass is unattended migration work, and
-# on this host a merge deploys within ~5 minutes.
+# on live repos. (Not because a merge deploys — it doesn't; see POLICY.md's
+# publish gate. Rate-limiting unattended migration work is reason enough.)
 RESOLVER_CADENCES = {"6h": "21600", "12h": "43200", "daily": "daily"}
 RESOLVER_MARK = Path.home() / ".harah" / "resolver-cadence"
 RESOLVER_SETTER = Path(__file__).resolve().parents[2] / "skill" / "resolver" / "set-cadence.sh"
@@ -735,7 +736,8 @@ def resolver_run(mode: str):
 
     'review' = read-only pass (no branches, pushes, merges or comments).
     'run'    = the real thing: loops sessions until the board is clear, and on
-               this host a merge deploys within ~5 minutes.
+               live repositories. A merge does NOT deploy here — only a
+               `publish` commit does.
 
     Detached on purpose — a real run lasts hours, so this returns immediately
     and progress is read from the log. resolve.sh is single-flight, so a second
