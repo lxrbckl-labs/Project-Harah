@@ -1,5 +1,17 @@
 # Open items (keep this current; also rendered by the dashboard where noted)
 
+- 🔴 **DEPLOYS ARE DEAD ORG-WIDE — the DockerHub token is rejected.** Found
+  2026-08-17 by the first real publish. The build fails at *Log in to
+  DockerHub*: `unauthorized: incorrect username or password`. Org secrets
+  `DOCKERHUB_TOKEN` / `DOCKERHUB_USERNAME` were last updated **2025-10-18** —
+  ten months ago — and Docker Hub PATs expire. **No `publish` on any repo can
+  produce an image until Alex rotates that token**, which is why every stack is
+  running months-old code (Jordyn 9d, reactive-resume 44d) no matter what gets
+  merged. Harah cannot fix this: rotating credentials is a hard stop.
+  Fix: new Read/Write PAT at hub.docker.com → org secret `DOCKERHUB_TOKEN`.
+  **This is now the single highest-value action on the board** — it unblocks
+  every deploy at once. Safe failure mode confirmed: a failed build produces no
+  image, so the live containers were never touched.
 - ⚠️ **Exposed GitHub PATs** — live `ghp_…` tokens in plaintext in
   `~/.zsh_history` and in `~/docker-bare-run/*/docker-compose.yml`.
   Recommend rotating at github.com/settings/tokens.
