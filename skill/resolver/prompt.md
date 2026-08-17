@@ -94,14 +94,23 @@ Jordyn alerts, **14.2.35 closed 24** — identical risk, double the yield.
 Alerts patched only in a *later major* are not yours: queue them as the major
 migration they are.
 
-### This machine auto-deploys merges — treat it as a deploy, not a merge
+### A merge does NOT deploy here — a `publish` commit does
 
-CI tags images by branch and a global `watchtower` polls every 300s with
-rolling restart. **A merge to `main` replaces the live container within ~5
-minutes, unattended.** Branch pushes are safe (they tag the branch, not
-`:main`). So POLICY's post-merge deployment check is not paperwork here: wait
-out the poll and confirm the service is genuinely up and serving before calling
-anything done. If it doesn't come back, say so immediately and name the bump.
+**Corrected 2026-08-17; earlier versions of this brief said the opposite and
+were wrong.** The shared workflow builds only when the head commit message
+starts with `publish`. An ordinary merge produces **no image**, so the live
+container keeps running the old code and watchtower has nothing new to roll.
+
+Consequences you must not get wrong:
+
+- A healthy `HTTP 200` after your merge proves the **old** image is fine. It
+  says nothing about your change. Never report it as though the fix shipped.
+- Run `skill/deploy-check/verify.py <owner/repo>` and **report the "days behind
+  `main`" number it prints**. On 2026-08-17 that was 9 days for Project-Jordyn
+  and 44 for reactive-resume.
+- **You may not publish.** Pushing a `publish` commit is a deploy, it is covered
+  by no carve-out, and it needs Alex's word for that specific deploy. Merge,
+  verify, report "merged, not deployed, N days behind" — and stop there.
 
 ## 3. Resolve it properly
 
