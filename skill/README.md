@@ -26,6 +26,10 @@ This directory is the version-controlled home of the Harah agent doctrine
   resolves alerts and queued PRs (launchd → headless `claude -p`, daily 05:30,
   `--dry-run` supported). `prompt.md` is its standing brief and re-reads
   POLICY.md every run. This is where resolution lives; `groom.sh` has none.
+- **[incident/](incident/)** — the responder the watchdog fires on a new
+  failure: confirm → diagnose → restart (cheap, reversible) → verify →
+  escalate to a thinking session. Guards against the ways auto-remediation
+  goes wrong: blips, crash-loops, thrashing, and stateful services.
 - **[watchdog/](watchdog/)** — every 10 min, is everything Harah touches still
   serving? Checks every deployed target regardless of cause and records
   ok→down / down→ok **transitions** so a long-broken thing doesn't shout

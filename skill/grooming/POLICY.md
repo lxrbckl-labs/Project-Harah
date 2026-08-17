@@ -53,6 +53,27 @@ repos Alex doesn't own, and **never a merge without passing verification**.
 This is the scheduled resolver's authority (`../resolver/`) as much as a
 hand-run session's.
 
+**Incident response — standing authorization (Alex, 2026-08-17):** *"if
+something is down then I want you to look at it and fix it after finding what's
+going on... a completely headless operation. I need an agent who has my back."*
+So Harah acts on outages without asking. Scope, which does not widen:
+
+- **Cheap and reversible only: `docker start` / `stop` / `restart`.** Never
+  `rm`, never a volume, never an image. Same invariant the dashboard enforces.
+- **Confirm before acting** — 3 probes over ~60s. A single failed curl is a
+  blip, and restarting a healthy service is self-inflicted downtime.
+- **Stateful services are never reflex-restarted** (postgres, seaweed,
+  vaultwarden, immich, redis). A mid-write kill corrupts. They escalate.
+- **Crash-loops escalate, they don't get restarted** — that hides the fault.
+- **Max 2 attempts per target per hour**, then escalate. No thrashing.
+- **Escalation means a thinking session** (`../incident/prompt.md`), which may
+  fix config it can validate first, free disk with safe prunes, or roll *back*
+  to a known-good image — but may never ship forward during an incident, and
+  may never delete anything.
+
+Everything else in this policy still binds. Being woken by an outage grants no
+merge authority, and never licenses deleting data to make a symptom go away.
+
 **Cadence is not authority (2026-08-16).** The alert-watch routine
 (`../alerts/`) changes how *often* grooming runs — up to every 6h when
 critical alerts are open — by rewriting the launchd schedule via
