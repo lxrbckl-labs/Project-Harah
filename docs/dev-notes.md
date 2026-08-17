@@ -119,8 +119,38 @@ more. `skill/grooming/POLICY.md` remains the sole merge authorization.
 |---|---|---|
 | `reactive-resume` | `pnpm typecheck` (green on `main`) | `pnpm build` is **broken on `main`** — unbounded `h3` override floated to `2.0.1-rc.20`, which dropped the `resolveDotSegments` export `h3-rules` imports. `biome check` has a pre-existing nit. Judge by delta. |
 | `Project-FlyingGitman` | `npm ci` + `npm run build` (`tsc`) + `npm audit` | `npm test` is an unimplemented stub that exits 1 on `main`. Not a signal. |
-| `Project-Jordyn` | pnpm, but **pinned to 9.15.9** by PR #13 | Local pnpm is 10.x; installing with it rewrites the lockfile format and guarantees a conflict with the in-flight human PRs. |
+| `Project-Jordyn` | `pnpm install --frozen-lockfile` + `pnpm run build` + `pnpm run lint` — **all green on `main`** | Use **pnpm 10** (10.30.2 verified). See the correction below; the earlier "pnpm 10 rewrites the lockfile" warning was wrong. |
 | `Project-ASBC`, `Project-RCoD` | **none** — no CI, no tests, no container | Nothing can be merged here under POLICY, regardless of how good the change is. Poetry isn't installed on the mini either. |
+
+**Correction (2026-08-16, measured — supersedes the earlier Jordyn row).** The
+previous note said Jordyn was pinned to pnpm 9.15.9 by PR #13 and that local
+pnpm 10.x "rewrites the lockfile format and guarantees a conflict." Both halves
+are wrong now:
+
+- **pnpm 10.30.2 installs Jordyn from the committed lockfile with
+  `--frozen-lockfile` and leaves `pnpm-lock.yaml` byte-identical.** No format
+  rewrite. The lockfile is already `lockfileVersion: '9.0'`, which pnpm 10
+  reads and writes natively.
+- **pnpm 9.15.9 can no longer install the repo at all.** `main` gained a
+  `pnpm-workspace.yaml` (`fca7b44`) declaring `allowBuilds:` with no
+  `packages:` key; pnpm 9 reads the file's presence as a workspace declaration
+  and dies with `ERROR packages field missing or empty` before installing.
+  So PR #13, which pins the Dockerfile to `pnpm@9.15.9`, **would break the
+  Docker build** as written — flagged in a signed comment on #13. Appending
+  `packages: []` fixes it and is a no-op for pnpm 10 (both verified).
+
+The general lesson is standing rule 4 again: this table is a snapshot, and a
+repo's `main` moves underneath it. Re-measure before trusting a row.
+
+**Lockfile work collides with human PRs — check first, and own it if you
+collide.** Merging Jordyn #17 (transitive `pnpm.overrides`) flipped Alex's #16
+from MERGEABLE to CONFLICTING. That was a foreseeable cost of touching
+`pnpm-lock.yaml` while a dependency PR was in flight. It was survivable —
+`package.json` still merged cleanly, only the lockfile conflicted, and a
+local test-merge confirmed #16 + #17 build green together — but **run
+`gh pr list` for lockfile overlap before merging dependency work, and if you
+do cause a conflict, say so on the affected PR with the resolution recipe
+rather than leaving it to be discovered.**
 
 ## Conventions
 

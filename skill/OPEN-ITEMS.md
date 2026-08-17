@@ -6,25 +6,54 @@
 - 🔴 **Alert remediation is Harah's standing assignment (Alex, 2026-08-16):**
   "get all the alerts resolved — that's your issue now." Work the list down
   under `grooming/POLICY.md`; the resolve-and-verify mandate governs.
-  **Status after the 2026-08-16 06:16 resolver run — all 4 remaining
-  criticals now sit behind ALEX's own PRs; none are Harah's to act on:**
-  - ✅ **DONE** — `reactive-resume` `seroval` 1.4.2→1.6.2 and `basic-ftp`
-    5.1.0→5.3.1, pinned via `pnpm.overrides`, merged as **PR #16**.
-    Closed **2 critical + 3 high** (alerts #181, #20, #83, #86, #95),
-    confirmed `fixed` by the API. Note the yield lesson: the critical only
-    demanded basic-ftp 5.2.0, but 5.3.1 (same major) closed three more.
-  - ⏸️ `Project-Jordyn` next criticals → **Alex's PR #16** (next
-    14.2.4→15.5.21 + React 19, build+lint green, supersedes dependabot
-    #11). Human-authored: **hands off, Alex merges.** The 14.2.35 patch
-    route recorded earlier is now the WRONG move — it would duplicate and
-    conflict with #16.
-  - ⏸️ `reactive-resume` better-auth criticals (#148/#149, need ≥1.6.11)
-    → **Alex's PR #15**, which lands **1.6.26** and supersedes dependabot
-    #9's 1.6.2. Human-authored: hands off.
-  - **Next run should skip criticals entirely** (nothing actionable) and
-    start on `reactive-resume` highs: `hono` (4 high + 29 medium) and
-    `undici` (5 high + 9 medium) are the biggest transitive clusters, same
-    `pnpm.overrides` mechanism as PR #16.
+  **Status after the 2026-08-16 20:xx resolver session — 93 open, and every
+  single one is BLOCKED. Nothing is actionable by Harah right now:**
+  - ✅ **DONE** — `Project-Jordyn` **PR #17**: 29 transitive alerts closed
+    (15 high, 13 medium, 1 low) via major-scoped `pnpm.overrides` —
+    brace-expansion, flatted, glob, js-yaml, mdast-util-to-hast, minimatch,
+    picomatch, postcss, yaml. Verified `pnpm install --frozen-lockfile`,
+    `pnpm run build`, `pnpm run lint` all exit 0, build output
+    byte-identical to the `main` baseline. Took Jordyn 95 → 66.
+    **Merged, NOT deployed** — CI `skipped` (publish gate); container
+    `project-jordyn` still on the 8-day-old image, serving HTTP 200.
+  - ⏸️ **`Project-Jordyn` — 66 alerts, ALL `next`** (2 critical, 24 high,
+    32 medium, 8 low) → **Alex's PR #16** (14.2.4→15.5.21 + React 19).
+    Human-authored: hands off. **Merging #16 clears all 66** — the single
+    highest-value action left anywhere on the board, and it's Alex's.
+    ⚠️ **Merging #17 flipped #16 to CONFLICTING.** Only `pnpm-lock.yaml`
+    conflicts (`package.json` merges clean); resolve by regenerating.
+    Harah test-merged this locally and confirmed #16 + #17 build green
+    together — see the signed comment on #16 for the exact recipe.
+  - ⏸️ `reactive-resume` — **20 of its 22 alerts are better-auth** (2
+    critical, 12 high, 2 medium, 2 low, all closed by ≥1.6.22) →
+    **Alex's PR #15**, which lands 1.6.26. Human-authored: hands off, and
+    it is currently **CONFLICTING** so it needs his rebase. Harah must not
+    do this one independently anyway: 1.5.0-beta.9→1.6.x is a
+    **prerelease→stable transition with DB migrations**, which POLICY
+    disqualifies by name.
+  - ⛔ `reactive-resume` `extract-zip` (high, #209) — **no published fix
+    exists**; latest is 2.0.1 and that is the vulnerable version. Reachable
+    only via `@puppeteer/browsers@2.11.1`. The one escape is
+    `puppeteer-core` **24.36.0 → 25.7.0** (a MAJOR), whose
+    `@puppeteer/browsers@3.2.0` drops extract-zip entirely. Queued, not
+    forced: it's the PDF-rendering engine, `pnpm build` is broken on `main`,
+    so only `typecheck` is available and that cannot exercise a browser
+    launch. Note the real exposure is likely nil — this deployment uses
+    `puppeteer-core` against a separate Chrome container and never runs the
+    browser-download path where the symlink traversal lives.
+  - ⛔ `reactive-resume` `drizzle-orm` (high, #75) — patched **only in
+    `1.0.0-beta.20`, a prerelease**, from a prerelease. POLICY disqualifies
+    prereleases on either side. Dependabot #4 wants `1.0.0-rc.1`: same
+    problem. Needs Alex.
+  - ⛔ `Project-ASBC` (4: 2 medium torch/pytest, 2 low torch) and
+    `Project-RCoD` (1 medium pytest) — **no verification signal exists in
+    either repo**: no CI, no `.github/workflows`, no test suite, and poetry
+    isn't installed on the mini. The fix itself is trivial (`poetry lock`
+    refresh; `torch ^2.8.0` already admits the patched 2.13.0), but POLICY
+    forbids merging what can't be verified. **Unblocking these is Alex's
+    call, and it's cheap** — even a CI job running `poetry check && poetry
+    install` would make all 5 mergeable. Until then more sessions cannot
+    help.
 - 🔴 **`reactive-resume` `main` cannot build — CI has been red since at
   least 2026-08-15** (found 2026-08-16). `pnpm build` dies before compiling:
   the unbounded `"h3": ">=2.0.1-rc.17"` override floated to `h3@2.0.1-rc.20`,
@@ -33,12 +62,17 @@
   new image** — the live containers are still on a 6-week-old build. Fix =
   bound the `h3`/`h3-v2` overrides. Until then `pnpm typecheck` (green) is
   the only usable verification signal in that repo.
-- ⚠️ **223 open Dependabot alerts** (re-derived 2026-08-16 after PR #16):
-  **4 critical, 95 high**, 103 medium, 21 low — down from 228/6 critical.
-  Concentrated in `reactive-resume` (122 open, 2 critical) and
-  `Project-Jordyn` (95 open, 2 critical). Grooming can't clear these on its
-  own — most have no dependabot PR behind them. Alert watch runs every 6h
-  and has escalated grooming to a 6h cadence while criticals are open.
+- ⚠️ **93 open Dependabot alerts** (re-derived 2026-08-16 ~20:30 after
+  Jordyn PR #17): **4 critical, 40 high**, 35 medium, 14 low — down from
+  122 at the start of that session, and from 228 at the round's start.
+  `Project-Jordyn` 66, `reactive-resume` 22, `Project-ASBC` 4,
+  `Project-RCoD` 1. Grooming can't clear these on its own — most have no
+  dependabot PR behind them. Alert watch runs every 6h and has escalated
+  grooming to a 6h cadence while criticals are open.
+  **All 93 are currently blocked** (see the remediation item above): 86
+  behind Alex's human PRs #16/#15, 2 with no published fix or prerelease-only
+  fixes, 5 in repos with no verification signal. The loop has nothing left
+  to resolve until Alex acts.
 - **Dependabot alerts are DISABLED** on the personal repos `lxRbckl/.claude`,
   `lxRbckl/Obsidian`, `lxRbckl/lxRbckl`, `lxRbckl/roulette-skill` — they will
   never alert. Enabling is a repo-settings change, so it's Alex's to make.
