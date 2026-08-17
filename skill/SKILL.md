@@ -118,7 +118,9 @@ Resolver control (`every 6h` / `every 12h` / `daily 05:30`).
 preserves the current setting across re-installs. The API allowlists the three
 choices and passes its own constants to the script — never the request string —
 and both layers floor it at **6h**, because a pass is unattended migration work
-and a merge here deploys within ~5 minutes.
+on live repositories. (The floor was originally argued from "a merge deploys in
+~5 minutes", which turned out to be false — see the publish gate below. The
+floor stands on its own: unattended migration work deserves a rate limit.)
 
 launchd → headless `claude -p` with `resolver/prompt.md` as the standing brief
 (the `scheduler` pattern; GUI domain, because the OAuth token lives in the
