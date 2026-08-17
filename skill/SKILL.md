@@ -171,6 +171,12 @@ from the live site proves only that the *old* image is fine.
 **Harah may merge; Harah may not publish.** Deploying needs Alex's word per
 deploy — see POLICY.md.
 
+**Autonomous action is logged where Alex can see it** — `/api/watchdog` feeds
+the dashboard's **Estate Health** panel: targets serving, anything down, and the
+record of every unattended repair (what broke, what Harah did, whether it held).
+State lives in `~/.harah/{watchdog,incident}-state.json` on the server, so the
+trail survives a session ending or a log rotating.
+
 ### Mentions — summon Harah to a specific PR with `@harah`
 
 Comment `@harah <what you want>` on any PR or issue in a repo Alex owns and a

@@ -8,6 +8,7 @@ import ContainerDrawer from './components/ContainerDrawer';
 import BackupPanel from './components/BackupPanel';
 import GroomingPanel from './components/GroomingPanel';
 import AlertsPanel from './components/AlertsPanel';
+import WatchdogPanel from './components/WatchdogPanel';
 import StoragePanel from './components/StoragePanel';
 import AnimatedNumber from './components/AnimatedNumber';
 import {
@@ -553,6 +554,7 @@ export default function App() {
             <BackupPanel />
             <GroomingPanel />
             <AlertsPanel />
+            <WatchdogPanel />
             <StoragePanel />
             </>)}
           </div>

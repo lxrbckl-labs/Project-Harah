@@ -45,6 +45,17 @@ export interface GroomingResp {
   totals: { merged: number; queued: number; repos_with_prs: number };
 }
 
+export interface WatchTarget { name: string; kind: string; repo: string; ok: boolean; detail: string; known_bad: boolean; }
+export interface Incident { target: string; ts: number; outcome: string; action: string; detail: string; }
+export interface WatchdogResp {
+  last_run: number | null;
+  healthy: boolean;
+  targets: WatchTarget[];
+  problems: string[];
+  transitions: string[];
+  incidents: Incident[];
+}
+
 export interface ResolverResp {
   cadence: string;
   label: string;
@@ -245,6 +256,7 @@ export const api = {
   backups: () => j<BackupsResp>('/api/backups'),
   grooming: () => j<GroomingResp>('/api/grooming'),
   alerts: () => j<AlertsResp>('/api/alerts'),
+  watchdog: () => j<WatchdogResp>('/api/watchdog'),
   resolver: () => j<ResolverResp>('/api/resolver'),
   setResolverCadence: (choice: string) =>
     j<ResolverResp>(`/api/resolver/cadence/${encodeURIComponent(choice)}`, { method: 'POST' }),

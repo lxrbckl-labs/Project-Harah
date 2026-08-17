@@ -763,6 +763,33 @@ def resolver_run(mode: str):
             "message": f"resolver {mode} started — follow ~/Library/Logs/harah-resolver.log"}
 
 
+WATCHDOG_STATE = Path.home() / ".harah" / "watchdog-state.json"
+INCIDENT_STATE = Path.home() / ".harah" / "incident-state.json"
+
+
+@app.get("/api/watchdog")
+def watchdog():
+    """Estate health + what Harah did about it.
+
+    Written by skill/watchdog/watch.py every 10 min and skill/incident/respond.py
+    when it acts. This is the record of autonomous action — if Harah restarted
+    something at 03:00, this is where Alex sees it without reading a log."""
+    out = {"last_run": None, "healthy": True, "targets": [], "problems": [],
+           "transitions": [], "incidents": []}
+    try:
+        if WATCHDOG_STATE.exists():
+            out.update(json.loads(WATCHDOG_STATE.read_text()))
+    except Exception as e:
+        out["problems"] = [f"watchdog state unreadable: {e}"]
+    try:
+        if INCIDENT_STATE.exists():
+            inc = json.loads(INCIDENT_STATE.read_text()).get("incidents") or []
+            out["incidents"] = sorted(inc, key=lambda i: i.get("ts", 0), reverse=True)[:8]
+    except Exception:
+        pass
+    return out
+
+
 @app.get("/api/alerts")
 def alerts():
     """Open Dependabot alerts + the grooming cadence they drive.
