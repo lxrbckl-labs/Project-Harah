@@ -5,10 +5,12 @@
 #
 # Usage: set-cadence.sh <daily|SECONDS> [reason] [--force]
 #
-# A resolver pass is a full Claude session doing real migration work, and on
-# this host a merge deploys within ~5 minutes. So the cadence is floored at 6h
-# deliberately: nothing may schedule unattended migration work more often than
-# that, from the UI or anywhere else.
+# A resolver pass is a full Claude session doing real migration work on live
+# repositories, so the cadence is floored at 6h deliberately: nothing may
+# schedule unattended migration work more often than that, from the UI or
+# anywhere else. (The floor was first argued from "a merge deploys in ~5
+# minutes" — that premise was wrong, see POLICY.md's publish gate. The floor
+# stands on the rate-limit reason alone.)
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODE="${1:?usage: set-cadence.sh <daily|SECONDS> [reason] [--force]}"
