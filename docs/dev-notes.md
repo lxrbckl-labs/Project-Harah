@@ -330,6 +330,21 @@ re-measured from live data rather than carried over:
 - Jordyn dependabot **#11**'s open question to Alex (2026-08-17T13:43Z) is still
   **unanswered** — its last comment is Harah's own. Unanswered ≠ authorized.
 
+**Re-derived again 2026-08-18 (later resolver session) — unchanged, and now
+measured at the upstream sources rather than in the repos:** totals still
+2 critical / 32 high / 26 medium / 6 low = 66 across the same five rows.
+`better-auth` npm `latest` is **1.7.1** while `reactive-resume` `main` still
+declares `1.5.0-beta.9`, so the 20 alerts need a **beta→stable migration with
+DB schema changes** — precisely the shape POLICY says to queue, on a
+Postgres-backed service where the only usable signal (`pnpm typecheck`) cannot
+show that auth still works. `drizzle-orm` `main` is `^1.0.0-beta.12-a5629fb`:
+the stable fix `0.45.2` is a cross-line *downgrade* and `1.0.0-beta.20` is
+prerelease→prerelease, which POLICY disqualifies. Jordyn #11's open question to
+Alex (2026-08-17T13:43Z) is **still unanswered** — last comment on the thread is
+Harah's own. A sweep of every non-archived org repo found open dependabot PRs in
+exactly two repos (`reactive-resume` 2, `Project-Jordyn` 1), and all four
+personal `lxRbckl` repos report **0 open alerts**. Nothing new is actionable.
+
 **`Project-ACLG` is ARCHIVED — its 2 open dependabot PRs are permanently out of
 scope (2026-08-18).** A sweep for open dependabot PRs across the org turns it up
 (#15 setuptools 82→83, #5 pytest 7.4.4→9.0.3, both `MERGEABLE`), which reads as
@@ -339,6 +354,61 @@ endpoint returns **403 "Dependabot alerts are not available for archived
 repositories"**, so it contributes nothing to the alert count either. Don't
 re-investigate it — and note the 403 is *not* a permissions problem, despite
 `gh` helpfully suggesting an `admin:repo_hook` scope refresh underneath it.
+
+### The Docker Hub publish credential is DEAD — every org publish fails (2026-08-18)
+
+Found by running `deploy-check/verify.py` after re-deriving the board, not by
+looking for it. **`Project-Jordyn`'s most recent CI run is a genuine build
+failure**, and the cause is not code:
+
+```
+##[error]Error response from daemon: Get "https://registry-1.docker.io/v2/":
+unauthorized: incorrect username or password
+```
+
+Run `32082150509`, head commit `publish: next 14.2.35 + 29 transitive security
+fixes`, 2026-08-17T23:50, failed in 25s at `docker/login-action` — **before the
+build step ran at all**. So the publish Alex attempted last night did not ship,
+and Jordyn's 29 transitive security fixes are still not in production.
+
+**This is org-wide, not a Jordyn problem.** `DOCKERHUB_USERNAME` /
+`DOCKERHUB_TOKEN` are **organization** secrets on `lxrbckl-labs` with
+`visibility: all` — one credential pair behind every repo's publish:
+
+| | |
+|---|---|
+| secrets created / last updated | **2025-10-18** (never rotated) |
+| last *successful* publish | `Project-Jordyn` **2026-08-08T05:01** |
+| first failure with this signature | `Project-Jordyn` **2026-08-17T23:50** |
+
+The GitHub-side secret has not changed since 2025-10-18, so what changed is on
+**Docker Hub's side** — an expired or revoked PAT is the obvious candidate
+(Docker Hub PATs support expiry, and this one is ~10 months old). Breakage
+window: between 2026-08-08 and 2026-08-17.
+
+Honest caveat: **one failed run cannot fully exclude a transient Docker Hub
+auth blip.** The cheap discriminator is to re-run the failed job — but
+**Harah must not do that**, because if the credential *does* work the job
+builds and pushes an image, which is a deploy, and deploying needs Alex's word
+per deploy. Diagnosis stops at the door; the fix is Alex's.
+
+Consequences worth stating plainly:
+
+- **Every remaining alert on the board is now double-blocked.** Even when Alex
+  answers the Jordyn question and lands the 42-alert `next` migration, or lands
+  `reactive-resume` #15 for the 20 `better-auth` alerts, **none of it can reach
+  production** until this credential is restored. POLICY already says alerts
+  closed on GitHub are not fixes in production until the image rolls; this is
+  that sentence with teeth.
+- **`skipped` is still healthy; this is the fourth outcome class.** Added to the
+  three already recorded above: `skipped` = publish gate said no; `failure` with
+  a real job = the build broke; `failure` with `jobs: []` = workflow unresolvable
+  (the org-rename signature); and now **`failure` at the login step = the
+  registry credential is rejected.** Read *where* in the job it died before
+  calling it a build break — this one never reached the build.
+- Don't misread `reactive-resume`'s 2026-08-16/17 failures as the same thing.
+  Those predate #19 and are the `jobs: []` org-rename class. This repo has not
+  attempted a publish since its CI started resolving.
 
 ## Conventions
 
