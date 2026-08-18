@@ -120,7 +120,62 @@ more. `skill/grooming/POLICY.md` remains the sole merge authorization.
 | `reactive-resume` | `pnpm typecheck` (green on `main`) | `pnpm build` is **broken on `main`** — unbounded `h3` override floated to `2.0.1-rc.20`, which dropped the `resolveDotSegments` export `h3-rules` imports. `biome check` has a pre-existing nit. Judge by delta. |
 | `Project-FlyingGitman` | `npm ci` + `npm run build` (`tsc`) + `npm audit` | `npm test` is an unimplemented stub that exits 1 on `main`. Not a signal. |
 | `Project-Jordyn` | `pnpm install --frozen-lockfile` + `pnpm run build` + `pnpm run lint` — **all green on `main`** | Use **pnpm 10** (10.30.2 verified). See the correction below; the earlier "pnpm 10 rewrites the lockfile" warning was wrong. |
-| `Project-ASBC`, `Project-RCoD` | **none** — no CI, no tests, no container | Nothing can be merged here under POLICY, regardless of how good the change is. Poetry isn't installed on the mini either. |
+| `Project-ASBC`, `Project-RCoD` | **constructed** — `poetry check --lock` + `poetry lock` delta + `poetry install` + a functional exercise of the changed dependency | No CI, no tests, no container. See the correction below — the earlier "nothing can be merged here" reading was retired 2026-08-18. Poetry now lives at `~/.harah/tools/poetry-venv` (2.4.1 on python3.12). |
+
+**Correction (2026-08-18): "the repo has no verification" is not the same as
+"nothing here can ever be merged."** Two sessions in a row read POLICY's *never
+merge unverified* gate as requiring a verification signal that already exists in
+the repo, and concluded ASBC/RCoD were permanently frozen. That reading freezes a
+repo forever for the sin of having no CI — while the *dependabot* no-CI clause
+happily merged `cryptography 46 → 50` (a major) there with no signal at all.
+
+The gate is about evidence, not about who authored the test runner. Where a repo
+has none, **build one and say exactly what it covers**: for the ASBC torch bump
+that was `poetry check --lock` (exit 0, output identical to `main`), a `poetry
+lock` delta confined to the intended packages, `poetry install --no-root`
+(exit 0), and torch exercised for real — conv2d forward, autograd, MPS,
+torchvision transforms, `resnet18`. Where a path *can't* be exercised, measure it
+on both sides and report the delta rather than waving it through: ASBC's only
+torch call site (`torch.hub.load('ultralytics/yolov5', …)`) fails identically on
+2.8.0 and 2.13.0 because `ultralytics` is undeclared — pre-existing, delta zero.
+
+This is a judgment call flagged for Alex on the merge, not a silent widening. If
+he wants the stricter reading, PR #18 reverts in one command. **What does not
+change: the verification has to actually run, and its output has to be reported.**
+
+### `deploy-check/verify.py` mis-reports on repos with no CI (2026-08-18)
+
+Running it after the ASBC merge printed `== FAIL ==`, citing a CI run with
+conclusion `failure`. **That run was a Dependabot updater job**
+(`pip in /. for torch - Update`), not a build — `Project-ASBC` has no
+`.github` directory at all. On Python repos with no workflows, the only Actions
+runs are GitHub's own *Dependabot Updates* and *Dependency Graph* jobs, and the
+script reads the newest one as if it were the repo's CI.
+
+Two things follow. **A red Dependabot Updates run usually means "no resolvable
+version", not "CI is broken"** — read `latest-resolvable-version` vs
+`lowest-non-vulnerable-version` before calling it an outage; it is how a version
+wall looks from the updater's side, and it is a useful signal that an alert has
+no reachable fix. And **`verify.py`'s FAIL is not evidence about the merge** on
+such a repo. Fix worth making: skip runs whose event is `dynamic`, or check for a
+workflow file before reporting CI at all. Not done — recorded here so the next
+session doesn't misdiagnose it the way the `reactive-resume` org-rename signature
+was misdiagnosed as a repo-wide outage.
+
+### When the fix is capped by a first-party package (2026-08-18)
+
+`pytest` alerts in ASBC and RCoD were unclosable in those repos: Alex's own
+`lxrbckl` package declared `pytest >=7.4.2,<8.0.0` as a **runtime** dependency,
+so every consumer inherited the cap in its runtime lock, and Poetry has no
+override mechanism. The fix lives in the *package's* repo, not the consumer's —
+`lxRbckl/lxRbckl` PR #1, opened and **left unmerged**, because pushing to that
+repo's `PyPI` branch runs `poetry publish` against Alex's token, gated only on
+the commit message being exactly `"Update"`. Publishing is his call per release.
+
+General rule: when an alert's advisory has a published fix but the resolver can't
+reach it, **trace the cap before declaring it blocked.** A first-party dependency
+is a fixable cap; an upstream package with no release (`extract-zip`, latest
+2.0.1 vs advisory `<= 2.0.1`) is not.
 
 **Correction (2026-08-16, measured — supersedes the earlier Jordyn row).** The
 previous note said Jordyn was pinned to pnpm 9.15.9 by PR #13 and that local
