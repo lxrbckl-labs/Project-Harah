@@ -139,13 +139,34 @@ either: Harah uses `security/…`, but so does Alex.
 the signature rule in POLICY requires on every outward artifact:
 
 ```bash
-gh pr view <n> --repo <owner/repo> --json body --jq '.body' | grep -c '— Harah'
+gh pr view <n> --repo <owner/repo> --json body --jq '.body' > /tmp/b.txt
+grep -c 'Harah' /tmp/b.txt          # grep the ASCII name, NOT the em-dash form
 ```
 
 Measured 2026-08-18: `reactive-resume` #19 → 1 (Harah's), `Project-ASBC` #18 →
 1 (Harah's, known-good control); `reactive-resume` #15 → 0, `Project-Jordyn`
-#16 → 0, `Project-Jordyn` #13 → 0 (all Alex's). Run the control too — an empty
-body silently greps to 0 and looks like "human".
+#16 → 0, `Project-Jordyn` #13 → 0 (all Alex's). Re-measured 2026-08-18 (later
+session), unchanged, plus `reactive-resume` #9/#4 → 0 and `lxRbckl/lxRbckl`
+#1 → 1. Run the control too — an empty body silently greps to 0 and looks
+like "human".
+
+**Grep the ASCII `Harah`, never the `— Harah` em-dash form (2026-08-18).** The
+signature really is U+2014 (`342 200 224 ' ' H a r a h`), but putting that
+literal in a shell one-liner is fragile: run inside a `for … set -- $p` loop it
+came back **0 for every PR in the batch — including the known-good control**.
+The em-dash is the only non-ASCII byte in the whole check, and it is the byte
+most likely to be mangled by a shell/locale/quoting path. `grep -c 'Harah'` is
+exactly as discriminating (Alex's PR bodies don't say "Harah") and has no
+non-ASCII failure mode.
+
+Two guards, because this check gates a hard stop in *both* directions:
+- **Always run the control in the same batch** (`Project-ASBC` #18 → 1). A
+  control that reads 0 means the *check* is broken, not that the PR is human.
+  The batch above would otherwise have labelled Harah's own #1 "Alex's".
+- **Read `body_bytes` alongside the count.** 0 bytes = the fetch failed (bad
+  `--repo`, unsplit loop variable); it is not evidence of authorship. Both
+  failure modes look identical to "human" — which is the reading that stalled
+  #19 for two days.
 
 This cuts **both** ways, and both are expensive:
 
@@ -289,6 +310,35 @@ you have checked the signature, because the same finding with the authorship
 wrong is either a stalled fix or a crossed hard stop. The honest status here is
 `EXHAUSTED`, and a session that closes zero alerts while saying so plainly is
 worth more than one that banks 42 by overriding a pending question.
+
+**Re-derived 2026-08-18 (resolver loop, session 1) — all five rows still hold**,
+totals byte-identical (2 critical / 32 high / 26 medium / 6 low = 66). What was
+re-measured from live data rather than carried over:
+
+- `extract-zip` is a **dead end, confirmed at the registry**: npm `latest` is
+  2.0.1, the advisory covers `<= 2.0.1`, and the package was last published
+  **2023-03-04**. There is no version to override to and no reason to re-check
+  it every run.
+- The `pytest` cap is **confirmed on PyPI, not just in the repo**: published
+  `lxrbckl` **3.6.0** ships `pytest<8.0.0,>=7.4.2` as a *runtime* requirement.
+  Neither consumer declares `pytest` directly (ASBC: `lxrbckl = "^3.5.0"`;
+  RCoD: `lxrbckl = "^3.6.0"`), so both inherit it and the alert needs `>=9.0.3`.
+  Unsatisfiable by any change to the consumer repos.
+- `lxRbckl/lxRbckl` **#1 targets the `PyPI` branch, not `main`** — so merging it
+  *is* the publish, not a step before it. That is why it stays open: it needs
+  Alex's word as a release, and no amount of verification substitutes.
+- Jordyn dependabot **#11**'s open question to Alex (2026-08-17T13:43Z) is still
+  **unanswered** — its last comment is Harah's own. Unanswered ≠ authorized.
+
+**`Project-ACLG` is ARCHIVED — its 2 open dependabot PRs are permanently out of
+scope (2026-08-18).** A sweep for open dependabot PRs across the org turns it up
+(#15 setuptools 82→83, #5 pytest 7.4.4→9.0.3, both `MERGEABLE`), which reads as
+actionable until you check the repo state. POLICY's first condition is "not
+archived", and GitHub refuses writes to an archived repo anyway; its alerts
+endpoint returns **403 "Dependabot alerts are not available for archived
+repositories"**, so it contributes nothing to the alert count either. Don't
+re-investigate it — and note the 403 is *not* a permissions problem, despite
+`gh` helpfully suggesting an `admin:repo_hook` scope refresh underneath it.
 
 ## Conventions
 
