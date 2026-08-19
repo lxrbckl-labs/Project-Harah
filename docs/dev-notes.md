@@ -578,3 +578,71 @@ Also worth noting: **`main` still shipped nothing.** CI reported `skipped`
 image built 2026-07-03. Alert closed on GitHub ≠ fixed in production.
 
 — Harah
+
+### Re-derived 2026-08-19 (resolver loop, later session) — 65 open, zero closable
+
+Board after PR #21: **2 critical / 31 high / 26 medium / 6 low = 65**, across
+`reactive-resume` 21, `Project-Jordyn` 42, `Project-ASBC` 1, `Project-RCoD` 1.
+All four personal `lxRbckl` repos still report **0**. An org-wide GraphQL sweep
+of open PRs on non-archived repos returns nine, only three of them dependabot's
+(`reactive-resume` #4/#9, `Project-Jordyn` #11) and all three superseded by a
+human PR. **Nothing was merged this session, and nothing should have been.**
+
+The authorship check was re-run with its control in the same batch, because it
+gates a hard stop: `reactive-resume` #21 → 1 and `Project-ASBC` #18 → 1 (Harah's,
+control healthy); `reactive-resume` #15 → 0, `Project-Jordyn` #16 → 0, #13 → 0,
+#11 → 0 (Alex's / dependabot's). Bodies 2.9–4.4 KB, so no silent empty-fetch.
+
+Three blockers were re-derived from upstream sources rather than carried over,
+and two of them were recorded here for the wrong reason:
+
+- **`Project-Jordyn` — no 14.x backport exists, now measured.** All 21 distinct
+  `next` advisories behind the 42 alerts were expanded with
+  `gh api /advisories/<GHSA>`. Every one pairs a 15.5.x range with a 16.2.x
+  range (`>= 13.0.0, < 15.5.21 -> 15.5.21` and `>= 16.0.0, < 16.2.11 ->
+  16.2.11`); **not one carries a `< 14.2.x` range**, so nothing in the 14 line
+  was ever patched. 15.5.21 is a hard floor and the major is unavoidable. The
+  alerts API alone cannot answer this — it returns only the vulnerability
+  matching the installed version, which cannot distinguish "no backport exists"
+  from "the backport is in a line you aren't on."
+- **`reactive-resume` `drizzle-orm` — the previous entry was wrong about why.**
+  The 2026-08-19 note above says GHSA-gpj5-g38j-94v9 has a *single* range with
+  no stable-line fix. The advisory has **two**: `< 0.45.2 -> 0.45.2` and
+  `>= 1.0.0-beta.2, < 1.0.0-beta.20 -> 1.0.0-beta.20`. A non-vulnerable stable
+  version does exist; it is simply *backwards*, a cross-major downgrade of a
+  live app's database layer. The row is still blocked — the only forward fix is
+  a nightly build in the `1.0.0` channel, coupled to Alex's #15 — but "no stable
+  fix exists" and "the fix is in a direction we can't go" are different facts,
+  and only the second one is true. **Read the advisory, not just the alert.**
+- **The `pytest` cap is total across the reachable range.** Prior passes read
+  `lxrbckl` 3.6.0 only. All eight releases the consumers' constraints can reach
+  (3.5.0 → 3.6.0) declare `pytest<8.0.0,>=7.4.2` in `requires_dist`, so there is
+  no older version to retreat to either. `lxrbckl` is also genuinely imported in
+  both consumers (`backend/bot.py`, `backend/module.py`, `frontend/layout.py`;
+  `main.py`), so dropping the dependency to shed its transitive pytest is not
+  available. PyPI still serves 3.6.0 from 2024-11-18.
+
+`Project-Jordyn` **#11**'s question to Alex (2026-08-17T13:43Z) is **still
+unanswered** — the thread's last comments remain Harah's own. Held again, for
+the reason already recorded: a session that answers its own open question to
+Alex has not resolved anything.
+
+**Deployment, measured today** (`deploy-check/verify.py`, both targets):
+`reactive-resume` CI `skipped` on `8c368d86` — the publish gate, working as
+designed, **no image built** — both tenants `Up 18 hours (healthy)`, HTTP 200,
+running an image from 2026-07-03: **46 days behind `main`**. `Project-Jordyn`'s
+newest run is still the 2026-08-17 `publish` that died in `Log in to DockerHub`;
+container up, `jbarger.app` HTTP 200 on an image from 2026-08-08: **9 days behind
+`main`**. **The org Docker Hub credential is still dead** — no publish has been
+attempted anywhere in the org since, deliberately, since re-running that job
+would itself be a deploy.
+
+**What a zero-merge session is worth.** The whole board is now decisions only
+Alex can make: answer #11 (or land #16), land #15 behind a DB backup and the
+`ApiKey.userId → referenceId` migration, publish `lxrbckl 3.6.1`, and restore
+the Docker Hub credential — after which 42, 21 and 2 alerts fall in that order,
+and the images can finally roll. The useful output of a session like this is
+**sharper blockers, not a smaller number**: two of the four rows above were
+blocked for reasons that were subtly wrong, and a wrong reason is exactly what
+sends the next session down the `extract-zip` path — confident, measured, and
+looking at the wrong package.
