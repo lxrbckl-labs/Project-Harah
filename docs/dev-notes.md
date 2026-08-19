@@ -239,10 +239,25 @@ version", not "CI is broken"** — read `latest-resolvable-version` vs
 `lowest-non-vulnerable-version` before calling it an outage; it is how a version
 wall looks from the updater's side, and it is a useful signal that an alert has
 no reachable fix. And **`verify.py`'s FAIL is not evidence about the merge** on
-such a repo. Fix worth making: skip runs whose event is `dynamic`, or check for a
-workflow file before reporting CI at all. Not done — recorded here so the next
-session doesn't misdiagnose it the way the `reactive-resume` org-rename signature
-was misdiagnosed as a repo-wide outage.
+such a repo.
+
+**FIXED 2026-08-19** — PR #5. `verify.py` now pulls 20 runs instead of 1 and
+picks the newest whose `event` is **not** `dynamic`; when every run is dynamic it
+prints *"no CI signal here, green or red"* rather than a conclusion, and reports
+the failed-dynamic-run count as **a fact about an alert, not about a merge**.
+Measured before/after on all seven targets: ASBC went from `CI success` (it was
+quoting a *Graph Update* job) and RCoD from `CI running (null)` to the honest
+no-CI line, and the four repos that already read correctly are **byte-identical**
+to `main` (diffed by stashing the patch and re-running).
+
+Two things learned doing it. **`actions/workflows` `total_count` is not a
+"has CI" test** — it returned **2** for `Project-ASBC`, which has no `.github/`
+directory at all, because GitHub counts its synthesised
+`dynamic/dependabot/{dependabot-updates,update-graph}` workflows. The reliable
+discriminator is the run's `event` (or its `path` prefix), not the workflow
+count. And the closing *"PASS with a skipped CI run"* note used to print on
+every pass, including repos where nothing was skipped and nothing is deployed;
+it is now conditional on the publish gate actually having fired.
 
 ### When the fix is capped by a first-party package (2026-08-18)
 
@@ -317,7 +332,9 @@ re-measured from live data rather than carried over:
 
 - `extract-zip` is a **dead end, confirmed at the registry**: npm `latest` is
   2.0.1, the advisory covers `<= 2.0.1`, and the package was last published
-  **2023-03-04**. There is no version to override to and no reason to re-check
+  **2020-06-10** (corrected 2026-08-19 from "2023-03-04", read off the registry's
+  own `time` map — the conclusion is unchanged and the package is even deader
+  than recorded). There is no version to override to and no reason to re-check
   it every run.
 - The `pytest` cap is **confirmed on PyPI, not just in the repo**: published
   `lxrbckl` **3.6.0** ships `pytest<8.0.0,>=7.4.2` as a *runtime* requirement.
@@ -415,3 +432,43 @@ Consequences worth stating plainly:
 Ship a change = build if the frontend changed → `git add -A && git commit &&
 git push`, **automatically, without being asked**. Outward-facing writes (PR and
 issue comments, non-merge commits) are signed `— Harah`.
+
+### Re-derived 2026-08-19 (resolver loop, session 1) — board unchanged at 66
+
+Totals identical again: **2 critical / 32 high / 26 medium / 6 low = 66**, same
+five rows, same four repos (`reactive-resume` 22, `Project-Jordyn` 42,
+`Project-ASBC` 1, `Project-RCoD` 1). All four personal `lxRbckl` repos still
+report **0**. An all-org GraphQL sweep of open PRs on non-archived repos returns
+exactly eight, and no new dependabot PR has appeared since 2026-08-18.
+
+Re-measured at the source rather than carried over:
+
+- **Every alert's `first_patched_version` pulled from the alerts API**, not from
+  the notes. It confirms the rows and corrects one: the `drizzle-orm` alert has a
+  **single** advisory, `>= 1.0.0-beta.2, < 1.0.0-beta.20`, first patched at
+  **`1.0.0-beta.20`** only. The recorded "needs `0.45.2` or `1.0.0-beta.20`"
+  overstates the options — there is no stable-line fix to take, so the row is
+  *more* blocked than written, not less. Prerelease→prerelease; POLICY
+  disqualifies it outright.
+- **`lxrbckl` on PyPI is still 3.6.0, uploaded 2024-11-18**, still declaring
+  `pytest<8.0.0,>=7.4.2` as a *runtime* requirement. No newer release exists for
+  ASBC/RCoD to bump to, so the 2 `pytest` alerts remain unsatisfiable by any
+  change to the consumer repos.
+- **The Docker Hub credential is still dead.** No publish has been attempted
+  anywhere in the org since run `32082150509` (2026-08-17T23:50), so the
+  diagnosis stands untested — deliberately, since re-running that job would be a
+  deploy. `verify.py` now names the failing step (`Log in to DockerHub`) instead
+  of calling it a broken build.
+- **Days behind `main`, measured today:** Project-Jordyn **9**, reactive-resume
+  **45**, Project-FlyingGitman **43**, Project-VoiceToColumn **35**,
+  Project-Showalter **35** (still `unhealthy`, still pre-existing). Every one is
+  serving HTTP 200 on an image built 2026-07-03 or 2026-08-08.
+
+`Project-Jordyn` **#11**'s question to Alex (2026-08-17T13:43Z) is **still
+unanswered** — the last two comments on the thread are both Harah's own. It stays
+queued. The temptation here is real and worth naming: #11 is dependabot-authored,
+`MERGEABLE`, verified green, and closes 42 of the 66 alerts on the board, so
+POLICY's resolve-and-verify clause would license merging it. It is held anyway,
+because Harah itself wrote *"say the word and I'll land this"* on that thread.
+A session that answers its own open question to Alex has not resolved anything —
+it has removed him from a decision he was asked to make.
