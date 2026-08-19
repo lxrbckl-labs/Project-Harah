@@ -271,8 +271,12 @@ the commit message being exactly `"Update"`. Publishing is his call per release.
 
 General rule: when an alert's advisory has a published fix but the resolver can't
 reach it, **trace the cap before declaring it blocked.** A first-party dependency
-is a fixable cap; an upstream package with no release (`extract-zip`, latest
-2.0.1 vs advisory `<= 2.0.1`) is not.
+is a fixable cap; an upstream package with no release is not.
+
+**The `extract-zip` example used here was WRONG — see the 2026-08-19 correction
+at the end of this file.** The rule itself stands; it was applied one level too
+shallow. "No published fix for the package" is not the same as "no fix for the
+alert", because a *transitive* package can be removed by moving its parent.
 
 **Correction (2026-08-16, measured — supersedes the earlier Jordyn row).** The
 previous note said Jordyn was pinned to pnpm 9.15.9 by PR #13 and that local
@@ -317,7 +321,7 @@ raw counts read double) across four causes:
 | 42 | `Project-Jordyn` `next` — needs **15.5.21**, a major | Alex's #16 (complete migration: next 15 + React 19 + eslint-config lockstep + `tsconfig`). Dependabot #11 is `MERGEABLE` and **verified green**, but partial — `react` stays 18.3.1 — and a prior session left Alex an explicit open question on it ("say the word and I'll land this"). Unanswered ≠ authorized. |
 | 20 | `reactive-resume` `better-auth` — needs **1.6.22+** | Alex's #15 lands **1.6.26**, closing all 20. `CONFLICTING/DIRTY` on its own lockfile, not from anything Harah merged. |
 | 1 | `reactive-resume` `drizzle-orm` — needs `0.45.2` or `1.0.0-beta.20` | also Alex's #15 (→ `1.0.0-rc.4`). The dependabot alternative #4 is a prerelease→prerelease bump, which POLICY disqualifies outright. |
-| 1 | `reactive-resume` `extract-zip` | **no published fix exists** — advisory covers `<= 2.0.1` and npm `latest` *is* 2.0.1. Nothing to override to; not a version wall, a dead end. |
+| 1 | `reactive-resume` `extract-zip` | ~~**no published fix exists** — advisory covers `<= 2.0.1` and npm `latest` *is* 2.0.1. Nothing to override to; not a version wall, a dead end.~~ **WRONG — RESOLVED 2026-08-19 by PR #21** (bump the transitive parent). See the correction at the end of this file. |
 | 2 | `pytest` in `Project-ASBC` + `Project-RCoD` | first-party cap (see above) — needs `lxRbckl/lxRbckl` PR #1 merged **and published**, and publish is Alex's call per release. Merging #1 alone closes nothing, since consumers resolve from PyPI. |
 
 **"Behind a human PR" is a real blocked state, not a cop-out** — but only after
@@ -330,12 +334,13 @@ worth more than one that banks 42 by overriding a pending question.
 totals byte-identical (2 critical / 32 high / 26 medium / 6 low = 66). What was
 re-measured from live data rather than carried over:
 
-- `extract-zip` is a **dead end, confirmed at the registry**: npm `latest` is
-  2.0.1, the advisory covers `<= 2.0.1`, and the package was last published
-  **2020-06-10** (corrected 2026-08-19 from "2023-03-04", read off the registry's
-  own `time` map — the conclusion is unchanged and the package is even deader
-  than recorded). There is no version to override to and no reason to re-check
-  it every run.
+- `extract-zip` ~~is a **dead end**~~ — **this bullet is SUPERSEDED; see the
+  2026-08-19 correction at the end of this file.** Every fact in it was right
+  (npm `latest` is 2.0.1, the advisory covers `<= 2.0.1`, last published
+  2020-06-10) and the conclusion drawn from them was wrong. The clause **"no
+  reason to re-check it every run"** is the dangerous part: it told later
+  sessions to stop looking at a high-severity alert that was fixable the whole
+  time. Closed 2026-08-19 by PR #21.
 - The `pytest` cap is **confirmed on PyPI, not just in the repo**: published
   `lxrbckl` **3.6.0** ships `pytest<8.0.0,>=7.4.2` as a *runtime* requirement.
   Neither consumer declares `pytest` directly (ASBC: `lxrbckl = "^3.5.0"`;
@@ -472,3 +477,104 @@ POLICY's resolve-and-verify clause would license merging it. It is held anyway,
 because Harah itself wrote *"say the word and I'll land this"* on that thread.
 A session that answers its own open question to Alex has not resolved anything —
 it has removed him from a decision he was asked to make.
+
+### The "no published fix" dead end that wasn't: trace a transitive to its parent (2026-08-19)
+
+`reactive-resume` alert **#209** — `extract-zip` (GHSA-jmr9-qjv8-65gv, **high**,
+unvalidated symlink path traversal) — sat on the board as *unfixable* across
+several sessions, and the notes above told future sessions **not to re-check
+it**. It was fixable, and it is now closed (PR #21, merged `8c368d86`,
+`fixed_at` 2026-08-19T16:29:20Z). Board 66 → 65.
+
+Every fact behind the "dead end" reading was correct:
+
+| | |
+|---|---|
+| advisory range | `<= 2.0.1` |
+| npm `latest` | **2.0.1** |
+| last published | 2020-06-10 |
+| `first_patched_version` from the alerts API | **`null`** |
+
+And the conclusion — *nothing to override to* — was still wrong, because the
+question was asked about the wrong package. `extract-zip` is **not a direct
+dependency**. The alert's `manifest_path` is `pnpm-lock.yaml` only (no
+`package.json` twin), which is the tell: a transitive.
+
+```
+puppeteer-core@24.36.0 -> @puppeteer/browsers@2.11.1 -> extract-zip@2.0.1
+```
+
+**`@puppeteer/browsers` deleted the `extract-zip` dependency in 3.0.2**
+(2026-05-15, when it moved to `modern-tar`). Measured across the whole range at
+the registry: every 2.x release through the last one (2.13.2) still declares
+`extract-zip: ^2.0.1`, so there is **no fix inside the 2.x line** — the parent
+bump has to cross a major. `puppeteer-core` picks up the 3.x line from **25.0.2**
+onward. Bumping `puppeteer-core` 24.36.0 → 25.8.0 removes the package from the
+tree instead of pinning it to a version that does not exist. Net lockfile
+effect: **−39 / +13** packages (the `proxy-agent`/`pac-*` and `bare-*` subtrees
+leave with it).
+
+**The rule, stated so it can't be applied too shallow again:**
+
+> `first_patched_version: null` means *this package* has no fixed release. It
+> says nothing about whether *the alert* is fixable. Before writing off any
+> alert whose manifest is a lockfile and not a manifest file, find the parent
+> that pulls it in and check whether a newer parent dropped the dependency
+> outright. Removing a package closes its alert exactly as well as patching it.
+
+Cheap procedure, ~2 minutes:
+
+```bash
+# 1. is it transitive? lockfile-only manifest_path is the tell
+gh api "/repos/<owner>/<repo>/dependabot/alerts/<n>" \
+  --jq '{pkg:.dependency.package.name, manifest:.dependency.manifest_path,
+         patched:.security_vulnerability.first_patched_version}'
+# 2. who pulls it in
+grep -n "<pkg>" pnpm-lock.yaml     # read the parent's dependency block
+# 3. did a newer parent drop it? (npm registry, no auth)
+curl -s https://registry.npmjs.org/<parent> | python3 -c "
+import json,sys; d=json.load(sys.stdin)
+for v,m in d['versions'].items():
+    print(v, m.get('dependencies',{}).get('<pkg>'))"
+```
+
+**Verifying a major bump of a runtime dep when the repo's only signal is
+`tsc`.** `pnpm typecheck` cannot show that a CDP client still drives a browser,
+and `pnpm build` is broken on `main` (the `h3` override drift — delta zero, both
+sides fail identically). So the call sites were **replayed for real**:
+`puppeteer-core` has exactly one consumer here,
+`src/integrations/orpc/services/printer.ts`, and its nine calls — `connect`,
+`browser.setCookie`, `newPage`, `setViewport`, `goto(networkidle0)`,
+`waitForFunction`, `evaluate` (3 args), `pdf({tagged,width,height,margin})`,
+`disconnect` — were run against a real Chrome 151.0.7922.138 over `browserURL`
+on 25.8.0, producing a valid 18,561-byte `%PDF-`. Two reusable moves in that:
+
+- **Put the throwaway harness in `node_modules/`.** A script under `/tmp`
+  cannot resolve the repo's packages (Node resolves from the *script's* path,
+  not `cwd` — `ERR_MODULE_NOT_FOUND`). `node_modules/` is gitignored, inside the
+  package root, and resolves everything. Delete it before `git add`.
+- **Read the release notes as a checklist against actual call sites**, not as
+  prose. puppeteer-core 25.0.0's breaking changes were ESM-only (repo is already
+  `"type": "module"`), min Node 22 (`Dockerfile` is `node:24-slim`), min TS 5.0.1,
+  and five removed APIs (`Puppeteer.product`, `Browser.isConnected`,
+  `MouseOptions.clickCount`, cookie `sameParty`, Promise-returning
+  `executablePath`/`defaultArgs`) — **none of which this repo calls.** A major
+  whose every breaking change misses your call sites is a low-risk major, and
+  saying which ones you checked is what makes that claim reviewable.
+
+**And the meta-lesson, which is the expensive one.** These notes are supposed to
+stop a session rediscovering things the hard way. A note that records a *wrong*
+conclusion with confident measurements attached does the opposite: it stops the
+session looking at all. The phrase that did the damage was **"no reason to
+re-check it every run."** Prefer recording *what was measured and what question
+was asked* over the verdict — "checked the registry for a fixed `extract-zip`;
+none exists" is durable and invites the next question. "Dead end, don't look
+again" is a lock on a door that was open. Standing rule 4 cuts both ways: this
+file goes stale about its own blockers, not just about version targets.
+
+Also worth noting: **`main` still shipped nothing.** CI reported `skipped`
+(publish gate) as designed, and `deploy-check/verify.py` puts the running
+`reactive-resume` image at **46 days behind `main`**, serving HTTP 200 on an
+image built 2026-07-03. Alert closed on GitHub ≠ fixed in production.
+
+— Harah
