@@ -728,3 +728,64 @@ credential is still dead**; no publish has been attempted anywhere in the org
 since, deliberately, because re-running that job is itself a deploy.
 
 — Harah
+
+### 2026-08-20 (resolver loop, later session) — the `pytest` row, finally measured in both directions
+
+Board re-derived live and byte-identical for the third consecutive day: **2
+critical / 31 high / 26 medium / 6 low = 65**, across `reactive-resume` 21,
+`Project-Jordyn` 42, `Project-ASBC` 1, `Project-RCoD` 1. All four personal
+`lxRbckl` repos re-checked individually (not from the state file) → **0 each**.
+Org-wide open PRs: seven, three of them dependabot's, all three superseded by a
+human PR. Authorship re-checked with the control in the same batch — `ASBC` #18
+and `reactive-resume` #21 → 1 (control healthy); `Jordyn` #11/#13/#16 and
+`reactive-resume` #4/#9/#15 → 0. Bodies 2.9–16 KB, no silent empty-fetch.
+**Nothing merged, and nothing should have been.**
+
+**The new fact: the `pytest` cap is total, not merely upward.** Every prior pass
+measured this row in one direction only — `lxrbckl` caps `pytest` at `<8.0.0`,
+the alert wants `>=9.0.3`, therefore blocked. Nobody had applied this file's own
+*"backwards escape → read the advisory"* rule to it. Applied now:
+**GHSA-6w46-j5rx-g56g has exactly one vulnerable range, `< 9.0.3 -> 9.0.3`.**
+
+That forecloses the question the rule exists to ask. There is no lower
+non-vulnerable line, so pinning `pytest` to some safe `7.4.x` *inside* the
+first-party cap — the obvious next idea, and the one a future session would burn
+time on — cannot work: every version the consumers can reach is vulnerable by
+construction. The row needs `lxrbckl` **published** at `>=9.0.3`, or nothing.
+`lxrbckl` on PyPI is still **3.6.0** (2024-11-18), still declaring
+`pytest<8.0.0,>=7.4.2` in `requires_dist`, re-checked at the registry today.
+
+With that, the "backwards escape" rule has now been applied to all four rows and
+each has a recorded answer: `next` — no lower line, 14.2.35 is the top of the 14
+line (measured 2026-08-19); `better-auth` — n/a, the floor is forward and the
+migration is the blocker; `drizzle-orm` — a lower line exists (`0.45.2`) but it
+is a cross-major downgrade of a live app's database layer; `pytest` — no lower
+line exists at all. **No row has an unexamined direction left.**
+
+**Trend, which is now the only thing that moves.** Alex's #15 and #16 own 63 of
+the 65 between them; still `CONFLICTING`, still no commits since 2026-08-08 —
+now 12 days. `Project-Jordyn` #11's question to Alex (2026-08-17T13:43Z) still
+has **zero non-Harah comments in the thread's entire history** — four Harah
+comments and nothing else. No fifth was added this pass; a thread that is
+already all one voice does not get louder usefully.
+
+The temptation this session had to name and refuse was subtler than merging #11:
+a Harah-authored branch doing `next` 15.5.21 **plus** the `eslint-config-next`
+lockstep and the `tsconfig` commit that #11 lacks — leaving React at 18.3.1. It
+would close all 42, verify green on this repo's own signals, and it is not
+`git`-touching a human branch. **It is still the same forbidden move**, because
+the hold on #11 was never about the diff's quality: Harah wrote *"say the word
+and I'll land this"* on that thread, and landing the same 42 by another route is
+answering its own question to Alex with extra steps. Routing around a hold is
+not clearing it.
+
+**Deployment, measured today** (`deploy-check/verify.py`): `Project-Jordyn`'s
+newest run is still the 2026-08-17 `publish` that died in `Log in to DockerHub`;
+container `Up 37 hours`, `jbarger.app` HTTP 200 on an image from 2026-08-08 —
+**9 days behind `main`**. `reactive-resume` CI `skipped` on `8c368d86` (publish
+gate, healthy, no image built); both tenants `Up 37 hours (healthy)`, HTTP 200 on
+an image from 2026-07-03 — **46 days behind `main`**. The org Docker Hub
+credential is still dead; no publish attempted anywhere in the org since,
+deliberately.
+
+— Harah
