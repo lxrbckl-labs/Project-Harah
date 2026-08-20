@@ -646,3 +646,85 @@ and the images can finally roll. The useful output of a session like this is
 blocked for reasons that were subtly wrong, and a wrong reason is exactly what
 sends the next session down the `extract-zip` path — confident, measured, and
 looking at the wrong package.
+
+### Re-derived 2026-08-20 (resolver loop, session 1) — 65 open, zero closable, and the human PRs have not moved in 12 days
+
+Board byte-identical to yesterday: **2 critical / 31 high / 26 medium / 6 low =
+65**, across `reactive-resume` 21, `Project-Jordyn` 42, `Project-ASBC` 1,
+`Project-RCoD` 1. All four personal `lxRbckl` repos still report **0**. An
+org-wide GraphQL sweep of open PRs on non-archived repos returns **seven**, three
+of them dependabot's (`Project-Jordyn` #11, `reactive-resume` #4/#9) and all
+three superseded by a human PR. **Nothing merged this session, and nothing
+should have been.**
+
+Authorship re-checked with the control in the same batch: `Project-ASBC` #18 → 1
+and `reactive-resume` #21 → 1 (Harah's, control healthy); `Project-Jordyn`
+#13/#16 → 0 and `reactive-resume` #15 → 0 (Alex's). Bodies 2.8–4.4 KB, so no
+silent empty-fetch. **The `for … set -- $p` loop failed again** — in **zsh**
+`$p` does not word-split, so every `gh pr view` got an empty argument and
+errored. That is the same failure the notes already record for the em-dash, with
+a different cause: write the checks as explicit calls or a shell function taking
+`"$1" "$2"`, never a split-a-string loop.
+
+**The one new fact, and it is about trend, not about a version.** Alex's #15 and
+#16 — which between them own **63 of the 65** — have had **no new commits since
+2026-08-08**, now 12 days, and both are `CONFLICTING`. `Project-Jordyn` #11's
+question to Alex (2026-08-17T13:43Z) has **zero non-Harah comments in its entire
+history**; the thread is three Harah comments and nothing else. The board is not
+slowly resolving in the background. It is parked, and every session that reports
+`EXHAUSTED` is reporting the same parked board.
+
+#### Method: the alert already gives you the forward floor; the advisory tells you about backwards
+
+Both this file and the Jordyn vault note say *"the alerts API alone cannot answer
+[whether a backport exists] — it returns only the vulnerability matching the
+installed version."* That is true as stated and **operationally misleading**, and
+the two notes it produced (expand all 21 advisories for `next`; read the advisory
+for `drizzle-orm`) reached opposite-sounding conclusions for the same reason.
+Reconciled, measured today:
+
+An alert's matched `security_vulnerability` is the vulnerable range **containing
+the version you have installed**, and its `first_patched_version` is therefore
+the **minimum version you must reach to leave that range** — which is exactly the
+forward-fix floor. Verified on the two ends of the Jordyn set:
+
+| GHSA | range containing 14.2.35 | alert's `first_patched_version` |
+|---|---|---|
+| `GHSA-h25m-26qc-wcjf` | `>= 13.0.0, < 15.0.8` | `15.0.8` |
+| `GHSA-89xv-2m56-2m9x` | `>= 14.1.1, < 15.5.21` | `15.5.21` |
+
+A 14.x backport would have shown up as a *narrower range containing 14.2.35*
+(`>= 14.0.0, < 14.2.36 -> 14.2.36`), so the alert would have said `14.2.36`. It
+said 15.x for all 21. **The alerts API did answer the question** — expanding all
+21 advisories confirmed the floor but was belt-and-braces, not the only route.
+
+What the advisory genuinely adds is the **other direction**: the full range list
+is the only way to see a non-vulnerable version *below* your line. That is the
+`drizzle-orm` case exactly — `< 0.45.2 -> 0.45.2` is invisible from an alert
+matched on the `1.0.0-beta` range, and it is what turns "no fix exists" into "the
+fix is a cross-major downgrade of a live app's database layer." So:
+
+> **Forward floor → read the alert. Backwards escape → read the advisory.**
+> `first_patched_version` on the alert is authoritative for "how far up must I
+> go"; only the advisory's full range list can tell you whether a lower,
+> non-vulnerable line exists — and whether that is a direction you can actually
+> travel.
+
+Re-confirmed unchanged at the source rather than carried over: `drizzle-orm` is a
+**direct** dependency (`"drizzle-orm": "^1.0.0-beta.12-a5629fb"` in
+`package.json`) — its lockfile-only `manifest_path` is GitHub failing to match a
+nightly specifier, **not** the transitive tell that `extract-zip` was, so the
+parent-bump move does not apply here. `lxrbckl` on PyPI is still **3.6.0**
+(uploaded 2024-11-18), still declaring `pytest<8.0.0,>=7.4.2` as a runtime
+requirement, so the two `pytest` alerts remain unsatisfiable from the consumers.
+
+**Deployment, measured today** (`deploy-check/verify.py`): `Project-Jordyn`'s
+newest run is still the 2026-08-17 `publish` that died in `Log in to DockerHub`;
+container `Up 31 hours`, `jbarger.app` HTTP 200 on an image from 2026-08-08 —
+**9 days behind `main`**. `reactive-resume` CI `skipped` on `8c368d86` (publish
+gate, healthy, no image built); both tenants `Up 31 hours (healthy)`, HTTP 200 on
+an image from 2026-07-03 — **46 days behind `main`**. **The org Docker Hub
+credential is still dead**; no publish has been attempted anywhere in the org
+since, deliberately, because re-running that job is itself a deploy.
+
+— Harah
