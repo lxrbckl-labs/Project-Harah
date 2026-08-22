@@ -789,3 +789,96 @@ credential is still dead; no publish attempted anywhere in the org since,
 deliberately.
 
 — Harah
+
+### 2026-08-22 (resolver loop, session 1) — 65 unchanged for a fourth day, and the number is measuring less than we thought
+
+Board re-derived live and byte-identical for the fourth consecutive day: **2
+critical / 31 high / 26 medium / 6 low = 65**, across `reactive-resume` 21,
+`Project-Jordyn` 42, `Project-ASBC` 1, `Project-RCoD` 1. Grouped at the source
+this time — 65 alerts are **34 distinct advisories**: 21 `next` × 2 manifests,
+10 `better-auth` × 2, 1 `drizzle-orm`, 2 `pytest` (one each in ASBC/RCoD).
+Nothing merged, and nothing should have been.
+
+Blockers re-confirmed at the upstream source, not carried over:
+
+- **`lxrbckl` on PyPI is still 3.6.0** (2024-11-18), still declaring
+  `pytest<8.0.0,>=7.4.2` in `requires_dist`. `lxRbckl/lxRbckl` **#1 is still
+  OPEN against the `PyPI` branch** — merging it *is* the publish. Both `pytest`
+  rows unchanged.
+- **The Docker Hub credential has still not been rotated.** `DOCKERHUB_TOKEN`
+  and `DOCKERHUB_USERNAME` both read `updated_at = 2025-10-18T19:47Z` — the
+  original creation timestamp. No publish has been attempted anywhere in the org
+  since the 2026-08-17 failure, deliberately.
+- **Deployment, measured today:** `Project-Jordyn` **9 days behind `main`**
+  (newest run still the 2026-08-17 `publish` that died in `Log in to DockerHub`;
+  container `Up 2 days`, `jbarger.app` HTTP 200 on an image built 2026-08-08).
+  `reactive-resume` **46 days behind `main`** (CI `skipped` on `8c368d86` —
+  publish gate, healthy, no image built; both tenants `Up 2 days (healthy)`,
+  HTTP 200 on an image from 2026-07-03).
+
+**Alex is active — just not here.** Prior entries described the board as
+"parked", which invited the reading that he had gone quiet. He has not:
+`/users/lxRbckl/events` shows pushes, PRs and merges on **2026-08-22 itself**
+(`lxRbckl/.claude`, `roulette-skill`, `Project-Evermore`). What is untouched is
+specifically the four alerting repos — `#15`/`#16` still `CONFLICTING` with no
+commits since 2026-08-08 (now 14 days), and `Project-Jordyn` #11's question to
+Alex (2026-08-17T13:43Z) still has **zero non-Harah comments in its entire
+history** (four Harah comments, nothing else). No fifth was added. That is a
+sharper and less self-flattering statement of the same blocker: these are
+decisions he has had the opportunity to make and has not prioritised, not
+messages he never received.
+
+#### The new fact: 10 non-archived repos have Dependabot alerts DISABLED, so "65" is not the exposure
+
+Nobody had asked whether the org-wide alerts endpoint was reporting on
+*everything*. It is not. Measured across all 35 non-archived org repos with
+`gh api -i /repos/lxrbckl-labs/<r>/vulnerability-alerts` (**204 = enabled,
+404 = disabled**):
+
+| | repos |
+|---|---|
+| enabled (204) | 25 |
+| **disabled (404)** | **10** — `Project-StadiumRun`, `Project-WindNoise`, `Project-DS`, `Project-PTL`, `Project-VoiceToColumn`, `Project-JordynLinkedIn`, `Project-Wdjat`, **`Project-Harah`**, `Project-StreetsForKC`, `Project-Fabricator` |
+
+Two of those matter more than the rest:
+
+- **`Project-VoiceToColumn` is a deployed target** — it is in
+  `deploy-check/targets.json`, it serves on this mini, and it has **no
+  vulnerability reporting at all**. Every prior "days behind" report on it was
+  measuring deployment drift on a repo whose security posture is unmeasured.
+- **`Project-Harah` itself** — the repo holding the alert-watch machinery — has
+  its own alerts off. The sensor does not cover its own housing.
+
+**The methodological point, which is the durable half.** A repo with alerts
+disabled is indistinguishable from a clean repo in every query this system runs:
+it contributes 0 to the org alerts endpoint, exactly like a repo with nothing
+wrong. Four days of sessions reported "65 open, all four repos accounted for"
+without noticing that the denominator was never established. This is the
+`extract-zip` failure in a different coat — a confident measurement answering a
+narrower question than the one that mattered.
+
+**And `alerts/collect.py` cannot see this by construction — read the two code
+paths.** For the personal account it iterates repos and calls
+`/repos/<r>/dependabot/alerts` one at a time, so a disabled repo returns the
+"disabled" error and lands in `alerts_disabled` — which is exactly why the
+personal-repo enablement state has always been reported correctly. For the org
+it makes a **single aggregate call** to `/orgs/<org>/dependabot/alerts`, which
+returns `200` and simply **omits** repos that have alerts off. There is no error
+to catch: a disabled org repo and a clean org repo are byte-identical in that
+response, and `disabled` only ever gets the *org* appended when the whole org is
+off. The aggregate endpoint is the efficient call and the blind one. Fixing it
+means a separate enablement sweep (`/repos/<r>/vulnerability-alerts`, 204/404)
+over the org's non-archived repos, so the count always ships with its coverage.
+
+**Not acted on, deliberately.** Enabling Dependabot alerts on ten repos is a
+repository settings change on Alex's repos, outside POLICY's carve-out (which
+scopes to merging dependency PRs), and it would *raise* the open count rather
+than lower it. It is his call, and it is the kind of call worth making
+deliberately — flagged here rather than performed.
+
+**Status: `EXHAUSTED`, fourth consecutive day, and the honest read is that the
+loop has nothing left to find in the current four rows.** All four have had the
+forward floor and the backwards escape measured and recorded. What changed today
+was not the number but what the number covers.
+
+— Harah
