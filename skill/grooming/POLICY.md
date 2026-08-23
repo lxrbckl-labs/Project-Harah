@@ -80,7 +80,7 @@ the human PR stating exactly what was banked and what remains for the
 human branch (precedent: Jordyn #16 sat 14 days holding 42 alerts —
 that must never recur). The human PR stays open and untouched.
 
-**The summons (Alex, 2026-08-23):** an `@harah` mention authored by
+**The summons (Alex, 2026-08-23):** an `@harah-bot` mention authored by
 Alex's own GitHub account on a PR (the mentions listener's author gate;
 Harah-signed comments never trigger) is his RECORDED PER-PR WORD to fix
 that PR: work its branch directly — the one exception to

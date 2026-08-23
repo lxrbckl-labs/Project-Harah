@@ -35,7 +35,11 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-TRIGGER = re.compile(r"@harah\b", re.IGNORECASE)
+# @harah is a REAL GitHub user (unrelated, since 2012) — mentioning it in a
+# public repo notifies a stranger (discovered 2026-08-23 after the drill did
+# exactly that). The summons handle is @harah-bot: unclaimed, reserved for the
+# future machine account; mentioning a nonexistent user pings nobody.
+TRIGGER = re.compile(r"@harah-bot\b", re.IGNORECASE)
 SIGNATURE = "— Harah"            # Harah's own sign-off; never self-trigger
 ALLOWED_AUTHORS = {"lxrbckl"}     # lowercased. ONLY Alex may trigger a run.
 OWNERS = ["lxRbckl", "lxrbckl-labs"]

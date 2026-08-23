@@ -34,7 +34,7 @@ This directory is the version-controlled home of the Harah agent doctrine
   (launchd install on the mini; self-locating, re-run after moving the
   checkout), `set-cadence.sh` (single owner of the grooming plist —
   schedules the job; the alerts routine drives it).
-- **[mentions/](mentions/)** — `@harah` listener: polls Alex's repos every
+- **[mentions/](mentions/)** — `@harah-bot` listener: polls Alex's repos every
   5 min and dispatches a scoped session to the PR he mentioned. Allowlisted
   authors only (this repo is public); a mention authorises looking, never
   merging.
