@@ -105,14 +105,37 @@ with open(os.environ["ROWS"]) as f:
         if len(parts) == 5:
             kind, repo, num, title, reason = parts
             rows.append({"kind": kind, "repo": repo, "pr": int(num), "title": title, "reason": reason})
+# Preserve keys this script does not own. The resolver records its merges under
+# "resolver_actions" (POLICY: "every fix lands in the UI"), and this writer used to
+# rebuild the file from scratch and os.replace() it -- silently destroying that record
+# on the next grooming pass. Carry forward anything we did not produce ourselves.
+OWNED = {"last_run", "dry_run", "merged", "queued", "totals"}
+loaded = {}
+try:
+    with open(os.environ["STATE"]) as f:
+        maybe = json.load(f)
+    if isinstance(maybe, dict):
+        loaded = maybe
+except (OSError, ValueError):
+    pass
+
+prior = {k: v for k, v in loaded.items() if k not in OWNED}
+
+totals = {"merged": int(os.environ["MERGED"]), "queued": int(os.environ["QUEUED"]),
+          "repos_with_prs": int(os.environ["CHECKED"])}
+# the resolver's cumulative alert tally is its own; grooming must not reset it
+prior_totals = loaded.get("totals")
+if isinstance(prior_totals, dict) and "alerts_closed_by_resolver" in prior_totals:
+    totals["alerts_closed_by_resolver"] = prior_totals["alerts_closed_by_resolver"]
+
 state = {
     "last_run": time.time(),
     "dry_run": os.environ["DRY"] == "1",
     "merged": [r for r in rows if r["kind"] == "merged"],
     "queued": [r for r in rows if r["kind"] == "queued"],
-    "totals": {"merged": int(os.environ["MERGED"]), "queued": int(os.environ["QUEUED"]),
-               "repos_with_prs": int(os.environ["CHECKED"])},
+    "totals": totals,
 }
+state.update(prior)
 tmp = os.environ["STATE"] + ".tmp"
 with open(tmp, "w") as f:
     json.dump(state, f, indent=2)
