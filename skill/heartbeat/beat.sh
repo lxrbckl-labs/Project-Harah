@@ -14,9 +14,15 @@ TARGET_FILE="$HOME/.harah/heartbeat-target"   # iMessage handle (Alex's own), on
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
 
 report="$(bash "$HERE/../doctor.sh" 2>&1 || true)"
-dead=$(printf '%s' "$report" | grep -c '✗' || true)
-warn=$(printf '%s' "$report" | grep -c '⚠' || true)
-alive=$(printf '%s' "$report" | grep -c '✓ alive' || true)
+# Count VERDICT ROWS only. Counting glyphs across the whole report also counted
+# doctor's own legend line ("✗ needs its enable.sh · ⚠ read the log · ✓ leave it
+# alone") and any log excerpt that happens to contain one — so the heartbeat
+# reported "1 routine(s) DEAD" every day regardless of state. A dead-man's
+# switch that always cries wolf is worse than no switch at all.
+verdicts="$(printf '%s' "$report" | grep -E '^[a-z]+ +(loaded|NOT LOADED)' || true)"
+dead=$(printf '%s' "$verdicts" | grep -c '✗' || true)
+warn=$(printf '%s' "$verdicts" | grep -c '⚠' || true)
+alive=$(printf '%s' "$verdicts" | grep -c '✓ alive' || true)
 blocked=""
 [ -f "$HOME/.harah/operator-blocked.json" ] && blocked=" · operator-blocked items open"
 

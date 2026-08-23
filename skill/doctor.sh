@@ -63,6 +63,7 @@ check_routine "mentions"  "com.alex.harah-mentions"  "$HOME/Library/Logs/harah-m
 check_routine "alerts"    "com.alex.harah-alerts"    "$HOME/Library/Logs/harah-alerts.log"    7
 check_routine "grooming"  "com.alex.harah-grooming"  "$HOME/Library/Logs/harah-grooming.log"  26
 check_routine "resolver"  "com.alex.harah-resolver"  "$HOME/Library/Logs/harah-resolver.log"  26
+check_routine "heartbeat" "com.alex.harah-heartbeat" "$HOME/Library/Logs/harah-heartbeat.log" 26
 
 hdr "the silent killers"
 # 1. Keychain: headless claude -p dies without the login keychain. Proxy check:
