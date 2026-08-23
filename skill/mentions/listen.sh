@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# harah mention listener: poll Alex's repos for `@harah` and dispatch a scoped
+# harah mention listener: poll Alex's repos for `@harah-bot` and dispatch a scoped
 # Harah session for each new one. Effectively an event listener at ~5 min
 # latency, without exposing a webhook endpoint to the internet.
 #
