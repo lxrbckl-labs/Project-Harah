@@ -50,7 +50,11 @@ these repos have pre-existing failures that are not this PR's fault).
   needs. Commit as Harah's git identity
   (`git -c user.name=Harah -c user.email=harah@users.noreply.github.com`),
   push to the PR branch, and run the repo's own verification BEFORE
-  reporting. The summons overrides the never-touch-human-branches default
+  reporting. **Bot identity:** if `$CHECKOUT/skill/app/as-bot.sh` succeeds
+  (app credentials on this machine), route the push and every PR comment
+  through it — they then genuinely come from `harah-bot[bot]`. Its
+  credential-absent exit is the signal to fall back to the legacy
+  identity; never treat that as an error. The summons overrides the never-touch-human-branches default
   for the summoned PR only.
 - **Reply on the PR** with what you did and what verification said. Be
   specific and honest; say "I don't know" when you don't. Sign `— Harah`.

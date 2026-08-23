@@ -197,7 +197,12 @@ identity:** commits Harah authors are committed as
 user.email=harah@users.noreply.github.com commit …`), so the permanent
 history — `git log`, blame, the GitHub commit feed — distinguishes
 Harah's work from Alex's without reading comment threads. The login is
-shared; the author identity is not. (This also strengthens the
+shared; the author identity is not. **When the harah-bot GitHub App
+credentials are present** (`skill/app/` — mint-token.sh succeeds), outward
+writes route through `app/as-bot.sh` and carry the `harah-bot[bot]` login
+itself: authorship becomes GitHub-enforced, and the signature remains as
+belt-and-suspenders. Credentials absent = legacy identity; both are
+compliant. (This also strengthens the
 authorship-by-signature test above: for commits, the author field IS the
 discriminator going forward; the body signature remains the test for
 PRs/comments and for pre-2026-08-23 history.)

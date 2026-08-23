@@ -50,6 +50,12 @@ This directory is the version-controlled home of the Harah agent doctrine
   serving? Checks every deployed target regardless of cause and records
   ok→down / down→ok **transitions** so a long-broken thing doesn't shout
   forever. **Read-only** — it reports; it never restarts or rolls back.
+- **[app/](app/)** — the harah-bot GitHub App identity: registration
+  runbook (Alex-only, ~10 min), `mint-token.sh` (installation tokens),
+  `as-bot.sh` (run gh/git as `harah-bot[bot]`). Credentials live ONLY at
+  `~/.harah/app/` on the mini; absent = automatic fallback to the legacy
+  identity. Follow-up recorded there: wire groom.sh's gh calls through
+  as-bot.sh once the first mint is verified on the mini.
 - **[deploy-check/](deploy-check/)** — after a merge: did it actually reach the
   running app? Walks merge → CI → image → container → real HTTPS request and
   reports how many days behind `main` the live code is. `targets.json` is the
