@@ -15,6 +15,10 @@ This directory is the version-controlled home of the Harah agent doctrine
   re-derivations, not this file** (drill 2026-08-22: OPEN-ITEMS froze six
   days stale while dev-notes stayed byte-accurate) — trust dev-notes, then
   live `gh` measurement, in that order.
+- **[heartbeat/](heartbeat/)** — the dead-man's switch: daily 09:00, runs
+  doctor and TEXTS Alex one status line (🟢/🟡/🔴). If the daily text ever
+  stops arriving, that absence is itself the alarm — silence is impossible
+  by design.
 - **[doctor.sh](doctor.sh)** — one read-only health pass over every
   routine (launchd state, log freshness, auth deaths, checkout currency).
   Run it FIRST when anything seems dead or silent.
