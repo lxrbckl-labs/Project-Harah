@@ -1214,11 +1214,17 @@ Dependabot alerts/security-updates on owned, non-archived repos is in scope
 
 Re-swept today across all 39 non-archived owned repos (`gh api -i
 /repos/<o>/<r>/vulnerability-alerts`, 204 = on, 404 = off) — and the recorded list
-had already drifted: `Project-StreetsForKC` had been enabled since, and
-`lxRbckl/FantasyFootball` was newly dark (the 08-22 sweep only covered org repos,
-so personal repos were never in its denominator either). Enabled all ten. **PUT
-returned 204 for each and a re-read confirmed 204 for each — coverage is now
-39/39.**
+had already drifted: `Project-StreetsForKC` is **gone entirely** (it no longer
+resolves at all — `gh repo view` 404s, and it is not among the org's archived
+repos either), and `lxRbckl/FantasyFootball` was newly dark, because the 08-22
+sweep only covered org repos so personal repos were never in its denominator.
+Enabled all ten still-existing dark repos. **PUT returned 204 for each and a
+re-read confirmed 204 for each — coverage is now 39/39.**
+
+*(Corrected later the same session: this paragraph first said StreetsForKC "had
+been enabled since". That was wrong — it was never in today's sweep, because it
+is not in the repo list any more. Re-derive the enumeration, don't diff against
+what a prior note claimed was in it.)*
 
 Within minutes the org board went **3 → 105**. Two of those repos held almost all
 of it:
