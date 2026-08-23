@@ -36,7 +36,11 @@ check_routine() { # name label log expected_max_age_hours
   local a; a=$(age "$log")
   local verdict="?"
   if [ -z "$row" ]; then verdict="✗ DEAD — agent not loaded (run its enable.sh)"
-  elif [ "$a" = "never" ]; then verdict="✗ SILENT — loaded but log never written"
+  elif [ "$a" = "never" ]; then
+    # Loaded but no log yet: a calendar routine awaiting its first scheduled
+    # fire is HEALTHY, not dead — cry-wolf softening (2026-08-23) so the
+    # heartbeat's first-night text isn't a false red.
+    verdict="⚠ pending — loaded, no log yet (first scheduled run hasn't fired)"
   else
     local m; m=$(stat -f %m "$log" 2>/dev/null || echo 0)
     if [ $(( now - m )) -gt $(( max_h * 3600 )) ]; then
