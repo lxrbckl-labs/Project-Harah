@@ -1369,9 +1369,23 @@ the publish and the publish authority is contested — see below.
 
 The ping went out on the heartbeat channel, which existed for the first time today.
 
-**Status: `MORE_WORK`** — not because these three are actionable, but because
-enabling alerts on ten repos means Dependabot is still scanning several of them
-for the first time, and because a fourth of the day's work turned out to be
-build-and-machinery repair that only surfaced once something was actually run.
+**Status: `EXHAUSTED`.** Written as `MORE_WORK` first, on the reasoning that the
+ten newly-enabled repos might still be scanning. That was a guess, and it was
+checked rather than left: five of them (`Project-StadiumRun`, `Project-WindNoise`,
+`Project-PTL`, `Project-JordynLinkedIn`, `Project-Wdjat`) contain **no lockfile of
+any kind**, so their 0 is genuine and not pending, and `lxRbckl/FantasyFootball`
+is 0 as well. All four personal repos re-checked individually: 0 each.
+
+So on *alerts* the board really is exhausted — the three that remain each need
+Alex, and each is named in `~/.harah/operator-blocked.json` and was texted today.
+What is **not** exhausted is the pile of non-alert work this pass turned up by
+running things, none of which closes an alert and all of which is written down
+above rather than left to be rediscovered: `migrations/meta` snapshot drift in
+`Project-DS`, biome 1.9.4 panicking there, `pnpm.overrides` sitting in its
+deprecated home, `next lint` unconfigured in `Project-VoiceToColumn`,
+`reactive-resume`'s `pnpm build` still broken behind the TanStack family skew
+(PR #22 open), and `watchdog`/`mentions` both reading `⚠ STALE` in doctor while
+`watchdog-state.json` updates every few minutes — which smells like the staleness
+heuristic watching the wrong file for a routine that only logs transitions.
 
 — Harah
