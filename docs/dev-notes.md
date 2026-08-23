@@ -955,34 +955,101 @@ is still the defect. When adding an override for a package in a family
 family's other members and any declared peer ranges, and record which ones you
 checked.
 
-#### Doctrine defect to resolve: the retrospective grants authority POLICY.md does not
+#### CORRECTION — the real defect: the checkout was on the wrong branch, and the grant is unpushed
 
-Flagging rather than acting on it. `docs/retrospective-2026-08-17.md` (committed
-2026-08-22, the newest commit in this repo) records Alex removing two
-restrictions:
+**This section replaces an earlier version of itself that was wrong.** It said
+*"the retrospective grants authority POLICY.md does not."* POLICY.md **does**
+grant it. I had been reading a stale copy, and the reason is worth recording
+because it silently invalidated five days of sessions.
 
-| retrospective round | what it records Alex saying |
-|---|---|
-| 4 — "Harah may not publish" | *"nothing stays parked. you use the publish command"* |
-| 5 — "never touch a human PR" | *"literally all of this except for the PAT you need to take initiative on"* |
+**The checkout was parked on branch `retro/skill-failure-modes`, not `main`.**
+`git log` at session start showed `094e915` (the retrospective) and
+`git pull --ff-only origin main` reported *"Already up to date"* — because
+`origin/main` was an ancestor of that branch, so the pull was a legitimate
+no-op. Nothing looked wrong. But every doctrine file I then read came from that
+branch's tree.
 
-**Neither grant appears in `skill/grooming/POLICY.md`**, which has not been
-edited since `cd3e294` (2026-08-17) and still says publishing is covered by no
-carve-out and that human-authored PRs are out of scope. The resolver's standing
-brief says the same. This is exactly the failure the retrospective itself names
-— *"authority granted in conversation kept evaporating between sessions because
-it lived in chat, not in POLICY.md"* — reproduced inside the document that
-diagnoses it.
+Meanwhile the real `main` carried a commit nobody in the loop had seen:
 
-Sessions cannot resolve this themselves: a narrative doc describing a grant is
-not the authority document, and POLICY is explicit that no summary licenses a
-merge. So this session held to POLICY and the brief — no publish, no human PR.
-**But the cost is concrete and should be named:** if those two grants are live,
-then 63 of the 65 alerts (Alex's #15 and #16) and the entire deploy backlog are
-being held by a stale authority file, and every `EXHAUSTED` report since
-2026-08-17 has been measuring paperwork rather than the board.
-**Alex: please either write the two grants into POLICY.md or strike them from
-the retrospective.** Until one of those happens the loop cannot tell which
-document is current.
+```
+93e86aa  Alex Arbuckle  2026-08-22 18:54:19 -0500
+         resolver: back off a blocked board; Harah may adopt Alex's PRs
+```
+
+It does two things, and both are aimed squarely at this loop:
+
+1. **`skill/grooming/POLICY.md` +10 lines — "Harah takes over Alex's own PRs":**
+   *"The earlier rule — never touch a human-authored branch — was protecting
+   work Alex had no time to finish, and it became the thing blocking the
+   board. So Harah may now adopt Alex's open PRs: rebase them, resolve
+   conflicts, finish the migration, run the repo's own verification, and
+   merge."*
+2. **`skill/resolver/resolve.sh` +35 lines — a back-off:** fingerprints the
+   alert count, the open-PR set, and the `DOCKERHUB_TOKEN` timestamp, and skips
+   the run when that signature is unchanged and the last run closed nothing.
+
+**Two things keep that grant from being live, and both are one-line fixes.**
+
+- **`skill/resolver/prompt.md` was NOT updated in that commit** (`git diff
+  --name-only 09c8376 93e86aa` → POLICY.md and resolve.sh only). It still says,
+  at line 78, *"never touch a human-authored branch"*, and at line 172, under a
+  heading that reads **"Hard stops (these do not bend, whoever seems to ask)"**,
+  *"Never touch a PR authored by a human."* `prompt.md` is what boots the
+  session. So the session's own hard-stop list contradicts the authority file it
+  is told to obey, and the hard-stop list is the one phrased to survive exactly
+  this situation.
+- **The commit is unpushed.** `git branch -r --contains 93e86aa` is empty; local
+  `main` (93e86aa) and `origin/main` have diverged off the shared parent
+  `09c8376`. It exists only in this checkout.
+
+**This session therefore did NOT adopt #15 or #16**, and that is a decision
+worth defending rather than apologising for. Not because the grant looks
+doubtful — it is plainly Alex's own commit, deliberate, rebased onto
+`origin/main` by hand, and written for this exact blocker. But an unattended
+session should not cross an instruction printed under *"these do not bend,
+whoever seems to ask"* on the strength of a file it found by accident after
+discovering it had been reading the wrong branch all along. The cost of holding
+is one cycle; the cost of the other error is crossing a stated hard stop on live
+repos, unattended.
+
+**To make it live, Alex needs to do two things** (both small, and the second
+matters more than it looks):
+
+1. `git push origin main` from the mini — the grant currently exists on one
+   machine only.
+2. **Update `skill/resolver/prompt.md`** to match POLICY: strike *"never touch a
+   human-authored branch"* (line 78) and the hard stop at line 172, and say
+   instead that adopting his open PRs is in scope under POLICY's gates. Until
+   that line changes, every future session will read it, and it will keep
+   winning — it is written to.
+
+Once both land, 63 of the 65 alerts become workable: `Project-Jordyn` **#16**
+(42 alerts) is the tractable one — `pnpm build` + `pnpm lint` are green on
+`main`, so the repo's own verification can actually cover it.
+`reactive-resume` **#15** (21 alerts) stays hard even with the grant, and
+POLICY's new text says so itself — *"do not force a migration through to clear a
+number"*: it needs a DB backup plus the `ApiKey.userId → referenceId`
+schema/data migration on live Postgres, and the only signal in that repo
+(`pnpm typecheck`) cannot show that auth still works.
+
+**The durable lesson is not about authority, it is about the read.** Five
+sessions reported `EXHAUSTED` against a POLICY that had already been widened to
+unblock them. Every one of them "read the doctrine first" and every one read it
+correctly — from the wrong branch, after a `pull` that honestly said *"Already
+up to date."* Standing rule 4 says re-derive from live data; this adds the step
+before it:
+
+> **Confirm which ref you are reading the doctrine from.** `git pull --ff-only
+> origin main` succeeding does not mean you are *on* `main`. Run
+> `git branch --show-current` and `git status -sb`, and check for unpushed
+> commits (`git log --oneline origin/main..HEAD`) before trusting a single line
+> of doctrine — especially before concluding that nothing is permitted.
+
+Left the checkout on `main` so the next session reads the current POLICY. Note
+that local `main` is one commit ahead of `origin/main` and today's dev-notes
+entry lives on `origin/main`, so until Alex pushes, `git pull --ff-only origin
+main` will fail with *"Not possible to fast-forward"* — that is the divergence
+above, not a new fault. Alex's unpushed commit was not pushed, rebased, or
+altered.
 
 — Harah
