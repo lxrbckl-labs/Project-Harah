@@ -60,6 +60,17 @@ This directory is the version-controlled home of the Harah agent doctrine
   6h). **Read-only against GitHub** — it never merges or comments, and it
   never widens POLICY.md's merge authority.
 
+**Recovery chain (2026-08-23):** the machinery self-heals in layers — the
+mini's hourly config-repo auto-pull runs a post-pull hook that bootstraps
+dead routines; any mini session runs doctor→bootstrap on ✗; and a full
+mini rebuild needs only gh auth + the config repo (synchronizer setup) +
+this repo cloned at `~/lxrbckl-dev/Project-Harah`, after which the hook
+does the rest. The complete runbook lives in the config repo's `harah`
+pointer skill ("If the machinery is ever lost") — deliberately stored
+OUTSIDE this repo so it survives losing the mini and this checkout with
+it. Proof of life: the daily 09:00 heartbeat text; its absence is the
+outage signal.
+
 An agent asked to work the homelab should read SKILL.md, then pull the
 specific file the task needs. Changes to doctrine are commits to this
 repo — push them.
