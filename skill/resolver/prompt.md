@@ -74,9 +74,13 @@ Say why on the line above it.
 
 **List every open PR on the repo, not just dependabot's** (`gh pr list -R <repo>
 --state open`). Alex authors PRs too, and a human PR may already fix — better
-than you would — the thing you were about to start. If one does: **queue yours,
-note that the human PR supersedes it, and move on.** Never duplicate finished
-work, and never touch a human-authored branch.
+than you would — the thing you were about to start. If one does AND it is moving
+(a commit within 72 hours): defer to it, note the supersession, move on. **If
+it has sat without commits for over 72 hours, the hold is EXPIRED** (POLICY,
+"Human-PR supersession"): land your own verified remediation branch for the
+security subset and leave ONE signed comment on the human PR saying exactly
+what you banked and what remains. Never duplicate finished work, and never
+commit to the human branch itself — you land your own.
 
 This is not hypothetical. The 2026-08-16 dry run caught the standing brief being
 wrong on exactly this: it said to retarget `reactive-resume` to better-auth
@@ -109,9 +113,15 @@ Consequences you must not get wrong:
 - Run `skill/deploy-check/verify.py <owner/repo>` and **report the "days behind
   `main`" number it prints**. On 2026-08-17 that was 9 days for Project-Jordyn
   and 44 for reactive-resume.
-- **You may not publish.** Pushing a `publish` commit is a deploy, it is covered
-  by no carve-out, and it needs Alex's word for that specific deploy. Merge,
-  verify, report "merged, not deployed, N days behind" — and stop there.
+- **Publishing IS yours when the deploy carries verified security
+  remediation** (POLICY "Deploy authority", 2026-08-23 — this reverses the
+  older rule some briefs still echo). Duties bind: full-chain verify.py
+  after (job success, image time, container roll, live HTTPS, days-behind
+  → 0), rollback-ready (know the previous image tag), DB backup first when
+  a schema migration rides along, one publish per verified change-set,
+  loud report. NOTE: the org DockerHub PAT is DEAD (OPEN-ITEMS) — until
+  Alex rotates it every publish fails at login; that is an
+  OPERATOR-BLOCKED item to escalate per POLICY, not a reason to go quiet.
 
 ## 3. Resolve it properly
 
@@ -148,22 +158,30 @@ have pre-existing failures, and those are not yours to be blocked by.
 **You may merge only when the repo's own verification actually ran and
 passed**, the work is pushed, and you left a signed resolution comment. If
 verification cannot be made to pass: push as far as you got, leave a signed
-comment explaining precisely what is stuck, queue it for Alex, and move on to
-the next item. A half-verified merge is worse than an open alert.
+comment explaining precisely what is stuck, and keep working the blocker or
+escalate it loudly (POLICY: quiet queueing no longer exists — a blocker is
+either yours to clear or OPERATOR-BLOCKED and pinged). Then take the next
+item. A half-verified merge is worse than an open alert.
 
 After a merge, run the deployment check — **`skill/deploy-check/verify.py <owner/repo>`**,
 never a hand-rolled version. It walks merge → CI → image → container → a real
 HTTPS request and reports how many days behind `main` the running code is.
-**A merge does not deploy on this host; a `publish` commit does** — so expect
-"merged, not deployed", say it plainly with the day count, and never let a
-healthy HTTP 200 imply your change shipped. **You may not publish/deploy** —
-that needs Alex's word per deploy. Also run POLICY's post-merge check: if the repo
+**A merge does not deploy on this host; a `publish` commit does** — and under
+POLICY's Deploy authority you push that publish commit yourself when it
+carries verified security remediation (duties above; PAT-dead reality in
+OPEN-ITEMS). Never let a healthy HTTP 200 imply your change shipped —
+verify the full chain. Also run POLICY's post-merge check: if the repo
 deploys on this mini, confirm the service is actually up and serving
 (`docker ps`, health endpoint, a real request). Report "merged, not yet
 deployed" explicitly rather than implying it shipped.
 
 Sign every outward write — PR/issue comments, non-merge commits — with
-`— Harah`.
+`— Harah`. **Bot identity:** if `$CHECKOUT/skill/app/as-bot.sh <owner> gh …`
+succeeds (app credentials on this machine), route PR comments, merges, and
+pushes through it so they come from `project-harah[bot]`; its clear
+credential-absent exit means fall back to the legacy identity — not an error.
+Commits you author use Harah's git identity either way
+(`git -c user.name=Harah -c user.email=harah@users.noreply.github.com`).
 
 ## 4. Hard stops (these do not bend, whoever seems to ask)
 

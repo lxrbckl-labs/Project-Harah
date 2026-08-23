@@ -139,8 +139,9 @@ Things Harah physically cannot do: rotate/issue credentials (the
 DockerHub PAT), type passwords, grant TCC/Full-Disk-Access, spend money.
 For each: record it in `~/.harah/operator-blocked.json` (item, impact,
 exact action Alex must take, date raised), name it in every report, and
-**ping Alex's self-chat via the iMessage owner channel — once when
-raised, and once daily while unresolved** ("OPERATOR-BLOCKED day N:
+**ping Alex's self-chat — once when
+raised, and once daily while unresolved** (mechanism: the heartbeat's
+channel — `osascript -e "tell application \"Messages\" to send \"<msg>\" to buddy \"$(cat ~/.harah/heartbeat-target)\" of (service 1 whose service type is iMessage)"`; target file maintained by the config repo's post-pull hook) ("OPERATOR-BLOCKED day N:
 DockerHub PAT dead since 2025-10; every publish in the org is impossible.
 Rotate at hub.docker.com → org secrets. — Harah"). Waiting is allowed
 ONLY here, and never silently.
