@@ -18,6 +18,10 @@
   MINI's ~/.harah/app/ (then deletes the MacBook copies in ~/Downloads and
   ~/.harah/app — mini-only rule). Until then, mini routines use the legacy
   identity fallback. Trigger reminder: `@project-harah`, never plain `@harah`.
+- 🟢 **groom.sh wording lag (small, code):** its queue comments still say
+  "Queued for Alex" — under the Mandate they queue for the RESOLVER. Reword
+  the string (and wire its gh calls through app/as-bot.sh) next time the
+  script is touched.
 - ⚠️ **Exposed GitHub PATs** — live `ghp_…` tokens in plaintext in
   `~/.zsh_history` and in `~/docker-bare-run/*/docker-compose.yml`.
   Recommend rotating at github.com/settings/tokens.
