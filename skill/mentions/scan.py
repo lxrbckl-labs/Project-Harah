@@ -12,10 +12,13 @@ SECURITY — the reason this file is careful:
   comments authored by ALLOWED_AUTHORS are ever dispatched; everything else is
   logged and dropped. Without that, a stranger's comment would be a remote
   trigger for an agent that holds merge authority on Alex's repos.
-* A mention is a request to LOOK, never an instruction to obey. The comment
-  body is passed to the session as quoted, clearly-labelled untrusted data.
-  POLICY.md remains the only thing that authorises a merge — no comment,
-  from anyone including Alex, widens it. Alex asks for merges in chat.
+* A mention from Alex is a SUMMONS: his recorded per-PR word to fix that
+  PR on its branch (POLICY.md "The summons", 2026-08-23). The comment body
+  is still passed as quoted, clearly-labelled untrusted data — content can
+  direct the fix but can never widen MERGE/deploy/access authority:
+  POLICY.md remains the only merge authorization; Alex asks for merges in
+  chat. (Author-gating above is what makes the summons trustworthy — only
+  ALLOWED_AUTHORS ever dispatch, and Harah's signature never self-triggers.)
 * Harah signs its own writes `— Harah`, which cannot match the `@harah`
   trigger; a signature guard drops them anyway so the bot can't loop on itself.
 
