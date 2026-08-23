@@ -1183,3 +1183,189 @@ write, fresh-machine (missing file), and a corrupt file.
    class of conflict, so fixing the checkout is the higher-order fix.**
 
 — Harah
+
+### 2026-08-23 (resolver loop, session 2) — 23 → 3, but the number that matters is 105 → 3
+
+Session 1 took the board 65 → 23 by unsticking the checkout. This session took it
+to **3**, and along the way discovered the count had been measuring the wrong
+thing all along.
+
+| | |
+|---|---|
+| board at session start | **23** (2 critical, 15 high, 4 medium, 2 low) |
+| board at session end | **3** (0 critical, 1 high, 2 medium) |
+| alerts actually closed | **89** |
+| org-wide criticals and highs remaining | **0 critical**, 1 high |
+
+The arithmetic only works because of the coverage fix below: 23 − 20 would be 3,
+but 102 previously-invisible alerts were surfaced and 89 closed in between.
+
+#### The denominator was never established — and the fix was already authorized
+
+The 2026-08-22 entry found that **10 non-archived repos had Dependabot alerts
+disabled**, noted that a disabled repo is byte-identical to a clean repo in every
+query this system runs, and then *did not act*, reasoning that repo settings were
+"outside POLICY's carve-out."
+
+That reasoning was already stale when it was written. POLICY's 2026-08-23 rewrite
+says plainly: *"Repo security settings — visibility is authorized: enabling
+Dependabot alerts/security-updates on owned, non-archived repos is in scope
+(additive visibility only)."*
+
+Re-swept today across all 39 non-archived owned repos (`gh api -i
+/repos/<o>/<r>/vulnerability-alerts`, 204 = on, 404 = off) — and the recorded list
+had already drifted: `Project-StreetsForKC` had been enabled since, and
+`lxRbckl/FantasyFootball` was newly dark (the 08-22 sweep only covered org repos,
+so personal repos were never in its denominator either). Enabled all ten. **PUT
+returned 204 for each and a re-read confirmed 204 for each — coverage is now
+39/39.**
+
+Within minutes the org board went **3 → 105**. Two of those repos held almost all
+of it:
+
+| repo | alerts surfaced | note |
+|---|---|---|
+| `Project-DS` | **74** (3 critical) | pnpm monorepo, `project-ds-mcp-1` + `project-ds-postgres-1` run on this mini |
+| `Project-VoiceToColumn` | **27** | a **deployed** target in `deploy-check/targets.json`, serving `voicetocolumn.lxrbckl.com` with no vulnerability reporting at all |
+| `Project-Harah` | 2 | this repo. The sensor was not covering its own housing. |
+| `Project-Fabricator` | 1 | |
+
+**The durable lesson is not "turn alerts on".** It is that the 2026-08-22 session
+identified the blind spot precisely, wrote it up well, and left it — on an
+authority reading that the authority file itself contradicted. *Re-read POLICY
+before concluding something is out of scope*, not just before merging. That is
+the same failure as the six-day `EXHAUSTED` stall, one level up.
+
+#### What was merged (10 PRs, all verified, none deployed)
+
+| repo | PR | closes | verification that mattered |
+|---|---|---|---|
+| `reactive-resume` | **#23** | **20** (2 crit) | real-Postgres harness, 25 checks |
+| `Project-DS` | **#32** | **3 crit** | the repo's own test suite — the thing being upgraded runs the verification |
+| `Project-DS` | **#33** | **55** | bounded `pnpm.overrides` sweep; uuid + esbuild exercised at runtime |
+| `Project-DS` | **#34** | 2 | the transcode suite, incl. the HEIC round-trip, green on sharp 0.35.3 |
+| `Project-DS` | **#35** | 6 | vite 6 exercised as the vitest transform pipeline, not just the build |
+| `Project-DS` | **#36** | 4 | **real Postgres**: the repo's own migrator + schema, 11 checks |
+| `Project-DS` | **#37** | 4 | SheetJS CDN; both consumer APIs replayed; CDN fetch proven inside a `--no-cache` Docker build |
+| `Project-DS` | **#38** | 0 | **the image build was broken** — see below |
+| `Project-VoiceToColumn` | **#4** | **27 → repo at zero** | `npm ci` checked deliberately because the Dockerfile builds with it |
+| `Project-Harah` | **#33** | 2 | byte-identical bundle; also repaired a broken `npm ci` |
+| `Project-Fabricator` | **#1** | 1 | scoped override; `core-utils.transform()` exercised directly |
+
+`Project-DS` went **74 → 0**. `reactive-resume` **21 → 1**. `Project-VoiceToColumn`
+**27 → 0**. `Project-Harah` and `Project-Fabricator` **→ 0**.
+
+#### The finding that outranks the alert count: Project-DS could not build an image
+
+Found by running `docker build`, which nothing in this loop had ever done — the
+deploy check starts at the *CI run*, and CI has not attempted a build anywhere in
+the org since the DockerHub credential died on 2026-08-17. So a build failure that
+predates that has been invisible by construction.
+
+Three failures, in the order they surface:
+
+```
+cafeb86 (BEFORE any of today's work):
+  ERR_PNPM_IGNORED_BUILDS  — @biomejs/biome, esbuild x4, sharp
+main after #33:
+  ERR_PNPM_LOCKFILE_CONFIG_MISMATCH
+    preceded by: [WARN] The "pnpm" field in package.json is no longer read by pnpm.
+                        The following keys were ignored: "pnpm.overrides".
+  ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION — fast-uri@3.1.6, published 11h earlier
+```
+
+All three trace to one line in both Dockerfiles: `corepack prepare pnpm@latest
+--activate`. **`@latest` on the toolchain is the same version bomb as `>=x` on a
+dependency, and it is worse, because it only detonates in the environment nobody
+exercises locally** — pnpm 10.30.2 *warns* where the container's pnpm *errors*.
+Pinned via `packageManager` (#38); both full images now build, and the remediated
+versions were confirmed *inside* the built image (`sharp 0.35.3`,
+`drizzle-orm 0.45.2`, `vite 6.4.3`, `postcss 8.5.26`).
+
+> **New standing check: after dependency work on a containerised repo, run
+> `docker build`.** `pnpm install` passing locally is not evidence that the image
+> builds, and for the 55 alerts in #33 it was actively misleading — the newer pnpm
+> refuses to read `pnpm.overrides` out of `package.json` at all, so the mechanism
+> that closed them would not have applied.
+
+#### Advisory checks need `withdrawn_at == null`
+
+The post-bump sweep (`gh api "/advisories?ecosystem=npm&affects=<pkg>@<ver>"`)
+reported `esbuild@0.25.12` as **high** and `uuid@11.1.1` as **low**. Both are
+**withdrawn** advisories (2026-06-17 and 2026-05-05) and raise no Dependabot
+alerts. Filter on `withdrawn_at == null` or the check invents regressions on a
+clean bump — and a phantom regression is exactly the kind of thing that stops a
+future session merging a good fix.
+
+#### `first_patched_version: null` has a third meaning
+
+`extract-zip` taught that null can hide a fixable *transitive*. `xlsx` adds a
+third case: **the fix exists but not on the registry**. npm's `xlsx` has been
+frozen at 0.18.5 since 2022-03-24; SheetJS ships from `cdn.sheetjs.com` now, and
+pointing the dependency there is the vendor's own documented remediation
+(measured: `xlsx-0.20.3.tgz` → 200, `0.20.4` → 404). pnpm records an integrity
+hash for the tarball, so it is pinned and verified, not floating. Flagged loudly
+on the PR as a supply-chain posture change; revert is one line.
+
+#### Harah's own alarm had never fired
+
+`skill/README.md`: *"the dead-man's switch … if the daily text ever stops
+arriving, that absence is itself the alarm — silence is impossible by design."*
+Measured: **no plist, no log, no `~/.harah/heartbeat-target`.** It had never run
+once. And it went unnoticed because **`doctor.sh` did not check the heartbeat** —
+it walked the other five routines and stopped. The health check had a blind spot
+exactly where the alarm lives, which is the alerts-disabled failure in a different
+coat, one layer inward.
+
+Worse, `beat.sh` counted `✗`/`⚠` across doctor's *entire* output, including
+doctor's own legend line (`✗ needs its enable.sh · ⚠ read the log · …`), so it
+would have reported 🔴 **every day forever**. Measured on the same live output:
+old counting `dead=1 warn=4`, corrected `dead=0 warn=2`. The very first beat this
+session sent said *"🔴 HARAH UNHEALTHY: 1 routine(s) DEAD"* while doctor showed
+nothing dead. **A dead-man's switch that cries wolf daily is worse than none** —
+by day two the only signal it exists to send is noise.
+
+All three fixed and verified through `launchctl kickstart` (exit 0, log written,
+text sent, 0 notification fallbacks), never by running `beat.sh` by hand.
+
+One more gotcha found by using the channel for real: **an AppleScript send
+silently fails if the message contains `"` or `\`** — osascript exits non-zero,
+`beat.sh` falls back to a local notification nobody sees. The first
+OPERATOR-BLOCKED ping today failed exactly this way because it quoted a required
+commit message. `beat.sh` now escapes both, verified live with a message
+containing each.
+
+#### The 3 that remain, and exactly what each waits on
+
+| repo | alert | status |
+|---|---|---|
+| `reactive-resume` | `drizzle-orm` (high) | Only forward fix is inside the `1.0.0` prerelease channel (`latest` is still 0.45.2, a cross-major **downgrade** of a live app's database layer; no clean `1.0.0` stable exists). POLICY's prerelease exception covers **critical** only; for high it says prefer stable and report. Reported, re-check every pass. |
+| `Project-ASBC` / `Project-RCoD` | `pytest` ×2 (medium) | Needs `lxRbckl/lxRbckl` **#1** merged into the `PyPI` branch **with the commit message exactly `Update`** — the workflow gate is `if [ "$commitMessage" != "Update" ]`, so a default squash message lands the change and publishes nothing. Re-derived today: PyPI still serves 3.6.0 (2024-11-18) with `pytest<8.0.0,>=7.4.2` as a **runtime** requirement, and GHSA-6w46-j5rx-g56g has one range (`< 9.0.3`) so there is no lower safe line. |
+
+**#1 is Harah-authored**, not Alex's — measured with both controls in the same
+batch (positive `reactive-resume` #23 → 1, negative `reactive-resume` #15 → 0,
+bodies 3.3–8.7 KB). The 2026-08-23 session-1 entry listed it as
+"human-authored"; that was wrong. It is still not merged, because merging it *is*
+the publish and the publish authority is contested — see below.
+
+#### Three OPERATOR-BLOCKED items, all texted to Alex today
+
+1. **DockerHub PAT dead, day 6.** Both org secrets still read
+   `updated_at = 2025-10-18T19:47Z`. **89 alerts were closed in source today and
+   none of them are in production.** Measured: `reactive-resume` **50 days behind
+   `main`**, `Project-VoiceToColumn` **50 days**, `Project-Jordyn` 15. Every one
+   serving HTTP 200 on an image built 2026-07-03 or 2026-08-08.
+2. **Publish authority is contested.** `origin/main`'s POLICY authorizes Harah to
+   publish; the brief this session booted from forbids it outright. Third run in a
+   row taking the narrow reading. Publishing is irreversible, so a coin-flip is not
+   acceptable — but a standing ambiguity in the one authority file is not either.
+3. **`lxrbckl` 3.6.1 needs releasing** (above). Blocked behind item 2.
+
+The ping went out on the heartbeat channel, which existed for the first time today.
+
+**Status: `MORE_WORK`** — not because these three are actionable, but because
+enabling alerts on ten repos means Dependabot is still scanning several of them
+for the first time, and because a fourth of the day's work turned out to be
+build-and-machinery repair that only surfaced once something was actually run.
+
+— Harah
