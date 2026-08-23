@@ -1389,3 +1389,217 @@ deprecated home, `next lint` unconfigured in `Project-VoiceToColumn`,
 heuristic watching the wrong file for a routine that only logs transitions.
 
 — Harah
+
+### 2026-08-23 (resolver loop, session 1 of the next run) — the board reached ZERO, and the thing that unlocked it was a policy file, not a package
+
+Session 2 of the previous run left **3 open alerts** and status `EXHAUSTED`, with
+all three named as needing Alex. This session closed all three. Two of them were
+never actually his to unblock; the third was a judgment call that had been
+deferred four times.
+
+| | |
+|---|---|
+| board at session start | **3** (0 critical, 1 high, 2 medium) |
+| board at session end | **0** |
+| coverage, re-swept the same minute | **39/39** owned non-archived repos have alerts enabled, **0 dark** |
+| per-repo sweep across all 39 | **0 open alerts**, not just via the org endpoint |
+
+#### The `EXHAUSTED` was real, and it was still wrong
+
+Every fact in the previous session's handoff was correct. Its conclusion was
+not, because two of the three rows were blocked on **an OPERATOR-BLOCKED item
+that had already been resolved in writing.**
+
+`operator-blocked.json` carried `publish-authority-conflict`: *"origin/main
+POLICY authorizes Harah to publish; the brief as delivered says you may not."*
+That was true when it was raised. This session's brief says plainly that
+publishing IS Harah's when the deploy carries verified security remediation,
+citing POLICY's Deploy authority — so the two authorities **agree**, and the
+conflict was already dead. Nobody had re-read them side by side.
+
+That is the 2026-08-22 alerts-disabled failure a third time: *identify a blocker
+precisely, write it up well, and then keep honouring it after it has stopped
+being true.* The rule that keeps falling over is the same one — **re-derive the
+authority, not just the data.** POLICY's own words: *"Re-read POLICY before
+concluding something is out of scope."* Extend it: re-read your own
+OPERATOR-BLOCKED registry before honouring an entry in it. An item parked
+yesterday is a claim, not a fact.
+
+#### 1. The first publish Harah has ever made (`lxrbckl` 3.6.1 → PyPI)
+
+`lxRbckl/lxRbckl` **#1** had sat since 2026-08-18 — Harah-authored, `MERGEABLE`,
+verified — held only by the authority question. Its own body said *"Not for
+unattended merge."* Merged and published today.
+
+**Do not trust a five-day-old verification on a publish.** The prior run was
+Poetry 2.4.1 on a modern Python; the workflow runs **Python 3.8** and
+`pip install poetry`, which resolves to **Poetry 1.8.5** — a different toolchain
+reading a lockfile that PR *regenerated* with Poetry 2.4.1 (`groups = [...]`
+replacing `category = ...`). That combination had never been executed anywhere.
+Reproduced in `python:3.8-slim` first: `poetry build` exit 0. (Poetry 1.8.5
+tolerates the 2.x lock because `build` never reads `poetry.lock` — worth knowing,
+it is not obvious.)
+
+What the build actually proves is in the artifact metadata, not the exit code:
+
+| | `Requires-Dist` |
+|---|---|
+| live PyPI **3.6.0** | `pytest<8.0.0,>=7.4.2`, requests, pygithub, pyautogui, openai |
+| built **3.6.1**, wheel *and* sdist | requests, pygithub, pyautogui, openai — **no pytest** |
+
+Merged with the commit message **exactly `Update`** (`gh pr merge --squash
+--subject "Update" --body ""`; the resulting head commit message reads
+`'Update'` — verified with `repr()` before trusting it), because
+`.github/workflows/PyPI.yaml` gates on `[ "$commitMessage" != "Update" ]`. Run
+`32661283019`: every step `success`, `Publishing lxrbckl (3.6.1) to PyPI`, both
+uploads 100%.
+
+**A PyPI caching gotcha that would have made this look like a failure.**
+Immediately after publishing, `https://pypi.org/pypi/lxrbckl/json` still
+reported `version: 3.6.0` with pytest in `requires_dist`, and
+`releases['3.6.1']` was empty. The aggregate endpoint is CDN-cached. The
+per-version endpoint `/pypi/lxrbckl/3.6.1/json` and the JSON simple index were
+both correct instantly. **Verify a fresh publish at the version endpoint, not
+the package endpoint**, or you will report a successful release as a failed one.
+
+Flagged on the PR, not fixed (no Dependabot lineage, so out of scope): that gate
+interpolates the commit message straight into a shell script —
+`commitMessage="${{ github.event.head_commit.message }}"` — in the job that
+holds `PYPITOKEN`. A commit message containing backticks or `$(...)` executes.
+
+#### 2. The two `pytest` mediums, closed from the consumer side (ASBC #19, RCoD #12)
+
+Once 3.6.1 existed: floor to `^3.6.1` (so a future relock cannot reintroduce the
+cap) + relock. `poetry update --lock <pkg>` — and, after a `pyproject` edit,
+plain `poetry lock`, which in Poetry 2.x no longer re-resolves untouched
+packages — kept both deltas surgical:
+
+| repo | delta | packages |
+|---|---|---|
+| ASBC | `-pytest`, `-iniconfig`, `lxrbckl 3.6.0→3.6.1` | 125 → 123 |
+| RCoD | `-pytest`, `-iniconfig`, `-packaging`, `-pluggy`, `-tomli`, `lxrbckl 3.6.0→3.6.1` | 48 → 43 |
+
+Neither repo has CI, tests or a container, so verification was constructed per
+the 2026-08-18 rule: `poetry check --lock` exit 0 with output **diffed** against
+the default branch (identical, not eyeballed); `poetry install --only main
+--no-root` exit 0 over the *full* graph (ASBC's is 123 packages including torch
+2.13.0); `pytest importable: False` in that environment.
+
+Two things made this cheaper than it looks, and both are reusable:
+
+- **Check who actually depends on the package before assuming a fix is risky.**
+  Parsing `poetry.lock` for parents showed `pytest`'s only parent in both repos
+  is `lxrbckl` — and `grep` showed neither repo imports pytest anywhere. So the
+  removal takes away no test tooling in use.
+- **Diff the sdists.** `lxrbckl` 3.6.0 vs 3.6.1, sha256 per file: `__init__.py`,
+  `local.py`, `openai.py`, `remote.py`, `screen.py`, `LICENSE.txt`
+  **byte-identical**; only `PKG-INFO`, `README.md`, `pyproject.toml` differ. A
+  metadata-only upgrade — which is what licenses the claim that RCoD's real call
+  site (`main.py:7`, `from lxrbckl.screen import screen`, exercised for real
+  anyway) cannot have moved under it.
+
+#### 3. The last high: `drizzle-orm` beta.9 → rc.4 (reactive-resume #24)
+
+Deferred four passes on POLICY's *"For high and below, prefer waiting for
+stable."* Landed today, with the reasoning stated on the PR so it can be
+overruled in writing rather than re-decided silently a fifth time.
+
+**The premise of that clause is that waiting is the safe state, and here it was
+not.** The registry says so out loud: the installed `1.0.0-beta.9-e89174b`
+carries the deprecation *"The 1.0.0-beta line is superseded by the 1.0 release
+candidate. Install drizzle-orm@rc instead."* npm `latest` is still `0.45.2`
+(2026-03-27) — taking it would be a **cross-major downgrade of a live app's
+database layer**, not a safe default. There is no `1.0.0` stable to wait for.
+So the real choice was *vulnerable deprecated prerelease* vs *patched supported
+prerelease*, which is not the choice the clause was written about. All three
+candidates close exactly one alert, so yield does not discriminate; `rc.4` is
+what the `rc` dist-tag points at and what Alex's own #15 selected.
+
+**A semver trap worth carrying forward.** `package.json` declared
+`^1.0.0-beta.12-a5629fb` and the lockfile held **`1.0.0-beta.9-e89174b` — lower,
+not higher**, and not a stale lockfile. Semver splits the prerelease on dots, so
+the identifier is `12-a5629fb` vs `9-e89174b`; both are non-numeric, so they
+compare as **strings**, and `"12-a5629fb" < "9-e89174b"`. **A caret on a
+build-suffixed prerelease is not a floor you can reason about.** Both packages
+are now pinned exactly.
+
+**The migration:** drizzle 1.0 removed the client's `schema` option —
+`DrizzlePgConfig` is literally `Omit<DrizzleConfig<…>, 'schema'>` — replacing it
+with `relations` (Relations v2). Passing the table barrel produced 26 type
+errors, **20 of them cascading `'db' is possibly 'undefined'`** from the one
+failed assignment in `client.ts`. Fixed with `export const relations =
+defineRelations(tables)` and `drizzle({ client, relations })` at all three
+construction sites. The app never calls `db.query.*` (checked), so nothing is
+lost; the `schema` barrel stays exported for `drizzleAdapter`.
+
+**Verification, and the part of it that is the actual lesson.** `pnpm typecheck`
+exit 0 (main: exit 0). `drizzle-kit generate` on rc.4 → *"No schema changes,
+nothing to migrate"*, so **no database migration rides along** — nothing to back
+up. Then the PR #23 PGlite harness, extended to replay every drizzle query shape
+the app really uses (`arrayContains`, the `and()` branch that is `undefined`
+when no tags are selected, `onConflictDoUpdate` with `` sql`` `` expressions,
+`rightJoin` + partial select, `count()`, `$onUpdate`, jsonb and `text[]`
+round-trips, `ON DELETE CASCADE`).
+
+> **Make the harness detect the thing under test instead of hard-coding it.**
+> The client config is chosen at runtime (`"relations" in module ? … : { schema }`)
+> and logged, so **one unmodified file runs on both sides**: it printed
+> `client config key: schema` on `main` and `relations` on the branch, 42 checks
+> green each, identical check set. That converts "it passes" into "it passes
+> *the same as before*" for the cost of three lines — and it is the only way the
+> both-sides claim is a measurement rather than an assertion.
+
+**An assertion was wrong before it was right, and the failure mode matters.**
+The jsonb check first compared `JSON.stringify` output and FAILED. That is
+Postgres — `jsonb` does not preserve key order — not drizzle. Had it been taken
+at face value it would have blocked a good fix on a phantom regression, exactly
+like the withdrawn-advisory trap from the last session. **A stringly-typed
+assertion over a normalising column type is a false-regression generator.** It
+is a structural deep-equal now and passes on both versions.
+
+Deltas measured on both sides rather than assumed: `pnpm build` fails
+byte-identically (the pre-existing `h3`/`resolveDotSegments` breakage, #22);
+`biome check` reports the same single pre-existing `printer.ts` nit — and note
+biome initially reported **3** errors because it was linting the *untracked
+harness file*, which is a good way to invent a delta that is not in your diff.
+
+#### Human-PR supersession, second bank
+
+`reactive-resume` **#15** (Alex's) was last committed 2026-08-08 — 15 days — so
+the 72h hold stayed expired. #23 banked the better-auth subset this morning;
+#24 banked the drizzle subset. #15 is untouched, still open, and carries one new
+signed comment naming exactly what was taken and what remains (`nodemailer`,
+`uuid` — neither currently raising an alert, so neither is Harah's). Dependabot
+#4 (`rc.1`) was superseded and told so; it is left for Dependabot to close.
+Measured after the merge rather than assumed: #22 is still `MERGEABLE`/`CLEAN` —
+no conflict was caused — but its verification predates both of today's merges,
+which is said on the PR.
+
+#### What is left, and it is one credential
+
+**`dockerhub-pat-dead`, day 7.** Both org secrets still read
+`updated_at = 2025-10-18T19:47Z`. `deploy-check` on reactive-resume after the
+merge: CI run `skipped` (publish gate), both tenants `healthy` and serving
+HTTP 200 on an image built **2026-07-03** — **50 days behind `main`**.
+POLICY's Deploy authority *authorises* the publish; the credential makes it
+impossible. Texted on the heartbeat channel today.
+
+The contrast is the useful diagnostic: `lxRbckl/lxRbckl`'s PyPI token was
+created 2023-11-21 and has never been rotated either, and it **published fine
+today**. So this is Docker Hub revoking or expiring a PAT, not a generic
+stale-secrets problem — and there is now a same-day positive control proving the
+publish machinery and Harah's authority to use it both work.
+
+`publish-authority-conflict` and `lxrbckl-pypi-release` are marked resolved in
+`operator-blocked.json` with what resolved them.
+
+**Status: `EXHAUSTED`** — and this time it means the board is empty rather than
+that everything on it is blocked. Non-alert work this pass surfaced or inherited,
+recorded so it is not rediscovered: reactive-resume's `pnpm build` still red
+behind the TanStack Start family skew (#22 open, fixes only the h3 half); the
+`Project-DS` items from the last session (`migrations/meta` snapshot drift, biome
+1.9.4 panicking, `pnpm.overrides` in its deprecated home); `next lint`
+unconfigured in `Project-VoiceToColumn`; and `watchdog`/`mentions` reading
+`⚠ STALE` in doctor while `watchdog-state.json` updates every few minutes.
+
+— Harah
