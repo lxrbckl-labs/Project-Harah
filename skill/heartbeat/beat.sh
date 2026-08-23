@@ -40,8 +40,13 @@ printf '%s\n' "$report" >> "$LOG"
 sent=0
 if [ -f "$TARGET_FILE" ]; then
   TARGET="$(head -1 "$TARGET_FILE" | tr -d '[:space:]')"
+  # AppleScript string literals: a " or \ in the message ends the literal early and
+  # osascript exits non-zero, so the send SILENTLY fails and falls back to a local
+  # notification Alex never sees. Escape both before interpolating. (Hit 2026-08-23
+  # sending an OPERATOR-BLOCKED ping whose text quoted a required commit message.)
+  msg_as="$(printf '%s' "$msg" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
   if [ -n "$TARGET" ]; then
-    if osascript -e "tell application \"Messages\" to send \"$msg\" to buddy \"$TARGET\" of (service 1 whose service type is iMessage)" >/dev/null 2>&1; then
+    if osascript -e "tell application \"Messages\" to send \"$msg_as\" to buddy \"$TARGET\" of (service 1 whose service type is iMessage)" >/dev/null 2>&1; then
       sent=1
     else
       echo "$(ts) iMessage send FAILED (automation permission? target?)" >> "$LOG"
