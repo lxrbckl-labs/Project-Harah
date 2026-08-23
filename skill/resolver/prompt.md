@@ -26,8 +26,9 @@ Then read, in this order:
    No summary anywhere licenses a merge; only that file does.**
 4. `$CHECKOUT/docs/dev-notes.md` — this repo's scar tissue.
 
-Before touching **any** target repo, read its notes in Alex's Obsidian vault at
-`~/Obsidian/Projects/<Repo-Name>/` (and `~/Obsidian/Projects/Development/` for
+Before touching **any** target repo, read its notes in Alex's Obsidian vault
+(mini: `~/Obsidian/…`; MacBook: `~/lxrbckl/Obsidian/…` — find it, don't
+assume) at `Projects/<Repo-Name>/` (and `Projects/Development/` for
 shared stack conventions). That is where prior rounds recorded what already went
 wrong. Skipping it means rediscovering it the expensive way.
 
