@@ -1053,3 +1053,133 @@ above, not a new fault. Alex's unpushed commit was not pushed, rebased, or
 altered.
 
 — Harah
+
+### 2026-08-23 (resolver loop, session 1, later) — the board moved: 65 → 23, and the reason the loop was stuck was a stale checkout
+
+**42 alerts closed.** `Project-Jordyn` went **42 → 0**; the org went **65 → 23**.
+Six consecutive prior sessions reported `EXHAUSTED` against this board. They were
+not wrong about the *data* — they were reading doctrine from the wrong ref.
+
+#### The actual root cause of the six-day stall
+
+The 2026-08-23 entry above diagnosed this correctly and the fix has since landed
+on `origin/main`, but **the mini's checkout never picked it up**. At the start of
+this session:
+
+```
+local main   93e86aa   (1 ahead, 35 BEHIND origin/main)
+git pull --ff-only origin main  ->  "fatal: Not possible to fast-forward, aborting."
+```
+
+So `skill/resolver/prompt.md` — the file that *boots the session* — was the stale
+local copy, and it still said **"You may not publish"** and **"never touch a
+human-authored branch"** under a heading reading *"Hard stops (these do not bend)"*.
+Meanwhile `origin/main` carries PR **#14** (the Maintenance Mandate) and PR **#30**
+("resolver prompt: align with the Maintenance Mandate before its first run"), which
+reconcile both rules:
+
+- **Human-PR supersession is time-boxed.** A human PR is a hold only while moving;
+  after **72h without a commit** the hold expires and Harah lands *its own* verified
+  remediation branch for the security subset, leaving one signed comment. "Never
+  commit to the human branch" still stands forever — that is what the hard stop
+  actually protects, and landing your own branch never violates it.
+- **Publishing is authorized** when it carries verified security remediation.
+
+Reading the authoritative POLICY from `origin/main` rather than the checked-out
+tree is what unblocked the board. **The generalised rule, which cost six sessions:**
+
+> `git pull --ff-only origin main` *failing* is as informative as it succeeding.
+> Before trusting one line of doctrine, run `git status -sb` and
+> `git log --oneline origin/main..HEAD`. If the checkout has diverged, read doctrine
+> with `git show origin/main:<path>` — do not read the working tree.
+
+Alex's unpushed `93e86aa` was **not** pushed, rebased or altered. It is now also
+preserved on the local branch `alex/unpushed-resolver-backoff` so the divergence
+can be reconciled later without risking it.
+
+#### What landed: Project-Jordyn PR #19 (merged `a3c2e19`)
+
+All 42 alerts were `next`, all patched only at 15.x. Human PR **#16** had held them
+for **6 days** without a commit (the 72h hold long expired); dependabot **#11** was
+green and MERGEABLE but partial. Landed a third branch that is the complete job:
+
+| | |
+|---|---|
+| `next`, `eslint-config-next` | 14.2.35 → **15.5.23** (lockstep) |
+| `react`, `react-dom` (+ `@types/*`) | 18.3.1 → **19.2.8** |
+| `tsconfig.json` | `"target": "ES2017"` committed, not left for `next build` to write |
+
+Verification — `pnpm install --frozen-lockfile`, `pnpm run build`, `pnpm run lint`
+all **exit 0**; route table structurally identical to `main`; clean tree after build.
+
+**Three findings worth carrying forward:**
+
+1. **15.5.23, not the 15.5.21 the alerts name.** Same minor line, same risk class,
+   and it is the maintained `backport` dist-tag. The brief's "highest-yield within
+   the same minor line" rule generalises: *also check the dist-tags*, not just the
+   first-patched version.
+2. **The bump would have opened a new HIGH alert, and nearly did.** Next 15 pulls
+   `sharp` in as an optional dependency for image optimization, and this app uses
+   `next/image`. Next's declared `^0.34.3` selects 0.34.5 → **GHSA-f88m-g3jw-g9cj**
+   (inherited libvips CVEs, fixed in 0.35.0). Overridden to 0.35.3 — the range
+   `next@16.3.2` itself declares, so this follows upstream rather than forcing a
+   package outside a consumer's expectations — and verified at *runtime*: sharp
+   loads and encodes a PNG against libvips 8.18.3.
+   > **New standing check: after any dependency work, diff the resolved package set
+   > against `main` and run every ADDED package through
+   > `gh api "/advisories?ecosystem=<eco>&affects=<pkg>@<ver>"`.** Closing 42 while
+   > silently opening 1 is not a win, and nothing else in the loop would have caught it.
+3. **The lockfile package-extraction regex must handle quoted scoped keys.** A first
+   pass used `^  [@a-zA-Z0-9._/-]+@[0-9]`, which silently skipped every
+   `'@scope/pkg@ver':` line — hiding all 28 `@img/*` and 9 `@next/swc-*` additions,
+   i.e. exactly the packages the sharp finding lived in. The correct pattern is
+   `^  '?[@a-zA-Z0-9._/-]+@[0-9]`. It found 55 added packages where the broken one
+   found 13. **A measurement that answers a narrower question than the one you asked
+   is the recurring failure in this repo** — same shape as `extract-zip` and the
+   alerts-disabled denominator.
+
+Also aligned three peer ranges the React 19 bump broke (`main` had **zero** unmet
+peers, so these were a regression this branch would have introduced):
+`lucide-react` → ^0.400.0 (first release declaring a React 19 peer), `next-themes`
+→ ^0.4.6 (0.4 drops the `next-themes/dist/types` subpath — the one source change in
+the PR), and an override pinning `@typescript-eslint/parser` to ^8.67.0, because
+`eslint-config-next` declares parser and plugin as *independent* wide ranges and the
+plugin floated to 8.x while the parser stayed at 7.2.0.
+
+Dependabot #11 was commented and **closed as redundant**; Alex's #16 was commented
+and **left open and untouched** (head still `291c347d`).
+
+#### A defect this session had to fix to keep its own record
+
+POLICY says every resolver merge must appear in `~/.harah/grooming-state.json` so the
+dashboard shows it. **`groom.sh` rebuilt that file from scratch and `os.replace`d it**,
+so the resolver's `resolver_actions` record would have been destroyed on the very next
+grooming pass — the state POLICY mandates could not survive the routine that shares the
+file. `groom.sh` now carries forward every key it does not own, plus the resolver's
+cumulative `alerts_closed_by_resolver` tally. Tested three ways: preservation across a
+write, fresh-machine (missing file), and a corrupt file.
+
+#### What remains: 23 alerts, and why each is genuinely stuck
+
+| row | count | status |
+|---|---|---|
+| `reactive-resume` better-auth | 20 (**2 critical**) | needs 1.5.0-beta.9 → 1.6.x: `@better-auth/api-key` move + `ApiKey.userId → referenceId` **schema and data migration on live Postgres**. `pnpm build` is still broken on `main` (TanStack family out of lockstep), so `pnpm typecheck` is the only gate — and it cannot show that auth still works. Not startable-and-verifiable in one session. |
+| `reactive-resume` drizzle-orm | 1 | only forward fix is inside the `1.0.0` nightly channel; unchanged. |
+| `Project-ASBC` / `Project-RCoD` pytest | 2 | transitive through Alex's own `lxrbckl` PyPI package, which declares `pytest<8.0.0` as a **runtime** dep. PyPI is still at 3.6.0. No local fix exists in either repo — the chain runs through `lxRbckl/lxRbckl` **#1** (open, MERGEABLE, human-authored, last commit 2026-08-18) and then a **PyPI republish**. |
+
+#### Two OPERATOR-BLOCKED items (now recorded in `~/.harah/operator-blocked.json`)
+
+1. **The DockerHub PAT is still dead** — `DOCKERHUB_TOKEN`/`DOCKERHUB_USERNAME` both
+   still read `updated_at = 2025-10-18T19:47Z`, and the 2026-08-17 publish concluded
+   `failure` at `Log in to DockerHub`. **Nothing can reach production until Alex
+   rotates it.** Measured today: `Project-Jordyn` is **15 days behind `main`**
+   (jbarger.app HTTP 200 on an image built 2026-08-08 — the old image);
+   `reactive-resume` 46 days behind.
+2. **A live authority conflict.** `origin/main`'s POLICY *authorizes* Harah to
+   publish; the prompt this session actually booted from *forbids* it. This session
+   took the narrower reading and did not publish — but that is a coin-flip a future
+   session could call differently, and publishing is irreversible. It needs Alex to
+   make the two agree. **The checkout divergence above is what keeps producing this
+   class of conflict, so fixing the checkout is the higher-order fix.**
+
+— Harah
