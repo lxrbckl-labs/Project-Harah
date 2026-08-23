@@ -882,3 +882,107 @@ forward floor and the backwards escape measured and recorded. What changed today
 was not the number but what the number covers.
 
 — Harah
+
+### 2026-08-23 (resolver loop, session 1) — 65 unchanged for a fifth day; the session's work was a build defect, not an alert
+
+Board re-derived live and byte-identical for the fifth consecutive day:
+**2 critical / 31 high / 26 medium / 6 low = 65**, across `reactive-resume` 21,
+`Project-Jordyn` 42, `Project-ASBC` 1, `Project-RCoD` 1. All four personal
+`lxRbckl` repos re-checked individually → **0 each**. Grouped at the source:
+65 alerts = **34 distinct advisories** (21 `next` × 2 manifests, 10
+`better-auth` × 2, 1 `drizzle-orm`, 2 `pytest`). **Zero alerts closed, and
+none were closable.**
+
+All four rows re-confirmed blocked, including the transitive-parent check that
+the `extract-zip` lesson exists to force:
+
+| row | forward floor | why still blocked |
+|---|---|---|
+| `next` × 42 | 15.5.21 (major) | direct dep (`package.json` + lockfile twin, so not the transitive tell). Human PR **#16** does the complete job; dependabot **#11** is the partial. |
+| `better-auth` × 20 | 1.6.22 | direct dep. Human PR **#15** lands 1.6.26. npm `latest` is now **1.7.1**. |
+| `drizzle-orm` × 1 | `1.0.0-beta.20` | direct dep. npm `latest` is still **`0.45.2`** (stable line); the whole 1.0 line remains a nightly channel — `rc` tag is `1.0.0-rc.4`, newest build `1.0.0-rc.5-169397b`. No stable 1.x exists to move to. |
+| `pytest` × 2 | 9.0.3 | transitive via first-party `lxrbckl`. **Parent-bump move applied and it fails**: PyPI `lxrbckl` is still 3.6.0 (2024-11-18), so there is no newer parent that dropped or raised the cap. |
+
+Docker Hub credential **still dead** — `DOCKERHUB_TOKEN` / `DOCKERHUB_USERNAME`
+both still read `updated_at = 2025-10-18T19:47Z`. **Deployment measured today:**
+`reactive-resume` CI `skipped` on `8c368d86` (publish gate, healthy, no image
+built), both tenants `Up 2 days (healthy)`, HTTP 200 on an image built
+2026-07-03 — **46 days behind `main`**. `Project-Jordyn`'s newest run is still
+the 2026-08-17 `publish` that died in `Log in to DockerHub`; container
+`Up 2 days`, `jbarger.app` HTTP 200 on an image from 2026-08-08 — **9 days
+behind `main`**.
+
+#### What this session actually did: settled a 7-day-old untested hypothesis
+
+Four prior sessions reported `EXHAUSTED` on an unchanged board. Rather than
+write a fifth identical entry, this one spent its effort on the oldest open
+*measurable* item in the four repos: `reactive-resume`'s `pnpm build`, broken
+on `main` since 2026-08-16 and repeatedly named as the reason nothing in the
+repo holding both org criticals can be verified by anything but `tsc`.
+
+The recorded fix direction ("bound `h3` **up** to rc.26 — still a hypothesis,
+only a real build settles it") was **correct**, and the missing piece was *why*:
+
+> `h3-rules@0.1.0` declares `peerDependencies: { h3: "^2.0.1-rc.25" }` and
+> resolved to **`h3@2.0.1-rc.20`** — outside its own declared peer range.
+> `resolveDotSegments` is exported by rc.25/26/29 and **absent from rc.20**
+> (verified in each npm tarball's export list, not inferred from the tree).
+
+So the override was not merely *unbounded*, it sat **below a floor a consumer
+in the tree required**. Harah **PR #22** bounds `h3` and `h3-v2` to
+`>=2.0.1-rc.26 <3`; `h3@2.0.1-rc.20` and its `rou3@0.8.1` leave the lockfile,
+delta 7/−29 lines, entirely h3-confined, `pnpm typecheck` exit 0 both sides.
+
+**`pnpm build` goes from 0 modules to 884 modules transformed — and still
+fails**, on a second breakage the first was hiding: the TanStack Start family
+is out of lockstep, because `"@tanstack/start-server-core": ">=1.167.30 <2"`
+(added by #17 to close an alert, so not removable) drags a 1.167–1.170 copy of
+the Start internals alongside the declared 1.157.14 family. Fixing that means a
+whole-family framework bump on a live app — queued, not attempted.
+
+**PR #22 was NOT merged**, for two reasons worth separating: it closes no
+Dependabot alert, so POLICY's carve-out does not reach it; and the repo's own
+`pnpm build` still does not pass, so the never-merge-unverified gate applies
+regardless. Pushed, documented, queued.
+
+**The reusable finding** (also written into the repo's vault note): the
+overrides block is this repo's remediation mechanism *and* the source of both
+of `main`'s build failures, and **both are the same bug shape** — an override
+pinning one member of a versioned family out of step with its siblings. "Bound
+every range" is necessary and not sufficient: `>=1.167.30 <2` *is* bounded and
+is still the defect. When adding an override for a package in a family
+(`h3`/`h3-rules`, `@tanstack/*`, `better-auth`/`@better-auth/*`), check the
+family's other members and any declared peer ranges, and record which ones you
+checked.
+
+#### Doctrine defect to resolve: the retrospective grants authority POLICY.md does not
+
+Flagging rather than acting on it. `docs/retrospective-2026-08-17.md` (committed
+2026-08-22, the newest commit in this repo) records Alex removing two
+restrictions:
+
+| retrospective round | what it records Alex saying |
+|---|---|
+| 4 — "Harah may not publish" | *"nothing stays parked. you use the publish command"* |
+| 5 — "never touch a human PR" | *"literally all of this except for the PAT you need to take initiative on"* |
+
+**Neither grant appears in `skill/grooming/POLICY.md`**, which has not been
+edited since `cd3e294` (2026-08-17) and still says publishing is covered by no
+carve-out and that human-authored PRs are out of scope. The resolver's standing
+brief says the same. This is exactly the failure the retrospective itself names
+— *"authority granted in conversation kept evaporating between sessions because
+it lived in chat, not in POLICY.md"* — reproduced inside the document that
+diagnoses it.
+
+Sessions cannot resolve this themselves: a narrative doc describing a grant is
+not the authority document, and POLICY is explicit that no summary licenses a
+merge. So this session held to POLICY and the brief — no publish, no human PR.
+**But the cost is concrete and should be named:** if those two grants are live,
+then 63 of the 65 alerts (Alex's #15 and #16) and the entire deploy backlog are
+being held by a stale authority file, and every `EXHAUSTED` report since
+2026-08-17 has been measuring paperwork rather than the board.
+**Alex: please either write the two grants into POLICY.md or strike them from
+the retrospective.** Until one of those happens the loop cannot tell which
+document is current.
+
+— Harah
