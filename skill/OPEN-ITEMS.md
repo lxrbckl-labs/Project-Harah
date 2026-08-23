@@ -6,12 +6,18 @@
   `DOCKERHUB_TOKEN` / `DOCKERHUB_USERNAME` were last updated **2025-10-18** —
   ten months ago — and Docker Hub PATs expire. **No `publish` on any repo can
   produce an image until Alex rotates that token**, which is why every stack is
-  running months-old code (Jordyn 9d, reactive-resume 44d) no matter what gets
-  merged. Harah cannot fix this: rotating credentials is a hard stop.
+  running months-old code no matter what gets merged (re-measured 2026-08-23:
+  **reactive-resume 50 days behind `main`**, both tenants healthy on an image
+  built 2026-07-03). Harah cannot fix this: rotating credentials is a hard stop.
   Fix: new Read/Write PAT at hub.docker.com → org secret `DOCKERHUB_TOKEN`.
-  **This is now the single highest-value action on the board** — it unblocks
-  every deploy at once. Safe failure mode confirmed: a failed build produces no
-  image, so the live containers were never touched.
+  **This is now the ONLY thing between Harah and a maintained estate** — as of
+  2026-08-23 the alert board is empty and the publish authority question is
+  settled, so this credential is the whole remaining gap. Tracked as
+  OPERATOR-BLOCKED `dockerhub-pat-dead` (day 7) and texted daily.
+  Contrast worth knowing: the PyPI token in `lxRbckl/lxRbckl`, also never
+  rotated (2023-11-21), published fine on 2026-08-23 — this is Docker Hub's
+  revocation, not a generic secrets problem. Safe failure mode confirmed: a
+  failed build produces no image, so the live containers were never touched.
 - 🟡 **project-harah REGISTERED (App ID 4689872) — pem still on the MacBook.**
   Created + installed on both owners 2026-08-23; token mint + first [bot]
   comment verified. Remaining: Alex moves app-id + private-key.pem to the
@@ -25,79 +31,32 @@
 - ⚠️ **Exposed GitHub PATs** — live `ghp_…` tokens in plaintext in
   `~/.zsh_history` and in `~/docker-bare-run/*/docker-compose.yml`.
   Recommend rotating at github.com/settings/tokens.
-- 🔴 **Alert remediation is Harah's standing assignment (Alex, 2026-08-16):**
-  "get all the alerts resolved — that's your issue now." Work the list down
-  under `grooming/POLICY.md`; the resolve-and-verify mandate governs.
-  **Status after the 2026-08-16 20:xx resolver session — 93 open, and every
-  single one is BLOCKED. Nothing is actionable by Harah right now:**
-  - ✅ **DONE** — `Project-Jordyn` **PR #17**: 29 transitive alerts closed
-    (15 high, 13 medium, 1 low) via major-scoped `pnpm.overrides` —
-    brace-expansion, flatted, glob, js-yaml, mdast-util-to-hast, minimatch,
-    picomatch, postcss, yaml. Verified `pnpm install --frozen-lockfile`,
-    `pnpm run build`, `pnpm run lint` all exit 0, build output
-    byte-identical to the `main` baseline. Took Jordyn 95 → 66.
-    **Merged, NOT deployed** — CI `skipped` (publish gate); container
-    `project-jordyn` still on the 8-day-old image, serving HTTP 200.
-  - ⏸️ **`Project-Jordyn` — 66 alerts, ALL `next`** (2 critical, 24 high,
-    32 medium, 8 low) → **Alex's PR #16** (14.2.4→15.5.21 + React 19).
-    Human-authored: hands off. **Merging #16 clears all 66** — the single
-    highest-value action left anywhere on the board, and it's Alex's.
-    ⚠️ **Merging #17 flipped #16 to CONFLICTING.** Only `pnpm-lock.yaml`
-    conflicts (`package.json` merges clean); resolve by regenerating.
-    Harah test-merged this locally and confirmed #16 + #17 build green
-    together — see the signed comment on #16 for the exact recipe.
-  - ⏸️ `reactive-resume` — **20 of its 22 alerts are better-auth** (2
-    critical, 12 high, 2 medium, 2 low, all closed by ≥1.6.22) →
-    **Alex's PR #15**, which lands 1.6.26. Human-authored: hands off, and
-    it is currently **CONFLICTING** so it needs his rebase. Harah must not
-    do this one independently anyway: 1.5.0-beta.9→1.6.x is a
-    **prerelease→stable transition with DB migrations**, which POLICY
-    disqualifies by name.
-  - ⛔ `reactive-resume` `extract-zip` (high, #209) — **no published fix
-    exists**; latest is 2.0.1 and that is the vulnerable version. Reachable
-    only via `@puppeteer/browsers@2.11.1`. The one escape is
-    `puppeteer-core` **24.36.0 → 25.7.0** (a MAJOR), whose
-    `@puppeteer/browsers@3.2.0` drops extract-zip entirely. Queued, not
-    forced: it's the PDF-rendering engine, `pnpm build` is broken on `main`,
-    so only `typecheck` is available and that cannot exercise a browser
-    launch. Note the real exposure is likely nil — this deployment uses
-    `puppeteer-core` against a separate Chrome container and never runs the
-    browser-download path where the symlink traversal lives.
-  - ⛔ `reactive-resume` `drizzle-orm` (high, #75) — patched **only in
-    `1.0.0-beta.20`, a prerelease**, from a prerelease. POLICY disqualifies
-    prereleases on either side. Dependabot #4 wants `1.0.0-rc.1`: same
-    problem. Needs Alex.
-  - ⛔ `Project-ASBC` (4: 2 medium torch/pytest, 2 low torch) and
-    `Project-RCoD` (1 medium pytest) — **no verification signal exists in
-    either repo**: no CI, no `.github/workflows`, no test suite, and poetry
-    isn't installed on the mini. The fix itself is trivial (`poetry lock`
-    refresh; `torch ^2.8.0` already admits the patched 2.13.0), but POLICY
-    forbids merging what can't be verified. **Unblocking these is Alex's
-    call, and it's cheap** — even a CI job running `poetry check && poetry
-    install` would make all 5 mergeable. Until then more sessions cannot
-    help.
-- 🔴 **`reactive-resume` `main` cannot build — CI has been red since at
-  least 2026-08-15** (found 2026-08-16). `pnpm build` dies before compiling:
-  the unbounded `"h3": ">=2.0.1-rc.17"` override floated to `h3@2.0.1-rc.20`,
-  which dropped `resolveDotSegments`, so `h3-rules` fails to import and
-  `vite.config.ts` won't load. **Every merge to `main` therefore produces no
-  new image** — the live containers are still on a 6-week-old build. Fix =
-  bound the `h3`/`h3-v2` overrides. Until then `pnpm typecheck` (green) is
-  the only usable verification signal in that repo.
-- ⚠️ **93 open Dependabot alerts** (re-derived 2026-08-16 ~20:30 after
-  Jordyn PR #17): **4 critical, 40 high**, 37 medium, 12 low — down from
-  122 at the start of that session, and from 228 at the round's start.
-  `Project-Jordyn` 66, `reactive-resume` 22, `Project-ASBC` 4,
-  `Project-RCoD` 1. Grooming can't clear these on its own — most have no
-  dependabot PR behind them. Alert watch runs every 6h and has escalated
-  grooming to a 6h cadence while criticals are open.
-  **All 93 are currently blocked** (see the remediation item above): 86
-  behind Alex's human PRs #16/#15, 2 with no published fix or prerelease-only
-  fixes, 5 in repos with no verification signal. The loop has nothing left
-  to resolve until Alex acts.
-- **Dependabot alerts are DISABLED** on the personal repos `lxRbckl/.claude`,
-  `lxRbckl/Obsidian`, `lxRbckl/lxRbckl`, `lxRbckl/roulette-skill` — they will
-  never alert. Enabling is a repo-settings change, so it's Alex's to make.
+- 🟢 **Alert remediation is Harah's standing assignment (Alex, 2026-08-16):**
+  *"get all the alerts resolved — that's your issue now."* Work it under
+  `grooming/POLICY.md`. **This file no longer carries alert counts** — POLICY's
+  reporting section makes [`docs/dev-notes.md`](../docs/dev-notes.md)'s dated
+  re-derivations the board of record, and every count previously listed here
+  went stale within days and then contradicted live measurement (the 2026-08-22
+  drill). Read dev-notes, then measure live with `gh`, in that order.
+  **Last measured 2026-08-23 19:45 CDT: 0 open alerts across all 39 owned
+  non-archived repos** (coverage re-swept the same minute: 39/39 have
+  Dependabot alerts enabled, 0 dark). Nothing is queued and nothing is blocked
+  behind a human PR.
+- 🟡 **`reactive-resume` `main` still cannot `pnpm build`** (since 2026-08-15).
+  The original cause — the unbounded `"h3": ">=2.0.1-rc.17"` override floating
+  to `h3@2.0.1-rc.20`, which dropped `resolveDotSegments` — is fixed by **PR
+  #22** (open, Harah's, `MERGEABLE`). Landing it does *not* make the build
+  green: it uncovers an independent **TanStack Start family skew** (1.157.14
+  declared, ≥1.167.30 pulled in by an override added to close an alert), which
+  is a framework migration, not a dependency bump. Until then `pnpm typecheck`
+  (green) plus a real-Postgres harness are that repo's usable signals — and
+  note the build gate is a *publish* gate, so a red `pnpm build` does not by
+  itself explain why nothing ships. The dead PAT does.
+- 🟢 **Dependabot alerts on personal repos** — the long-standing claim here
+  that they were disabled on `lxRbckl/.claude`, `Obsidian`, `lxRbckl`,
+  `roulette-skill` was **measured false**. All five personal repos report
+  enabled and 0 open. Enabling alerts on owned repos is authorised by POLICY
+  (visibility) and no longer needs Alex.
 - **No scheduled DB backups** — the panel is manual-only; a cron/launchd
   schedule is the obvious next step (the newsroom app / Project-DS /
   rxresume have no automated dumps).
