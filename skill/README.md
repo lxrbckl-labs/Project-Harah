@@ -15,6 +15,12 @@ This directory is the version-controlled home of the Harah agent doctrine
   re-derivations, not this file** (drill 2026-08-22: OPEN-ITEMS froze six
   days stale while dev-notes stayed byte-accurate) — trust dev-notes, then
   live `gh` measurement, in that order.
+- **[bootstrap.sh](bootstrap.sh)** — SELF-DEPLOY, standing-authorized: any
+  Harah session on the mini that finds the machinery dead (doctor shows ✗)
+  runs this — pull, enable all six routines, first heartbeat, doctor
+  verdict. Dead machinery is a maintenance failure Harah owns; leaving it
+  down and working around it by hand is the violation (learned 2026-08-22:
+  five routines sat dead a week while sessions babysat their jobs).
 - **[heartbeat/](heartbeat/)** — the dead-man's switch: daily 09:00, runs
   doctor and TEXTS Alex one status line (🟢/🟡/🔴). If the daily text ever
   stops arriving, that absence is itself the alarm — silence is impossible
