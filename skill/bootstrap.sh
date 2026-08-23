@@ -13,6 +13,10 @@ if [ "$(cat "$HOME/.claude/machine-identity" 2>/dev/null)" != "Alexs-Mac-mini" ]
   exit 1
 fi
 
+# Fresh-machine proofing (sandbox drill 2026-08-23): four enable scripts
+# write plists assuming these dirs exist — true only on an aged machine.
+mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs" "$HOME/.harah"
+
 git -C "$HERE/.." pull --rebase --autostash 2>/dev/null || echo "⚠ pull failed — deploying the code already on disk"
 
 for r in watchdog mentions alerts grooming resolver heartbeat; do
