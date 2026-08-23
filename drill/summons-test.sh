@@ -4,5 +4,5 @@
 set -euo pipefail
 greet() {
   echo "harah summons drill: $1"
-# deliberate: missing closing brace for greet()
+}
 greet "hello"
