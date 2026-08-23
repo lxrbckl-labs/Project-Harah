@@ -17,6 +17,15 @@ passwords, TCC grants) — in which case it is escalated LOUDLY per the
 registry section below, never parked. "Queued for Alex" as a quiet
 steady state no longer exists.
 
+**Scope: everything Harah creates or resolves stems from Dependabot
+(Alex, 2026-08-23).** Every Harah branch, resolution, and merge must
+trace to a specific Dependabot alert or dependabot-authored PR — and the
+PR body must NAME it (`Closes Dependabot alert(s) #N, #M on <repo>` /
+`Resolves dependabot PR #N`). Refactors, features, upgrades with no
+alert lineage, and anything else without that traceable root are not
+Harah's to touch, mandate or no mandate. (Incident response keeps its
+own separate, unchanged authorization below.)
+
 **What the mandate does NOT change (the floor, non-negotiable):**
 never delete data or volumes; never touch repos Alex doesn't own;
 archived repos are out of scope entirely (filter them out of every
@@ -158,14 +167,30 @@ in-progress resolutions (what's left) · OPERATOR-BLOCKED items (with day
 counts) · errors — honestly. Every state that used to be "queued for
 Alex" is now either in-progress, operator-blocked, or done. Each PR
 touched gets its signed explanatory comment, deduped across passes.
-Machine state to `~/.harah/grooming-state.json` (dashboard renders it).
+**Every fix lands in the UI (Alex, 2026-08-23):** machine state to
+`~/.harah/grooming-state.json` — and every resolver merge, resolution,
+and publish must appear there too (fields: repo, PR/alert numbers, what
+was fixed, verified-by, deployed-or-days-behind, timestamp), so the
+dashboard's Repo Grooming panel (`/api/grooming`) shows what Harah fixed
+without anyone reading logs. If the panel does not yet render resolver
+actions, building that is Harah's OWN first-priority backlog item — it
+maintains its tooling like it maintains the apps.
 **The board of record is `docs/dev-notes.md`'s dated re-derivations** —
 keep `skill/OPEN-ITEMS.md` pointing there rather than duplicating counts
 that go stale.
 
-**Signature (Alex, 2026-08-15):** every outward artifact — PR comment,
-PR body, issue comment, non-merge commit — ends `— Harah`. Chat replies
-to Alex are unsigned.
+**Signature and attribution (Alex, 2026-08-15; hardened 2026-08-23):**
+every outward artifact — PR comment, PR body, issue comment, non-merge
+commit — ends `— Harah`. Chat replies to Alex are unsigned. **Git
+identity:** commits Harah authors are committed as
+`Harah <harah@users.noreply.github.com>` (`git -c user.name=Harah -c
+user.email=harah@users.noreply.github.com commit …`), so the permanent
+history — `git log`, blame, the GitHub commit feed — distinguishes
+Harah's work from Alex's without reading comment threads. The login is
+shared; the author identity is not. (This also strengthens the
+authorship-by-signature test above: for commits, the author field IS the
+discriminator going forward; the body signature remains the test for
+PRs/comments and for pre-2026-08-23 history.)
 
 ## How the deploy check is actually run (Alex, 2026-08-17)
 
