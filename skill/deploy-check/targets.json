@@ -1,52 +1,78 @@
 {
-  "_comment": [
-    "repo -> what it actually runs on this mini. Measured from `docker ps` and",
-    "~/caddyfile on 2026-08-17, not assumed. Update when a stack moves.",
-    "",
-    "Used by verify.py to answer the only question that matters after a merge:",
-    "is the thing this repo serves still up, and is it running the code we",
-    "just merged, or the old image?"
+ "_comment": [
+  "repo -> what it actually runs on this mini. Measured from `docker ps` and",
+  "~/caddyfile on 2026-08-17, not assumed. Update when a stack moves.",
+  "",
+  "Used by verify.py to answer the only question that matters after a merge:",
+  "is the thing this repo serves still up, and is it running the code we",
+  "just merged, or the old image?"
+ ],
+ "lxrbckl-labs/reactive-resume": {
+  "image": "lxrbckl/reactive-resume:main",
+  "containers": [
+   "resume_lxrbckl-app-1",
+   "resume_jbarger-app-1"
   ],
-  "lxrbckl-labs/reactive-resume": {
-    "image": "lxrbckl/reactive-resume:main",
-    "containers": ["resume_lxrbckl-app-1", "resume_jbarger-app-1"],
-    "urls": ["https://resume.lxrbckl.com", "https://resume.jbarger.app"],
-    "notes": "Two tenants share one image. msymmonds tenant was spun down; its Caddy block is stale."
-  },
-  "lxrbckl-labs/Project-Jordyn": {
-    "image": "lxrbckl/project-jordyn:main",
-    "containers": ["project-jordyn"],
-    "urls": ["https://jbarger.app"],
-    "notes": "Serves jbarger.app via Caddy -> :8047 -> container :8080."
-  },
-  "lxrbckl-labs/Project-FlyingGitman": {
-    "image": "lxrbckl/project-flyinggitman:main",
-    "containers": ["flyinggitman"],
-    "urls": [],
-    "notes": "No published port and no Caddy site block — container-health only."
-  },
-  "lxrbckl-labs/Project-VoiceToColumn": {
-    "image": "lxrbckl/project-voicetocolumn:main",
-    "containers": ["voicetocolumn"],
-    "urls": ["https://voicetocolumn.lxrbckl.com"],
-    "notes": ""
-  },
-  "lxrbckl-labs/Project-Showalter": {
-    "image": "lxrbckl/project-showalter:main",
-    "containers": ["showalter"],
-    "urls": [],
-    "notes": "Reports UNHEALTHY and has for weeks — pre-existing, see OPEN-ITEMS. Don't attribute it to a dependency merge."
-  },
-  "lxrbckl-labs/Project-ASBC": {
-    "image": null,
-    "containers": [],
-    "urls": [],
-    "notes": "Not deployed on the mini. No CI, no tests, no container — POLICY forbids merging here regardless."
-  },
-  "lxrbckl-labs/Project-RCoD": {
-    "image": null,
-    "containers": [],
-    "urls": [],
-    "notes": "Not deployed on the mini. Same as ASBC."
-  }
+  "urls": [
+   "https://resume.lxrbckl.com",
+   "https://resume.jbarger.app"
+  ],
+  "notes": "Two tenants share one image. msymmonds tenant was spun down; its Caddy block is stale."
+ },
+ "lxrbckl-labs/Project-Jordyn": {
+  "image": "lxrbckl/project-jordyn:main",
+  "containers": [
+   "project-jordyn"
+  ],
+  "urls": [
+   "https://jbarger.app"
+  ],
+  "notes": "Serves jbarger.app via Caddy -> :8047 -> container :8080."
+ },
+ "lxrbckl-labs/Project-FlyingGitman": {
+  "image": "lxrbckl/project-flyinggitman:main",
+  "containers": [
+   "flyinggitman"
+  ],
+  "urls": [],
+  "notes": "No published port and no Caddy site block — container-health only."
+ },
+ "lxrbckl-labs/Project-VoiceToColumn": {
+  "image": "lxrbckl/project-voicetocolumn:main",
+  "containers": [
+   "voicetocolumn"
+  ],
+  "urls": [
+   "https://voicetocolumn.lxrbckl.com"
+  ],
+  "notes": ""
+ },
+ "lxrbckl-labs/Project-Showalter": {
+  "image": "lxrbckl/project-showalter:main",
+  "containers": [
+   "showalter"
+  ],
+  "urls": [],
+  "notes": "Reports UNHEALTHY and has for weeks — pre-existing, see OPEN-ITEMS. Don't attribute it to a dependency merge."
+ },
+ "lxrbckl-labs/Project-ASBC": {
+  "image": null,
+  "containers": [],
+  "urls": [],
+  "notes": "Not deployed on the mini. No CI, no tests, no container — POLICY forbids merging here regardless."
+ },
+ "lxrbckl-labs/Project-RCoD": {
+  "image": null,
+  "containers": [],
+  "urls": [],
+  "notes": "Not deployed on the mini. Same as ASBC."
+ },
+ "lxrbckl-labs/Project-DS": {
+  "image": "lxrbckl/project-ds-mcp:main",
+  "containers": [
+   "project-ds-mcp-1"
+  ],
+  "urls": [],
+  "notes": "MCP server only. Published on :4000 with no Caddy site block, so container-health only (same shape as Project-FlyingGitman). apps/web is NOT deployed on this mini as of 2026-08-23 - no container, no Caddy block - so a days-behind number here measures the MCP image alone. project-ds-postgres-1 is its database, deliberately not listed: it runs postgres:17-alpine, not an image this repo builds."
+ }
 }
