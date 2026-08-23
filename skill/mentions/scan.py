@@ -39,7 +39,7 @@ from pathlib import Path
 # public repo notifies a stranger (discovered 2026-08-23 after the drill did
 # exactly that). The summons handle is @harah-bot: unclaimed, reserved for the
 # future machine account; mentioning a nonexistent user pings nobody.
-TRIGGER = re.compile(r"@harah-bot\b", re.IGNORECASE)
+TRIGGER = re.compile(r"@(?:project-harah|harah-bot)\b", re.IGNORECASE)  # renamed 2026-08-23; legacy accepted
 SIGNATURE = "— Harah"            # Harah's own sign-off; never self-trigger
 ALLOWED_AUTHORS = {"lxrbckl"}     # lowercased. ONLY Alex may trigger a run.
 OWNERS = ["lxRbckl", "lxrbckl-labs"]

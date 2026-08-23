@@ -14,15 +14,15 @@ ServerManager is deliberately **Docker- and Caddy-oriented**. It assumes:
 - A **Caddy** container is the reverse proxy, with its `Caddyfile` reachable
   (typically a bind mount from the host).
 
-## harah-bot — the GitHub App identity (2026-08-23)
+## project-harah — the GitHub App identity (2026-08-23)
 
-Harah acts on GitHub as **`harah-bot`**: summon it with an `@harah-bot`
+Harah acts on GitHub as **`project-harah`**: summon it with an `@project-harah`
 comment on any PR in Alex's repos (author-gated to Alex; the mention is his
 per-PR word to FIX that PR — doctrine in `skill/grooming/POLICY.md` "The
 summons"). The App identity machinery lives in
 [`skill/app/`](skill/app/) — registration runbook, token minting, and the
 `as-bot.sh` wrapper that makes comments/commits genuinely come from
-`harah-bot[bot]`. **Status: machinery ready; App registration awaits Alex**
+`project-harah[bot]`. **Status: machinery ready; App registration awaits Alex**
 (10-minute browser form — `skill/app/README.md`); until then everything
 runs on the legacy identity with the `— Harah` signature and Harah git
 author. Never grant the App wider permissions than POLICY allows.

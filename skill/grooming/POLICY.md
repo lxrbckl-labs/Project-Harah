@@ -80,7 +80,7 @@ the human PR stating exactly what was banked and what remains for the
 human branch (precedent: Jordyn #16 sat 14 days holding 42 alerts —
 that must never recur). The human PR stays open and untouched.
 
-**The summons (Alex, 2026-08-23):** an `@harah-bot` mention authored by
+**The summons (Alex, 2026-08-23):** an `@project-harah` mention authored by
 Alex's own GitHub account on a PR (the mentions listener's author gate;
 Harah-signed comments never trigger) is his RECORDED PER-PR WORD to fix
 that PR: work its branch directly — the one exception to
@@ -197,9 +197,9 @@ identity:** commits Harah authors are committed as
 user.email=harah@users.noreply.github.com commit …`), so the permanent
 history — `git log`, blame, the GitHub commit feed — distinguishes
 Harah's work from Alex's without reading comment threads. The login is
-shared; the author identity is not. **When the harah-bot GitHub App
+shared; the author identity is not. **When the project-harah GitHub App
 credentials are present** (`skill/app/` — mint-token.sh succeeds), outward
-writes route through `app/as-bot.sh` and carry the `harah-bot[bot]` login
+writes route through `app/as-bot.sh` and carry the `project-harah[bot]` login
 itself: authorship becomes GitHub-enforced, and the signature remains as
 belt-and-suspenders. Credentials absent = legacy identity; both are
 compliant. (This also strengthens the
