@@ -7,7 +7,26 @@ falls back to the legacy identity (Alex's gh auth + the `— Harah`
 signature + the Harah git author). Detection is automatic: routines try
 `app/as-bot.sh` and fall back on its clear exit-1.
 
-## One-time registration (ALEX ONLY — ~10 minutes, browser)
+## REGISTERED 2026-08-23 — App ID 4689872
+
+Created live (Alex logged in; the session drove the form on his word) and
+installed on BOTH `lxRbckl` and `lxrbckl-labs` (all repositories). First
+token minted and verified (40 org repos visible); first comment posted as
+`harah-bot[bot]`. **Granted permission set — Alex's full-custodian word
+("everything except deleting repositories"), wider than the original plan
+below:** write on contents, PRs, issues, checks, statuses, actions,
+administration, workflows, deployments, environments, pages, packages,
+discussions, projects, merge queues, advisories, code scanning, Dependabot
+alerts, webhooks, custom properties; read on metadata + misc read-onlies;
+**all four secrets permissions: none** (exfiltration surface — POLICY
+forbids). CAVEAT: GitHub's Administration toggle cannot exclude repo
+deletion, so the no-delete line is enforced by POLICY's hard floor, not by
+GitHub. Remaining step: **the .pem sits on the MacBook**
+(~/Downloads/harah-bot.2026-08-23.private-key.pem + a staged copy in
+~/.harah/app/ used for verification) — move both values to the MINI's
+~/.harah/app/ per below, then DELETE the MacBook copies (mini-only rule).
+
+## One-time registration (the original runbook, kept for a future re-key)
 
 1. github.com → Settings → Developer settings → **GitHub Apps** → New GitHub App
    - **Name:** `harah-bot` (slug verified available 2026-08-23)

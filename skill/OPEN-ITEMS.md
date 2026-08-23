@@ -12,13 +12,12 @@
   **This is now the single highest-value action on the board** — it unblocks
   every deploy at once. Safe failure mode confirmed: a failed build produces no
   image, so the live containers were never touched.
-- 🟡 **harah-bot GitHub App awaits Alex's registration** (2026-08-23,
-  operator-class): machinery + runbook complete in `skill/app/` — his part
-  is the 10-minute form (slug `harah-bot` verified available), installing
-  on both owners, and placing the .pem at `~/.harah/app/` on the mini.
-  Until then outward writes use the legacy identity (compliant fallback).
-  NOTE: the summons trigger is `@harah-bot` — plain `@harah` is an
-  unrelated real GitHub user; never mention it.
+- 🟡 **harah-bot REGISTERED (App ID 4689872) — pem still on the MacBook.**
+  Created + installed on both owners 2026-08-23; token mint + first [bot]
+  comment verified. Remaining: Alex moves app-id + private-key.pem to the
+  MINI's ~/.harah/app/ (then deletes the MacBook copies in ~/Downloads and
+  ~/.harah/app — mini-only rule). Until then, mini routines use the legacy
+  identity fallback. Trigger reminder: `@harah-bot`, never plain `@harah`.
 - ⚠️ **Exposed GitHub PATs** — live `ghp_…` tokens in plaintext in
   `~/.zsh_history` and in `~/docker-bare-run/*/docker-compose.yml`.
   Recommend rotating at github.com/settings/tokens.
