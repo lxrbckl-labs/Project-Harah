@@ -12,12 +12,12 @@
   **This is now the single highest-value action on the board** — it unblocks
   every deploy at once. Safe failure mode confirmed: a failed build produces no
   image, so the live containers were never touched.
-- 🟡 **harah-bot REGISTERED (App ID 4689872) — pem still on the MacBook.**
+- 🟡 **project-harah REGISTERED (App ID 4689872) — pem still on the MacBook.**
   Created + installed on both owners 2026-08-23; token mint + first [bot]
   comment verified. Remaining: Alex moves app-id + private-key.pem to the
   MINI's ~/.harah/app/ (then deletes the MacBook copies in ~/Downloads and
   ~/.harah/app — mini-only rule). Until then, mini routines use the legacy
-  identity fallback. Trigger reminder: `@harah-bot`, never plain `@harah`.
+  identity fallback. Trigger reminder: `@project-harah`, never plain `@harah`.
 - ⚠️ **Exposed GitHub PATs** — live `ghp_…` tokens in plaintext in
   `~/.zsh_history` and in `~/docker-bare-run/*/docker-compose.yml`.
   Recommend rotating at github.com/settings/tokens.
