@@ -25,9 +25,19 @@ for r in watchdog mentions alerts grooming resolver heartbeat; do
 done
 
 if [ ! -s "$HOME/.harah/heartbeat-target" ]; then
-  echo "⚠ ~/.harah/heartbeat-target is empty — heartbeat texts can't send."
-  echo "  Write Alex's own iMessage handle there (the Aug-21 alerter's target"
-  echo "  in ~/.imessage-watchdog/run.sh is the reference). Notification-only until then."
+  # Auto-derive from the Aug-21 alerter, which already texts Alex's self-chat:
+  # first +1XXXXXXXXXX-shaped handle in its run.sh is the target.
+  derived=""
+  if [ -f "$HOME/.imessage-watchdog/run.sh" ]; then
+    derived="$(grep -oE '\+1[0-9]{10}' "$HOME/.imessage-watchdog/run.sh" 2>/dev/null | head -1)"
+  fi
+  if [ -n "$derived" ]; then
+    printf '%s\n' "$derived" > "$HOME/.harah/heartbeat-target"
+    echo "✓ heartbeat-target derived from the alerter: $derived"
+  else
+    echo "⚠ ~/.harah/heartbeat-target is empty and could not be derived — heartbeat"
+    echo "  texts can't send (notification-only). Write Alex's iMessage handle there."
+  fi
 fi
 
 echo "── first heartbeat (proof of life to Alex's phone):"
