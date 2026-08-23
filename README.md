@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/harah.png" width="220" alt="Harah"></p>
+
 # ServerManager
 
 A portable toolkit + agent playbook for **monitoring Docker + Caddy servers**.
