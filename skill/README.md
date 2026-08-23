@@ -11,7 +11,13 @@ This directory is the version-controlled home of the Harah agent doctrine
   add a subdomain, traffic investigation, backups, ship a change). Read
   when actually doing the task.
 - **[OPEN-ITEMS.md](OPEN-ITEMS.md)** — mutable status; read when planning
-  server work, keep it current.
+  server work. **The alert BOARD OF RECORD is `docs/dev-notes.md`'s dated
+  re-derivations, not this file** (drill 2026-08-22: OPEN-ITEMS froze six
+  days stale while dev-notes stayed byte-accurate) — trust dev-notes, then
+  live `gh` measurement, in that order.
+- **[doctor.sh](doctor.sh)** — one read-only health pass over every
+  routine (launchd state, log freshness, auth deaths, checkout currency).
+  Run it FIRST when anything seems dead or silent.
 - **[grooming/](grooming/)** — the dependabot grooming machinery:
   `POLICY.md` (the ONLY standing merge authorization — read before any
   merge decision), `groom.sh` (one pass), `enable.sh`/`disable.sh`

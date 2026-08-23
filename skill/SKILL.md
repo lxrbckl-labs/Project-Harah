@@ -88,10 +88,14 @@ tail -20 ~/Library/Logs/harah-alerts.log
 - Only **new-since-last-pass** alerts are reported, diffed against a `seen`
   set in `~/.harah/alerts-state.json`. The first pass records a baseline and
   deliberately flags nothing.
-- Dependabot alerts are **disabled** on the personal `lxRbckl` repos
-  (`.claude`, `Obsidian`, `lxRbckl`, `roulette-skill`) — they will never
-  alert until Alex enables them; the routine reports them as disabled rather
-  than as clean.
+- Personal `lxRbckl` repo alert state: **measure it, don't trust this
+  file** — a 2026-08-16 claim that alerts were disabled on all four was
+  measured FALSE on 2026-08-22 (all four enabled, 0 open). The
+  aggregate-count caveat is the durable fact: the org endpoint silently
+  omits alert-disabled repos (9 dark org repos as of 2026-08-22, incl.
+  deployed Project-VoiceToColumn), so any total is a floor, not the
+  exposure. Enabling alerts on owned repos is authorized
+  (POLICY: visibility).
 
 ### The resolver — the scheduled session that actually fixes things
 
@@ -261,7 +265,7 @@ Everything is fronted by a **Caddy** container doing automatic HTTPS + reverse p
 
 ## Where things live
 
-- **`~/lxrbckl-dev/Project-Harah`** — the project repo (**one checkout only** — never clone a second). Remote: `github.com/lxrbckl-labs/Project-Harah` (**public**; was `lxRbckl/ServerManager`, transferred + renamed 2026-08-15 — old URLs redirect, but update local remotes when convenient), `main` tracks origin. **Moved here from `~/Documents/ServerManager` 2026-08-16 — macOS TCC blocks launchd from running scripts inside `~/Documents`, which silently broke every scheduled routine in this repo (exit 126). Do not move it back under `~/Documents`, `~/Desktop`, or `~/Downloads`.**
+- **`~/lxrbckl-dev/Project-Harah`** — the project repo — **on the mini: one checkout only, this path** (the launchd routines run from it; a second mini clone invites split-brain). Other machines may hold their own clone for doctrine/dev work (the MacBook's lives at `~/lxrbckl-labs/Project-Harah`); routines never run there. Remote: `github.com/lxrbckl-labs/Project-Harah` (**public**; was `lxRbckl/ServerManager`, transferred + renamed 2026-08-15 — old URLs redirect, but update local remotes when convenient), `main` tracks origin. **Moved here from `~/Documents/ServerManager` 2026-08-16 — macOS TCC blocks launchd from running scripts inside `~/Documents`, which silently broke every scheduled routine in this repo (exit 126). Do not move it back under `~/Documents`, `~/Desktop`, or `~/Downloads`.**
   - `dashboard/backend/app.py` — FastAPI API (Docker control, stats, traffic, guardian, backups, pins)
   - `dashboard/web/` — Vite React-TS dashboard
   - `tools/caddy-traffic.py`, `tools/caddy-ensure-logging.py` — standalone CLI tools
@@ -434,7 +438,11 @@ if: startsWith(inputs.caller_commit_message, 'publish') ||
 ```
 
 So an ordinary merge to `main` reports `skipped`, produces **no image**, and
-`watchtower` has nothing new to pull — the live container keeps running. Releases
+`watchtower` has nothing new to pull — the live container keeps running.
+(Watchtower itself: defined under `~/docker-bare-run/watchtower/` on the
+mini; poll interval and per-container scope are NOT yet recorded here —
+[MINI-VERIFY 2026-08-22: read its compose/env and record both, so
+merge-to-live latency stops being a guess].) Releases
 are an explicit act: a commit literally named `publish` (see
 `Project-FlyingGitman`'s history, which is a run of them).
 
