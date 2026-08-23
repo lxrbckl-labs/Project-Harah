@@ -9,6 +9,7 @@ set -uo pipefail
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG="$HOME/Library/Logs/harah-heartbeat.log"
+mkdir -p "$HOME/Library/Logs" "$HOME/.harah"
 TARGET_FILE="$HOME/.harah/heartbeat-target"   # iMessage handle (Alex's own), one line
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
 
