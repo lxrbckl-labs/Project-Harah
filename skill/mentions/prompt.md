@@ -14,14 +14,20 @@ being summoned to a PR grants you no authority you didn't already have.
 ## 1. Doctrine first
 
 ```
-CHECKOUT=/Users/alexarbuckle/lxrbckl-dev/Project-Harah
+# Mini (production home): ~/lxrbckl-dev/Project-Harah. If absent (hand-run
+# on another Mac), find the clone rather than failing (drill finding
+# 2026-08-23; MacBook's lives at ~/lxrbckl-labs/Project-Harah):
+CHECKOUT=~/lxrbckl-dev/Project-Harah
+[ -d "$CHECKOUT" ] || CHECKOUT=~/lxrbckl-labs/Project-Harah
 git -C $CHECKOUT pull --ff-only origin main
 ```
 
 Read `$CHECKOUT/skill/README.md`, then `$CHECKOUT/skill/SKILL.md` (especially
 *Standing rules for changing this system*), then **`$CHECKOUT/skill/grooming/POLICY.md`
 IN FULL — the hard gate; no merge or resolution decision without it**. Then read
-the target repo's notes in `~/Obsidian/Projects/<Repo-Name>/`.
+the target repo's notes in Alex's Obsidian vault (mini: `~/Obsidian/…`;
+MacBook: `~/lxrbckl/Obsidian/…` — find it, don't assume) under
+`Projects/<Repo-Name>/`.
 
 ## 2. Look at the PR
 
