@@ -1912,3 +1912,138 @@ both tenants healthy HTTP 200, **51 days behind `main`**. Unchanged and
 unchangeable until the credential is rotated.
 
 — Harah
+
+### 2026-08-24 (resolver loop, run 3, session 1) — the board is zero for the third run, and the thing that was lying was the health check
+
+Re-derived from live data before touching anything. The handoff held, and this
+time it was corroborated from a second direction rather than just re-counted:
+
+| | |
+|---|---|
+| org endpoint (`/orgs/lxrbckl-labs/dependabot/alerts?state=open`) | **0** |
+| per-repo sweep, all 39 owned non-archived repos | **0** open, **0** alert-disabled (39/39 `ON`) |
+| **alerts ever recorded across those 39 repos** | **1022** |
+| open dependabot PRs, estate-wide | **0** |
+| open human PRs touching security | 2, both already superseded and commented |
+
+The 1022 is the number worth keeping. "Zero open" on its own is equally
+consistent with *nothing is wrong* and *nothing is looking*; 1022 historical
+alerts against 0 open says the detector demonstrably works on these repos and
+has been driven down, which is a different and much stronger claim.
+
+#### The session's find: `doctor` called a wrong-branch checkout healthy
+
+This checkout — the one all six launchd routines run from — was sitting on
+**`docs/srvx-bound`**, a feature branch merged as #44. `git pull --ff-only`
+failed on arrival with *"Not possible to fast-forward"*, which is how it was
+noticed at all.
+
+`doctor.sh` measured only `rev-list HEAD..origin/main --count`. It never asked
+which branch `HEAD` was on, and the two failure modes that follow were both
+reproduced in a scratch repo:
+
+| checkout state | old output | truth |
+|---|---|---|
+| on a branch **with commits** (session died mid-work) | `✓ checkout current with origin/main` | **silent false green** |
+| on a **merged** feature branch | `⚠ N behind — git pull` | remedy cannot work; `git pull` fails |
+| detached HEAD | unhandled | — |
+
+The false green is the dangerous one, and it is not hypothetical: resolver
+sessions create branches as a matter of course, and any session that ends
+without returning to `main` leaves the checkout on one. `HEAD..origin/main`
+then reads `0`, doctor prints `✓`, and every routine runs that branch's code.
+
+> **"Behind" is meaningless until you know which branch you are on.** A
+> distance measured from an unidentified point is not a health check. This is
+> the third *liveness is not function* in this repo's history and the second
+> time a mis-parked checkout has quietly degraded the loop — and note that the
+> 2026-08-23 entry already recorded "the reason the loop was stuck was a stale
+> checkout" without anything being changed to *detect* the next one. Recording
+> a failure is not the same as instrumenting it.
+
+Fixed in **#45** (`024f389`): branch identity first, detached HEAD named, and
+the remedy given is the one that actually works. Verification was constructed
+per this repo's own 2026-08-18 rule — `bash -n` across all of `skill/` exit 0;
+a five-state matrix run against the **real** block extracted from `doctor.sh`
+by `sed` rather than a re-typed copy (the `dispatch-selftest.py` discipline, so
+the test cannot drift from the code); a live run that correctly flags its own
+working branch at 0-behind/0-ahead — precisely the case the old code called
+`✓`; and `dispatch-selftest.py` exit 0 as regression.
+
+Scope, stated plainly rather than dressed up: **no Dependabot lineage, and none
+claimed.** Tooling maintenance under POLICY's own-backlog clause, on the
+precedent of #40 under an identically empty board. The lineage-stretching move
+would have been to invent an alert connection; the honest one is to say it is
+machinery work and let the record show that.
+
+#### A measurement trap, caught mid-sweep
+
+Checking whether "0 open" might be masking repos where Dependabot is enabled but
+sees no manifests, the first sweep queried `?state=all` and returned **`ever=0`
+for all 39 repos** — including Jordyn and reactive-resume, which provably had 42
+and 98 alerts closed days earlier.
+
+> **`state=all` is not a valid value for the Dependabot alerts API, and it does
+> not error — it returns `[]`.** Omit the parameter to get full history. An
+> invalid filter that answers "nothing" instead of "bad request" will confirm
+> whatever you were afraid of, and the only reason it was caught here is that
+> the result contradicted a fact this session already knew. Sanity-check a sweep
+> against a repo whose answer you know before believing the other 38.
+
+#### The one outlier, measured instead of assumed
+
+`Project-Evermore`: 630 packages in the dependency graph, **zero alerts ever** —
+the only substantial repo with no history (DS 528, Jordyn 605, Fabricator 958,
+reactive-resume 1604 all have plenty). Alerts enabled (`204`), automated security
+fixes on, graph populated, actively pushed 08-23. So either it is genuinely clean
+or detection is dark on it, and those need distinguishing.
+
+Read its manifest: `next@16.3.1`, `react@19.2.8`, `nodemailer@9.0.5`,
+`drizzle-orm@0.45.2`, `typescript@^7.0.2`. It is a *current* repo. Zero is real.
+Recorded so the next session does not re-open it as a suspected blind spot.
+
+#### The KPI, and why it moved the wrong way again
+
+| repo | days behind `main` | CI on last merge |
+|---|---|---|
+| `reactive-resume` | **51** | `skipped` (publish gate) |
+| `Project-VoiceToColumn` | **50** | `skipped` |
+| `Project-Jordyn` | **15** | `skipped` |
+
+All three serving HTTP 200 on stale images. `dockerhub-pat-dead` is **day 8**,
+re-measured independently rather than inherited: both org secrets still read
+`created = updated = 2025-10-18T19:47Z`.
+
+New this pass — the workflow itself was read rather than assumed about.
+`lxrbckl-labs/.github`'s `dockerhub-build-push.yml` hard-wires
+`docker/login-action@v3` to `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` and builds its
+push tags from the username, so **there is no repo-level change and no Harah-side
+action that routes around the credential.** The block is real and total.
+
+Which raises the thing worth handing to the next session: eight days of texting
+*"rotate the PAT"* has produced no movement. The workflow could publish to
+**ghcr.io using the built-in `GITHUB_TOKEN`**, needing no DockerHub credential at
+all. That is deliberately **not** done here — it changes where Alex's images live
+and what watchtower pulls, it is outward-facing and irreversible-ish, and it has
+no alert lineage. It is a proposal for Alex, not an unattended act. But offering
+a second option is more useful than repeating the same ask a ninth time, and it
+is now recorded in the registry's ping note.
+
+#### Deliberately not done
+
+- **No re-ping.** The 09:00 heartbeat fired today carrying "operator-blocked
+  items open", and the prior session's dedicated ping went out earlier this same
+  UTC day. Daily was satisfied; a third message for a known day-8 item is noise.
+- **`summons-authority-conflict` left alone.** It needs Alex's word, there is no
+  live summons to act on, and both drill comments stay in `mentions-state.json`'s
+  seen-set — re-arming a dispatch to perform the contested act would launder the
+  conflict rather than resolve it (the 08-24 session-1 reasoning still holds).
+- **No supersession comments re-posted** on Jordyn #16 / reactive-resume #15.
+  Both already carry signed Harah comments (latest 08-23) and POLICY dedupes
+  across passes. Their alerts are long since banked to zero.
+
+**Status: `EXHAUSTED` on alerts** — zero, swept per-repo, denominator confirmed
+at 39/39, and corroborated against 1022 historical alerts rather than taken on
+faith. What stands between verified fixes and production is still one credential.
+
+— Harah
