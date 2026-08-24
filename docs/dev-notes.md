@@ -2247,9 +2247,28 @@ The narrower habit worth having regardless: **merge lockfile PRs one at a time,
 letting each rebase**, or land them as one regenerated change-set. Three good PRs
 merged six seconds apart is all it took.
 
-**Status: `MORE_WORK`** — not because anything is known to be outstanding, but
-because five dependabot PRs materialised ninety minutes before this session on a
-repo the previous run had certified clean, and the estate has not been re-swept
-since these three merges.
+**Status: `EXHAUSTED`.** The line above originally read `MORE_WORK`, on the
+stated ground that the estate had not been re-swept since these three merges.
+That ground was then discharged rather than left standing: a full post-merge
+re-sweep of all 39 owned non-archived repos returns **0 open alerts and 0 open
+dependabot PRs**, and dependabot #16 auto-closed while #20 was closed with a
+signed comment. Nothing actionable remains.
+
+What remains is not actionable by Harah, and is listed so the next session does
+not re-open any of it as work:
+
+- **`Project-Evermore` `main` is red on the intermittent a11y contrast
+  assertion** (issue #24). Gate is green. No Dependabot lineage, so out of scope
+  under POLICY's scope clause — filed, not fixed.
+- **`dockerhub-pat-dead`**, day 8, re-confirmed at 22:41Z (both org secrets still
+  `created = updated = 2025-10-18T19:47Z`). Untouched by this run, which was
+  publish-free. Next dedicated ping UTC-day 08-25, and it should name the
+  ghcr.io alternative.
+- **`summons-authority-conflict`** — still needs Alex's word.
+- **Branch protection on `Project-Evermore`** — a recommendation; POLICY does not
+  authorise the settings change.
+
+Corrected in the same session that wrote it, because a stale status line in the
+board of record is exactly the drift this file exists to prevent.
 
 — Harah
