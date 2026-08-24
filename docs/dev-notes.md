@@ -1864,3 +1864,51 @@ not a dependency any more; it is one credential standing between verified fixes
 and the containers actually running them.
 
 — Harah
+
+#### Addendum, same session — the last unbounded override in the estate (reactive-resume #25, `0d832e80`)
+
+Having just spent the session repairing what a bare `>=` did, the obvious next
+question was *how many more are there?* Swept `pnpm.overrides` / `overrides` /
+`resolutions` across all 39 owned non-archived repos:
+
+| repo | block | total | unbounded |
+|---|---|---|---|
+| `reactive-resume` | `pnpm.overrides` | 40 | **1** |
+| `Project-DS` | `pnpm.overrides` | 16 | 0 |
+| `Project-Jordyn` | `pnpm.overrides` | 15 | 0 |
+| `Project-VoiceToColumn` | `overrides` | 3 | 0 |
+| `Project-PasCam` | `overrides` | 2 | 0 |
+| `Project-Evermore`, `Project-JA` | `pnpm.overrides` / `overrides` | 1 each | 0 |
+
+Exactly one: `srvx: >=0.11.13`, which the vault notes recorded as a *deliberate*
+exception. It was, and the reasoning was sound at the time — but it had gone
+stale: **three** versions now resolve (`0.11.15`, `0.12.5`, `0.12.7`) where the
+note recorded two. The float had already started.
+
+Lineage checked before touching it — `git log -S` puts it in `251bb088`,
+*"fix: remediate 30 Dependabot vulnerability alerts"*, so `>=0.11.13` is a
+security floor.
+
+**The interesting part is the fix that was rejected.** The obvious move was this
+repo's own `minimatch@10` trick — versioned selectors `srvx@0.11` / `srvx@0.12`,
+which would bound each line tightly without downgrading either. It was rejected:
+
+> **A versioned override selector matches on the range a dependent *declares*,
+> not on what resolves.** So a dependent declaring anything the selectors don't
+> cover ends up matched by *no* override at all — silently losing the security
+> floor for that edge. A tighter bound that can lose coverage is worse than a
+> loose bound that cannot.
+
+`>=0.11.13 <1` keeps the floor on every edge, lets 0.11 and 0.12 keep coexisting,
+and still blocks the documented `basic-ftp` mode (a silent jump to a new major).
+Verified as a pure guard: `pnpm typecheck` 0, `pnpm build` 0, and the srvx
+resolution map **byte-identical** before and after (49 × 0.11.15, 2 × 0.12.5,
+2 × 0.12.7) — the lockfile diff is 2 lines, both the recorded override string.
+
+**The estate now has zero unbounded override ranges.**
+
+Deploy-check after this merge, as after the last: CI `skipped` (publish gate),
+both tenants healthy HTTP 200, **51 days behind `main`**. Unchanged and
+unchangeable until the credential is rotated.
+
+— Harah
