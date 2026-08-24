@@ -2047,3 +2047,183 @@ at 39/39, and corroborated against 1022 historical alerts rather than taken on
 faith. What stands between verified fixes and production is still one credential.
 
 — Harah
+
+### 2026-08-24 (resolver loop, run 4, session 1) — the alert board was zero and the repo was still on fire: a CI marker that never worked, and a `main` broken by three good merges
+
+The alert re-derivation came out where the last three runs did, and this time it
+is genuinely uninteresting:
+
+| | |
+|---|---|
+| org endpoint (`/orgs/lxrbckl-labs/dependabot/alerts?state=open`) | **0** |
+| per-repo sweep, all 39 owned non-archived repos | **0** open, **0** dark |
+| open dependabot **PRs** at session start | **5** |
+
+That last row is the point. **Zero alerts is not zero work, and the two are
+measured by different endpoints.** `Project-Evermore` — the repo the 08-24 run 3
+entry had cleared as "genuinely clean, 630 packages, zero alerts ever" — had five
+dependabot version-update PRs opened at 19:07–19:09 UTC, about ninety minutes
+before this session started. A session that only reads the alerts API sees an
+empty board and stops. POLICY's scope clause covers this: lineage is "a specific
+Dependabot alert **or** dependabot-authored PR", and the PR half is the half that
+had work in it today.
+
+#### The find: `[e2e]` had never worked on a pull request
+
+Evermore's CI decides how much of its e2e suite to run from the **head commit
+message** (`docs/ci.md`: nothing → `@smoke`, `[e2e]` → everything). The four
+patch/minor bumps arrived with green ticks, and the ticks were nearly worthless:
+dependabot's commit messages carry no marker, so each had run **8 smoke tests,
+about 20 seconds** — on `next`, `shadcn`, `lucide-react` and `maplibre-gl`, which
+are the framework, the UI primitives, every icon, and the map. `docs/ci.md` says
+in as many words that shared changes take `[e2e]`.
+
+So the first branch carried `[e2e]`. The run summary answered:
+
+> **Why:** no marker — the default is smoke
+
+> **On a `pull_request` event, `actions/checkout` checks out the MERGE commit,
+> whose message is `Merge <sha> into <sha>`.** The plan job read that with
+> `git log -1`, found no marker, and correctly applied the default. Every
+> pull request in that repository had been doing this since the feature
+> existed — `[e2e]`, `[e2e:<segment>]` and the opt-out were all inert on PRs
+> and only ever worked on a direct push to `main`.
+
+This is the repo's own stated nightmare — *"a green tick for a run that tested
+almost nothing"* — arriving through the one door it had not checked. It had made
+a **misspelled** segment fail loudly; a **silently discarded** marker was free,
+and it hit every PR rather than the occasional typo.
+
+Fixed in **#22**: the plan job checks out
+`${{ github.event.pull_request.head.sha || github.sha }}`. The `check` and `e2e`
+jobs deliberately keep checking out the merge result — only the job that reads
+*intent* wants the head commit. It also now prints **which commit it read** into
+the summary, because the whole failure had been visible the entire time as one
+line of prose nobody had reason to re-read.
+
+**The fix caught itself in its own trap, which is the part worth keeping.** Run
+`8f69ac0` read the head commit correctly — and reported `the commit asked to
+skip`. That commit's message *explains* the markers, and spelled the opt-out one
+in brackets while doing so. The parser matches anywhere in the message (which is
+what lets the marker sit where it reads best) and opting out wins over
+everything, so the commit repairing the control surface used it to switch itself
+off, in the run meant to prove the repair.
+
+> **A commit message about the syntax is indistinguishable from one using it.**
+> Documented in `docs/ci.md` with the way out: name the markers in words, or put
+> the discussion in the PR body, which nothing parses.
+
+The follow-up commit then became the demonstration: `the commit asked for
+everything`, **182 tests per engine** against the 8 it would have run before.
+
+#### The bigger one: `main` was broken, and three correct merges did it
+
+Mid-session, `next`, `lucide-react` and `shadcn` were squash-merged straight to
+`main` from #19, #18 and #17 — at 21:26:10, :13 and :16, by `lxRbckl`, unsigned
+(POLICY's authorship test: not Harah's, and not the grooming routine either, whose
+log was silent since 04:30). Six seconds, three PRs, each touching
+`pnpm-lock.yaml`.
+
+```
+ERR_PNPM_BROKEN_LOCKFILE  the lockfile is broken: duplicated mapping key (1979:3)
+```
+
+`baseline-browser-mapping@2.11.17` appears twice, as an entire duplicated block.
+Each PR was individually fine and individually `MERGEABLE`; GitHub merged each
+one's lockfile as **text** against a base the previous merge had already moved.
+Git resolved it without a conflict marker. YAML did not survive.
+
+> **A lockfile is generated output. Merging two generated files line by line can
+> produce a file neither generator would ever emit — and `MERGEABLE`/`CLEAN`
+> is not evidence otherwise, because git is diffing text and knows nothing about
+> the invariants.** Take one side wholesale and re-run the generator.
+
+Measured rather than inferred, because "main is broken" deserves proof:
+
+- `main`'s own CI for the #17 push — **failure at 21:26:19**, at
+  `pnpm install --frozen-lockfile`. Red from that moment.
+- dependabot's rebase runs for #16 and #20 — **both failed**, same cause. That,
+  not anything about maplibre-gl or zod, is why both went `DIRTY`.
+- a `workflow_dispatch` of `@a11y`/webkit against `main` as a control —
+  **failed at the gate, e2e skipped.** Nothing on `main` could build or be tested.
+
+That control run is also the method note: **when a branch fails and you cannot
+tell whether it is yours, dispatch the same job against `main`.** It cost one
+run and turned "is my zod branch broken?" into "`main` cannot install", which was
+a different and much more urgent question.
+
+`main` was repaired by **#21**, whose lockfile was pnpm-regenerated rather than
+hand-merged. Confirmed after: `main`'s lockfile parses, and `main`'s own
+full-suite run passed **both engines**.
+
+The same trap was then declined a second time. GitHub reported the zod branch
+`MERGEABLE`/`CLEAN` against the repaired `main` — which meant precisely that git
+was willing to splice the two lockfiles again. `main`'s lockfile was taken
+wholesale and the single bump re-applied with pnpm instead.
+
+#### One failure that was not ours, established rather than waved off
+
+The zod branch failed `a11y.spec.ts:362 › the dialogs are clean @a11y` on webkit
+— a `color-contrast` violation, on the retry too. A validation library the app
+never imports cannot reach a CSS contrast measurement, but "that can't be it" is
+not evidence, so:
+
+| run | result |
+|---|---|
+| zod branch, same base, first run | **failed** (twice) |
+| zod branch, same commit, re-run | passed (`✓ 9.0s`) |
+| maplibre branch, identical base | passed |
+| zod branch, previous base | passed |
+
+Same commit and same base producing both outcomes is the definition of flaky.
+Recorded by name because an unnamed flake gets re-diagnosed from scratch every
+time: it lives in webkit's contrast measurement, next to the known
+`admin-keys` / `data-limits` pair.
+
+#### What landed
+
+| PR | what | verification |
+|---|---|---|
+| **#22** | plan job reads the PR head commit; footgun documented | 182 tests/engine where the same branch had run 8 |
+| **#21** | maplibre-gl 6.5.0 (#16) — **and the `main` repair** | chromium 182/182; webkit 156p/24s/2 flaky |
+| **#23** | zod 3 → 4 (#20) | chromium 182/182; webkit 157p/24s/1 flaky, incl. `@mcp` |
+
+zod 3 → 4 was a major, so it was migrated — and the migration was **empty**. One
+file imports zod, every construct is v4-clean, and `z.record` was already
+two-argument. The work was proving it: the MCP SDK declares `^3.25 || ^4.0`; two
+zod copies survive but the second is `shadcn`'s CLI, while the app and the SDK
+instance the app imports resolve to **one** `zod@4.4.3` directory — checked by
+resolving from both sides and comparing paths, because zod's classic failure is
+an `instanceof` across duplicate copies.
+
+Dependabot #16 auto-closed; #20 was closed with a signed comment.
+
+#### Deployment, and the one thing that is not blocked
+
+`deploy-check/verify.py lxrbckl-labs/Project-Evermore` → **`unknown repo`**, correctly:
+Evermore has no container on this mini and no `targets.json` entry — Phase 6
+(Docker + Caddy) is still the repo's outstanding work per its vault notes. So for
+once there is **no "merged, not deployed" gap to report, and no publish**, which
+means `dockerhub-pat-dead` does not touch any of today's work. It remains open
+at **day 8**; the daily ping for this UTC day was already satisfied before this
+session (09:00 heartbeat plus an earlier dedicated ping), and the registry's own
+note has the next one due UTC-day 08-25 with the ghcr.io alternative to offer.
+
+#### For Alex — one thing outside Harah's authority
+
+`main` went red at 21:26 and stayed red until a Harah merge repaired it, because
+nothing gates a merge on the CI gate passing. **Branch protection requiring
+`Typecheck and build` on `Project-Evermore` would have refused #18 and #17
+outright.** POLICY authorises enabling Dependabot alerts on owned repos and
+nothing else in settings, so this is a recommendation, not an action taken.
+
+The narrower habit worth having regardless: **merge lockfile PRs one at a time,
+letting each rebase**, or land them as one regenerated change-set. Three good PRs
+merged six seconds apart is all it took.
+
+**Status: `MORE_WORK`** — not because anything is known to be outstanding, but
+because five dependabot PRs materialised ninety minutes before this session on a
+repo the previous run had certified clean, and the estate has not been re-swept
+since these three merges.
+
+— Harah
