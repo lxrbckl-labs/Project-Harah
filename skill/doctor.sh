@@ -113,10 +113,27 @@ for lg in harah-resolver harah-grooming harah-mentions; do
 done
 # 2. gh auth (routines read GitHub read-only, but dead auth = empty passes)
 gh auth status >/dev/null 2>&1 && echo "✓ gh authenticated" || echo "✗ gh NOT authenticated — alerts/mentions/grooming see nothing"
-# 3. Checkout freshness: routines run from this checkout; a stale one runs old code
+# 3. Checkout freshness: routines run from this checkout; a stale one runs old code.
+# WHICH BRANCH comes first, because "behind" is meaningless off main (2026-08-24):
+# a session that ends on its own branch leaves the checkout there, and
+# `rev-list HEAD..origin/main` then reports 0 — a silent ✓ while every routine
+# runs that branch's code. The merged-branch case is worse than useless: it
+# reports "N behind — git pull", and `git pull` fails outright with
+# "Not possible to fast-forward". Measured both on 2026-08-24, when this
+# checkout was found sitting on `docs/srvx-bound`.
 git -C "$REPO_ROOT" fetch -q origin 2>/dev/null || true
+branch=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
 behind=$(git -C "$REPO_ROOT" rev-list HEAD..origin/main --count 2>/dev/null || echo "?")
-[ "$behind" = "0" ] && echo "✓ checkout current with origin/main" || echo "⚠ checkout is $behind commit(s) behind origin/main — routines run OLD code (git pull)"
+ahead=$(git -C "$REPO_ROOT" rev-list origin/main..HEAD --count 2>/dev/null || echo "?")
+if [ "$branch" = "HEAD" ]; then
+  echo "✗ checkout is in DETACHED HEAD — routines run whatever is checked out (git checkout main && git pull --ff-only)"
+elif [ "$branch" != "main" ]; then
+  echo "✗ checkout is on branch '$branch', NOT main (${behind} behind / ${ahead} ahead of origin/main) — routines run that branch's code (git checkout main && git pull --ff-only)"
+elif [ "$behind" = "0" ]; then
+  echo "✓ checkout current with origin/main (on main)"
+else
+  echo "⚠ checkout is $behind commit(s) behind origin/main — routines run OLD code (git pull --ff-only)"
+fi
 # 4. Cadence state
 echo "cadence: grooming=$(cat "$HOME/.harah/grooming-cadence" 2>/dev/null || echo '(default baseline)') resolver=$(cat "$HOME/.harah/resolver-cadence" 2>/dev/null || echo '(default daily)')"
 
