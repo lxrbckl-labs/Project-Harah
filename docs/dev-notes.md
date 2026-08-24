@@ -1603,3 +1603,145 @@ unconfigured in `Project-VoiceToColumn`; and `watchdog`/`mentions` reading
 `⚠ STALE` in doctor while `watchdog-state.json` updates every few minutes.
 
 — Harah
+
+### 2026-08-24 (resolver loop, session 1) — the alert board stayed at zero, so the work was the machinery: a summons listener that had been dead for a day while looking alive
+
+Started with the board already cleared by the 2026-08-23 run. Re-derived it rather
+than trusting the handoff, and it held:
+
+| | |
+|---|---|
+| org endpoint | **0** open alerts |
+| per-repo sweep, all 39 owned non-archived repos | **0** open, **0** alert-disabled |
+| open dependabot PRs across the estate | **1** (`reactive-resume` #4, superseded — closed today) |
+
+With nothing to remediate, the session spent itself on the thing that was
+actually broken. The value was not in the fix, which is four lines. It was in
+three failures of *method* that the fix exposes.
+
+#### 1. The `@project-harah` summons never dispatched — and the cause was an argument, not an agent
+
+Every summons since 2026-08-23 (Alex's drills on #22 and #31) was detected,
+dispatched, and died with `exit 1`, empty stdout, and no session — while
+`doctor` reported the listener healthy. **Liveness is not function, for the
+third time in this repo's history.**
+
+The brief is handed to `claude -p` as an **argv element**, and `-p/--print` is a
+*boolean* flag — so the brief lands as a **positional**. `prompt.md` opens with
+YAML frontmatter, so the positional starts with `---` and the CLI rejects it:
+
+```
+$ claude --dangerously-skip-permissions -p "$(cat prompt.md)"
+error: unknown option '---
+name: harah-mention
+---
+...'
+exit 1
+```
+
+**`resolve.sh` has stripped frontmatter since it first hit this, with a comment
+naming the exact cause. `mentions/scan.py` never got the same guard.** One
+runner fixed, its sibling left broken, and nothing noticed. That — not the
+character class — is the defect worth carrying forward: **when you fix a bug in
+one runner, the sibling runner is not covered by that fix, and there is nothing
+in this repo that checks.** There is now: `skill/dispatch-selftest.py` asserts
+the argv-safety invariant for *both* runners, exercising each through **its own**
+stripping code (imports `scan.load_brief`; lifts the awk program out of
+`resolve.sh` by regex), so a copy can never drift from the thing it claims to
+test.
+
+#### 2. The log threw away its own diagnosis
+
+`scan.py` printed `stderr[-300:]`. The CLI's error echoes the entire rejected
+argument, so the **tail** was the end of the prompt and the `error: unknown
+option` prefix at the **head** was truncated away. What reached the log looked
+like an agent that had mysteriously emitted its own brief — which is exactly why
+the failure sat for a day misfiled as an OAuth problem.
+
+> **Truncate logs at the head as well as the tail.** An error message that
+> quotes its input puts the diagnosis first and the noise last; keeping only the
+> last N characters is keeping only the noise. Now logs both.
+
+#### 3. The registry entry was honoured instead of re-derived — the same failure, a third time
+
+`operator-blocked.json` filed this as *"the one lead is auth… may need Alex to
+re-auth in a GUI session."* **That lead was wrong**, and disproving it cost one
+command: the same invocation shape with a plain prompt returns `exit 0`, `PONG`.
+Auth was never involved, and nothing here needed Alex at all.
+
+This is the identical pattern to the 2026-08-22 alerts-disabled claim and the
+2026-08-23 publish-authority conflict: *state a blocker precisely, write it up
+well, then keep honouring it after it has stopped being true — or was never
+true.* The 08-23 entry drew the rule "re-read your own OPERATOR-BLOCKED registry
+before honouring an entry in it." Today sharpens it:
+
+> **An OPERATOR-BLOCKED entry containing a hypothesis is not blocked — it is
+> undiagnosed.** `dockerhub-pat-dead` names a *measured* impossibility; that is a
+> real block. `mentions-dispatch-exits-1` named a *guess* ("possibly auth"), and
+> a guess is a piece of work nobody has done. Anything hedged with "possibly",
+> "may need", or "needs a pass with the log in hand" is Harah's to clear, and
+> parking it in the operator registry launders undone diagnosis as someone
+> else's dependency.
+
+#### The DockerHub block, upgraded from inference to measurement
+
+The registry justified `dockerhub-pat-dead` from **secret age**
+(`updated_at=2025-10-18`, still unchanged). That argument is weak, and this repo
+had already disproved it: the `lxRbckl` PyPI token has never been rotated either
+and published fine on 08-23. Age is not evidence of revocation.
+
+The real evidence is a genuine publish attempt: **`Project-Jordyn` run
+`32082150509`** (2026-08-17, `publish: next 14.2.35 + 29 transitive security
+fixes`) — step 5 **`Log in to DockerHub` → failure**:
+
+```
+Error response from daemon: Get "https://registry-1.docker.io/v2/":
+unauthorized: incorrect username or password
+```
+
+`Build & push` skipped. Docker Hub is **actively rejecting** these credentials —
+not an empty secret, not a network fault. Day 8, texted again today.
+
+**The KPI, measured this session** (`deploy-check/verify.py`, all serving
+HTTP 200 on stale images):
+
+| repo | days behind `main` | CI on last merge |
+|---|---|---|
+| `reactive-resume` | **50** | `skipped` (publish gate) |
+| `Project-VoiceToColumn` | **50** | `skipped` |
+| `Project-Jordyn` | **15** | `skipped` |
+
+Zero open alerts and 50 days behind are both true at once. The alerts are closed
+*in source*; the running containers have never seen the fixes.
+
+#### What was deliberately not done
+
+The #22/#31 drill comments stay in `mentions-state.json`'s `seen` set. Clearing
+them would re-dispatch a session onto Alex's own branch — which is the still-open
+`summons-authority-conflict` (POLICY's summons carve-out vs. the resolver brief's
+"never touch a human-authored PR" hard stop). **Re-arming a dispatch so another
+agent performs the act you are forbidden to perform is not resolving the
+conflict; it is laundering it.** Left for Alex's word, and named in today's ping.
+The dispatch half is fixed, so the moment that word arrives the path works.
+
+Also corrected in passing: `mentions/prompt.md` still told a summoned session
+that *"on this host, merging is deploying — watchtower rolls the live container
+within ~5 minutes."* False since SKILL.md *Standing rules* 6 (2026-08-16). Every
+summons was being briefed that its merge had shipped when it had not. **A
+correction recorded in SKILL.md does not propagate itself into the prompts that
+sibling routines actually run** — the same drift as the frontmatter guard, in
+prose rather than code.
+
+**Status: `EXHAUSTED`** on alerts — the board is genuinely empty and re-swept
+per-repo, not merely reported empty. One operator-blocked credential
+(`dockerhub-pat-dead`, day 8) and one operator-blocked decision
+(`summons-authority-conflict`) remain; both were texted. Inherited non-alert work
+still open: `reactive-resume`'s `pnpm build` behind the TanStack Start skew (#22);
+the `Project-DS` items (`migrations/meta` drift, biome 1.9.4 panicking,
+`pnpm.overrides` in its deprecated home); `next lint` unconfigured in
+`Project-VoiceToColumn`; and `watchdog`/`mentions` reading `⚠ STALE` in doctor
+while their state files update normally — which, on today's evidence, deserves
+suspicion as a staleness heuristic watching the wrong file rather than a real
+outage.
+
+— Harah
