@@ -2176,6 +2176,32 @@ not evidence, so:
 | zod branch, previous base | passed |
 
 Same commit and same base producing both outcomes is the definition of flaky.
+
+**Then it hit `main` itself**, after the zod merge — same test, both attempts —
+so "flaky, move on" stopped being good enough and it got measured properly.
+Seven observations of that test on today's code:
+
+| shape | a11y dialogs |
+|---|---|
+| full suite (182 tests) × 5 runs | **failed 2**, passed 3 |
+| `@a11y` alone (14 tests) × 2 dispatches | passed 2 |
+
+> **Both failures are in full-suite runs; every isolated `@a11y` run passes.**
+> That points at suite load, not the assertion: axe scanning a dialog whose open
+> transition has not settled reads low contrast, and a loaded runner is exactly
+> when that window widens.
+
+And the reason it is surfacing *now* is the same bug this session fixed — before
+#22 the marker did not work on PRs, and dependabot's own merge commits carry no
+marker either, so **`@a11y` had hardly run at all recently.** Almost certainly a
+long-standing defect the repaired marker has merely made visible; expect more of
+these now that the full suite actually runs.
+
+Filed as `Project-Evermore` **issue #24** with the run table, and deliberately
+**not fixed**: no Dependabot lineage, so under POLICY's scope clause it is not
+Harah's to change. `main`'s gate (typecheck + build) is green; what is red is one
+intermittent a11y assertion.
+
 Recorded by name because an unnamed flake gets re-diagnosed from scratch every
 time: it lives in webkit's contrast measurement, next to the known
 `admin-keys` / `data-limits` pair.
