@@ -74,6 +74,42 @@ for label, name, status, code, want_ok, want_suppressed in CASES:
     if bad:
         failures.append(f"{label}: " + "; ".join(bad))
 
+# --- the log-noise rule -------------------------------------------------
+# watch.sh logs a pass only if the output contains UNHEALTHY / WENT DOWN /
+# RECOVERED. An unchanged problem must therefore print none of them, or one
+# long-lived failure writes an identical line every ten minutes and buries the
+# events the log exists for.
+LOG_TRIGGERS = ("UNHEALTHY", "WENT DOWN", "RECOVERED")
+T = [{"name": "a"}] * 13
+P = ["https://ds.lxrbckl.com: HTTP 502"]
+P2 = P + ["voicetocolumn: NOT RUNNING"]
+
+SUMMARY_CASES = [
+    ("healthy estate — quiet",            T, [],  [],  [],   False),
+    ("new problem — logs",                T, P,   [],  [],   True),
+    ("same problem next pass — quiet",    T, P,   P,   [],   False),
+    ("problem set grew — logs",           T, P2,  P,   [],   True),
+    ("problem set shrank — logs",         T, P,   P2,  [],   True),
+    ("unchanged, but a transition — logs", T, P,  P,   ["WENT DOWN: x — y"], True),
+    ("problem cleared — quiet line, transition carries the news",
+                                          T, [],  P,   [],   False),
+]
+
+print("\nsummary line — an unchanged problem must not trigger a log write\n")
+for label, targets, probs, prev, trans, want_log in SUMMARY_CASES:
+    line = watch.summarize(targets, probs, prev, trans)
+    logs = any(w in line for w in LOG_TRIGGERS)
+    bad = []
+    if logs is not want_log:
+        bad.append(f"logs={logs} want {want_log}")
+    # Whatever it decides, the problem must stay visible in the text.
+    if probs and probs[0] not in line:
+        bad.append("dropped the problem from the line")
+    print(f"  {'ok ' if not bad else '✗  '}{label}")
+    print(f"       -> {line[:110]}")
+    if bad:
+        failures.append(f"{label}: " + "; ".join(bad))
+
 # Every entry in KNOWN_BAD must justify itself in the UI.
 for name, reason in watch.KNOWN_BAD.items():
     if not str(reason).strip():

@@ -2564,6 +2564,30 @@ org secrets `DOCKERHUB_TOKEN` / `DOCKERHUB_USERNAME` still read
 ping for UTC-day 2026-08-25 went out at 04:5xZ, this session ran at 10:5xZ the
 same UTC day, and daily was already satisfied.
 
+#### The regression the first PR introduced, caught the same session (#52)
+
+`watch.sh` logs a pass only when the output contains `UNHEALTHY` / `WENT DOWN` /
+`RECOVERED` — that is how a healthy estate stays silent instead of burying real
+events. Adding a **permanently** red target broke that property: `ds.lxrbckl.com`
+is awaiting a decision, not a repair, so every pass from then on would have
+written the same line every ten minutes, forever.
+
+> **Making a monitor more honest can make its log useless.** The two are separate
+> questions: what is true (`problems`, `healthy: false`, the panel) and what is
+> *news* (the log). Keep the problem in the state and out of the log once it has
+> announced itself.
+
+`summarize()` now decides that explicitly: a changed problem set or any
+transition prints the `UNHEALTHY` line; the same set twice prints
+`steady: 12/13 serving, 1 known problem(s) unchanged …`, which contains none of
+the words `watch.sh` greps for. The estate stays `healthy: false` and the panel
+still lists the 502 — only the log goes quiet. Seven summary cases added to
+`watchdog-selftest.py`, including the two directions of set change and the
+"unchanged but a transition fired" case, plus an assertion that the problem text
+survives into the line either way. Confirmed live: two consecutive real passes,
+identical `steady:` output, and `grep -qE "UNHEALTHY|WENT DOWN|RECOVERED"`
+correctly finds nothing.
+
 **Status: `EXHAUSTED` on alerts.** Both halves of the board are zero, swept
 per-repo. What remains is not Harah's to close: the DockerHub credential, the
 `summons-authority-conflict` (left alone again — no live summons, and re-arming a
