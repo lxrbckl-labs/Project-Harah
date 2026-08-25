@@ -81,7 +81,32 @@
 - **Stale Caddyfile blocks** for `msymmonds.app` / `resume.msymmonds.app`
   and `jupyter.lxrbckl.com`, whose containers were removed; msymmonds also
   has corrupt ACME lockfiles in the caddy_data volume.
-- **`showalter` reports unhealthy** (has for a while).
+- 🟡 **`ds.lxrbckl.com` returns HTTP 502 — needs a decision, not a repair.**
+  Found 2026-08-25. The Caddy block routes `/mcp*` to `:4000` (the running
+  `project-ds-mcp-1`, fine) and **everything else to
+  `host.docker.internal:3671`**, which is Project-DS's compose `app` service.
+  That service has **no container on this mini** and `lxrbckl/project-ds-app:main`
+  is not even pulled, so the site root has been 502 for at least as long as the
+  watchdog has been blind to it (`targets.json` carried `urls: []` for this repo,
+  and its note wrongly said there was no Caddy block at all). The access log
+  shows no real traffic, so nobody has been hitting it. Two clean options, both
+  Alex's call: **bring the `app` service up** (creating a container is outside
+  Harah's incident scope of start/stop/restart, and the stack may have been left
+  down deliberately — same shape as the spun-down msymmonds tenant), or
+  **narrow the Caddy block to `/mcp*`** so the domain stops serving 502. Now
+  listed unsuppressed in `deploy-check/targets.json`, so it shows in Estate
+  Health until it is decided.
+- ~~**`showalter` reports unhealthy**~~ — **DIAGNOSED 2026-08-25, and it is
+  cosmetic.** `FailingStreak: 13614` — the healthcheck has never passed. The
+  image's `HEALTHCHECK` dials `http://localhost:5827/api/health`; the container's
+  `/etc/hosts` puts `::1` first and the Next server binds IPv4-only
+  (`HOSTNAME=0.0.0.0`), so the probe is refused. `127.0.0.1` returns
+  `{"ok":true}`, and `https://sawyer.showalter.business` serves 200 — including
+  the very endpoint the probe cannot reach. One-line fix filed as
+  **Project-Showalter#91** (no Dependabot lineage, so filed rather than patched);
+  it only reaches the container on a new image, which is gated on
+  `dockerhub-pat-dead`. The public URL is now a watchdog target, so this repo has
+  a true serving signal regardless.
 - **Auto-defense**: `immich_server` and `vaultwarden` are armed, but the
   master switch is **off**, so nothing auto-stops. LAN IPs are
   trusted/exempt.

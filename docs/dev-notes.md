@@ -2432,3 +2432,143 @@ per-repo after the merge. What remains is not actionable by Harah:
   a signed comment correcting the four claims rather than being quietly merged.
 
 — Harah
+
+### 2026-08-25 (resolver loop, run 6, session 1) — the board was zero for the sixth run, and the estate monitor had a hole shaped exactly like the two things it wasn't watching
+
+Re-derived from live data before touching anything, both halves, per-repo:
+
+| | |
+|---|---|
+| org endpoint (`/orgs/lxrbckl-labs/dependabot/alerts?state=open`) | **0** |
+| per-repo sweep, all 39 owned non-archived repos | **0** open, **0** dark |
+| alerts enabled / security updates enabled | **39 / 39** and **39 / 39** |
+| open dependabot **PRs**, swept per-repo | **0** |
+| open PRs by any author | 8, all human, all already carrying signed Harah supersession comments |
+
+Run 5's `automated-security-fixes` fix held: the second switch reads 39/39 a day
+later, so the sixteen repos it enabled did not drift back. No supersession
+comments were re-posted (Jordyn #16, reactive-resume #15, Jordyn #13 all carry
+signed Harah comments already; POLICY dedupes across passes), and
+`lxRbckl/.claude` #39 is authored by **`aarbuckle2`, the work account** — a hard
+stop, not read, not touched.
+
+#### The find: the two repos with no URL in `targets.json` were the two with problems
+
+`deploy-check/targets.json` is the map the watchdog and the deploy check both
+read. Eight repos, six with URLs. The two carrying `urls: []` were
+**Project-Showalter** and **Project-DS** — and both were wrong, in the same
+direction:
+
+| repo | what the note said | what `~/caddyfile` actually says |
+|---|---|---|
+| Project-Showalter | "container-health only" | `sawyer.showalter.business` → `:5827` |
+| Project-DS | "apps/web is NOT deployed … no Caddy block" | `ds.lxrbckl.com` → `/mcp*`→`:4000`, everything else →`:3671` |
+
+> **A monitoring map that is missing an entry cannot report that it is missing
+> an entry.** Every previous run read "all targets healthy" off this file and
+> believed it. The estate was 11 targets; it is 13, and one of the two new ones
+> is red.
+
+**Project-DS: `ds.lxrbckl.com` returns HTTP 502.** The `/mcp*` route is fine
+(`project-ds-mcp-1` is up, `/mcp` → 401 as designed). The root goes to
+`host.docker.internal:3671`, which is the compose stack's `app` service —
+**no container exists for it, and `lxrbckl/project-ds-app:main` is not even
+pulled onto this mini**. Deliberately *not* fixed: creating a container is
+outside incident response's `start`/`stop`/`restart` scope, and a stack that was
+left down may have been left down on purpose (precedent: the spun-down msymmonds
+tenant, whose Caddy block is likewise stale). Two clean options for Alex —
+bring `app` up, or narrow the Caddy block to `/mcp*` — recorded in OPEN-ITEMS
+and listed **unsuppressed** so it stays visible until decided. The access log
+shows no real traffic to that host, so nothing user-facing is being lost today.
+
+**Project-Showalter: months of `unhealthy` were a false alarm, and the cause is
+one line.** `docker inspect` reports `FailingStreak: 13614` — the healthcheck
+has *never* passed on this image. Measured inside the container:
+
+| probe | result |
+|---|---|
+| `wget http://localhost:5827/api/health` | Connection refused |
+| `wget http://[::1]:5827/api/health` | Connection refused |
+| `wget http://127.0.0.1:5827/api/health` | `{"ok":true}` |
+
+`/etc/hosts` lists `::1 localhost` first, busybox wget takes the first address,
+and the Next standalone server is started `HOSTNAME=0.0.0.0` — IPv4 only. The
+public site serves **200**, including `/api/health`, the exact endpoint the probe
+cannot reach. `Dockerfile:61`, `localhost` → `127.0.0.1`. Filed as
+**Project-Showalter#91**, not patched: no Dependabot lineage, and none claimed
+(same handling as `Project-Evermore#24`; the honest move is to say it is out of
+POLICY's creation scope rather than invent an alert connection).
+
+#### The part that was Harah's own to fix: a suppression that could never announce a death
+
+`watch.py` carried `KNOWN_BAD = {"showalter"}` — a bare name, no reason — and
+suppression was **unconditional**:
+
+```python
+if was is None or t["known_bad"]:
+    continue        # skips transition detection entirely
+```
+
+So the one container the estate had stopped watching was also the only one that
+could never report going down. If `showalter` had stopped, `ok` was already
+`False`, no transition fires, and it was excluded from `problems` too: silence,
+indefinitely.
+
+> **A suppression must be narrow enough to still let the target die.** It should
+> cover the *known* failure, not the *name*. "Running but unhealthy" is the
+> accepted condition here; "not running at all" is a new failure wearing the same
+> name, and "healthy again" is news.
+
+Rewritten as `suppressed = bool(reason) and up and not ok`, with `KNOWN_BAD` now
+a name→reason map whose strings the dashboard prints. The narrowing was **found
+by the test, not by inspection**: the first implementation was
+`bool(reason) and up`, which left a recovered container permanently suppressed —
+rebuilding the same blind spot one state over. `watchdog-selftest.py` imports
+`classify_container` from `watch.py` rather than re-typing it (the
+`dispatch-selftest.py` discipline), and asserts the four known-bad states, the
+four ordinary ones, and that **no suppression may exist without a stated
+reason**.
+
+#### Verification (delta vs `main`, both sides in the same pass)
+
+| check | main | branch |
+|---|---|---|
+| `npm run build` (`tsc -b && vite build`) | exit 0 | exit 0 |
+| `npm run lint` (`oxlint`) | exit 0, one pre-existing `App.tsx:133` warning | identical |
+| `bash -n` across all of `skill/` | exit 0 | exit 0 |
+| `py_compile` across all of `skill/` | exit 0 | exit 0 |
+| `skill/dispatch-selftest.py` | exit 0 | exit 0 |
+| `skill/watchdog/watchdog-selftest.py` | (new) | exit 0, 8/8 |
+
+And the part `tsc` cannot do — the panel driven in **headless chromium against
+the live dashboard on this mini**, serving the real `/api/watchdog`: 1 Estate
+Health panel, **12/13 serving**, `https://ds.lxrbckl.com — HTTP 502` listed as
+down, and the showalter row now reading *"known-bad, excluded from alerting:
+showalter — Up 4 days (unhealthy): healthcheck dials … Fix filed:
+Project-Showalter#91"*. **Zero console errors.** A live `watch.py` run: 13
+targets, exit 0, and — correctly — **no `WENT DOWN` transition**, because a
+first-sighted target has no previous state to have fallen from.
+
+#### The KPI, re-measured rather than inherited
+
+| target | days behind `main` | live |
+|---|---|---|
+| `reactive-resume` | **51** | both tenants HTTP 200, image 2026-07-03 |
+| `Project-VoiceToColumn` | **50** | HTTP 200, image 2026-07-03 |
+| `Project-Showalter` | **35** | HTTP 200 public; container flag cosmetic (above) |
+| `Project-Jordyn` | **15** | HTTP 200, image 2026-08-08 |
+
+All four CI runs `skipped` at the publish gate. `dockerhub-pat-dead` is **day 9**;
+org secrets `DOCKERHUB_TOKEN` / `DOCKERHUB_USERNAME` still read
+`created = updated = 2025-10-18T19:47Z`. **No re-ping this pass** — the dedicated
+ping for UTC-day 2026-08-25 went out at 04:5xZ, this session ran at 10:5xZ the
+same UTC day, and daily was already satisfied.
+
+**Status: `EXHAUSTED` on alerts.** Both halves of the board are zero, swept
+per-repo. What remains is not Harah's to close: the DockerHub credential, the
+`summons-authority-conflict` (left alone again — no live summons, and re-arming a
+dispatch to perform the contested act would launder the conflict rather than
+resolve it), the `ds.lxrbckl.com` decision, and Project-Showalter#91, which
+cannot reach a container without a publish anyway.
+
+— Harah

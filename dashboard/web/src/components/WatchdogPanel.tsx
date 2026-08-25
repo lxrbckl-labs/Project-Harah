@@ -101,8 +101,17 @@ export default function WatchdogPanel() {
       )}
 
       {knownBad.length > 0 && (
-        <div className="chip" style={{ marginTop: 12 }}>
-          known-bad, excluded from alerting: {knownBad.map(t => t.name).join(', ')}
+        <div style={{ marginTop: 12 }}>
+          <div className="chip">known-bad, excluded from alerting</div>
+          {/* The reason is the point: a suppression nobody can see the grounds
+              for is how `showalter` sat unexplained for months. */}
+          {knownBad.map(t => (
+            <div key={t.name} className="chip" style={{ display: 'block', marginTop: 4, whiteSpace: 'normal', color: 'var(--faint)' }}>
+              <b style={{ color: 'var(--warn)' }}>{t.name}</b>
+              {' — '}{t.detail}
+              {t.known_bad_reason ? <>{': '}{t.known_bad_reason}</> : ' (no reason recorded)'}
+            </div>
+          ))}
         </div>
       )}
     </div>

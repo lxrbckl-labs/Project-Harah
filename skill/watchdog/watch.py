@@ -28,7 +28,42 @@ from pathlib import Path
 
 TARGETS = Path(__file__).resolve().parent.parent / "deploy-check" / "targets.json"
 STATE = Path.home() / ".harah" / "watchdog-state.json"
-KNOWN_BAD = {"showalter"}   # unhealthy for weeks, pre-existing — see OPEN-ITEMS
+# Chronic failures that are understood and accepted, each with the REASON it is
+# excluded from alerting. A suppression with no stated reason is how `showalter`
+# sat unexplained for months (docs/dev-notes.md, 2026-08-25) — the dashboard
+# renders these strings, so an entry here has to justify itself in the UI.
+#
+# The suppression covers the KNOWN failure only. See classify_container: a
+# suppressed container that has stopped running entirely is a different failure
+# wearing the same name, and it still reports.
+KNOWN_BAD = {
+    "showalter": "healthcheck dials http://localhost:5827/api/health, which "
+                 "resolves to ::1 while the Next server binds IPv4-only, so it "
+                 "can never pass. The app serves 200 on 127.0.0.1 and on "
+                 "https://sawyer.showalter.business. Fix filed: Project-Showalter#91.",
+}
+
+
+def classify_container(name: str, status: str, code: int) -> dict:
+    """One container's health, and whether its failure is the accepted one.
+
+    Split out from main() so the suppression rule is testable without Docker —
+    watchdog-selftest.py imports this exact function rather than a copy of it.
+    """
+    up = bool(status) and code == 0
+    unhealthy = "unhealthy" in status.lower()
+    ok = up and not unhealthy
+    reason = KNOWN_BAD.get(name)
+    # The suppression is narrow on purpose. It covers the accepted failure —
+    # running but unhealthy — and nothing else. A known-bad container that has
+    # stopped entirely has failed in a NEW way, and one that has recovered has
+    # nothing left to suppress; keeping the flag on either would mean the target
+    # we stopped watching is also the one that can never tell us it changed.
+    suppressed = bool(reason) and up and not ok
+    return {"name": name, "kind": "container", "ok": ok,
+            "detail": status or "NOT RUNNING",
+            "known_bad": suppressed,
+            "known_bad_reason": reason if suppressed else None}
 
 
 def sh(*args: str, timeout: int = 30) -> tuple[int, str]:
@@ -54,21 +89,18 @@ def main() -> int:
             continue
         for c in t.get("containers", []):
             code, status = sh("docker", "ps", "--filter", f"name=^{c}$", "--format", "{{.Status}}")
-            up = bool(status) and code == 0
-            unhealthy = "unhealthy" in status.lower()
-            ok = up and not unhealthy
-            entry = {"name": c, "kind": "container", "repo": repo, "ok": ok,
-                     "detail": status or "NOT RUNNING",
-                     "known_bad": c in KNOWN_BAD}
+            entry = classify_container(c, status, code)
+            entry["repo"] = repo
             targets.append(entry)
-            if not ok and c not in KNOWN_BAD:
+            if not entry["ok"] and not entry["known_bad"]:
                 problems.append(f"{c}: {entry['detail']}")
         for u in t.get("urls", []):
             code, out = sh("curl", "-s", "-o", "/dev/null", "-w", "%{http_code}",
                            "--max-time", "20", u)
             ok = out[:1] in ("2", "3")
             targets.append({"name": u, "kind": "url", "repo": repo, "ok": ok,
-                            "detail": f"HTTP {out or '000'}", "known_bad": False})
+                            "detail": f"HTTP {out or '000'}", "known_bad": False,
+                            "known_bad_reason": None})
             if not ok:
                 problems.append(f"{u}: HTTP {out or '000'}")
 
