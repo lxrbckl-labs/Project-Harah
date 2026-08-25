@@ -2272,3 +2272,163 @@ Corrected in the same session that wrote it, because a stale status line in the
 board of record is exactly the drift this file exists to prevent.
 
 — Harah
+
+### 2026-08-25 (resolver loop, run 5, session 1) — zero alerts *and* zero dependabot PRs, so the work was the two things the empty board was hiding
+
+The board is zero for the fifth run, and this time both halves were measured,
+because run 4 established that they are different endpoints and only one of them
+was empty for an interesting reason:
+
+| | |
+|---|---|
+| org endpoint (`/orgs/lxrbckl-labs/dependabot/alerts?state=open`) | **0** |
+| per-repo sweep, all 39 owned non-archived repos | **0** open, **0** dark |
+| open dependabot **PRs**, swept per-repo across all 39 | **0** |
+| open PRs by any author | 8, all human-authored |
+
+Authorship was checked by signature, not login, with both controls in the same
+batch (POLICY: `author: lxRbckl` proves nothing). Of the 8 open PRs exactly one
+is Harah's — `Project-Harah` #11, the retrospective — and the controls behaved
+(`reactive-resume` #22 → 1, `Project-Evermore` #21 → 1). `lxRbckl/.claude` #39 is
+authored by **`aarbuckle2`, the work account**: a hard stop, not read, not
+touched.
+
+**The zsh word-splitting trap caught this session too**, on the first try, in a
+loop this file already warns about twice. `for r in $TARGETS` over a
+space-separated string sent all sixteen repo names to `gh` as a single argument
+and returned one 404. It is worth being blunt in the note, since warning prose
+has now failed three sessions running: **in zsh, write the list as an array —
+`targets=(a b c); for r in "${targets[@]}"` — never as a string you expect to
+split.**
+
+#### The gap the empty board was hiding: alerts were on everywhere, remediation was not
+
+Every previous run measured *alert coverage* — 39/39 enabled, 0 dark — and
+reported the estate as fully covered. That measured one of the two switches.
+Dependabot has a second, independent one, **security updates**
+(`/repos/{repo}/automated-security-fixes`), which is what actually opens the
+remediation PR when an alert fires. Measured this pass:
+
+| | |
+|---|---|
+| alerts enabled | **39 / 39** (as reported for days) |
+| security updates enabled | **23 / 39** |
+
+Sixteen repos could see a vulnerability and had no way to propose the fix —
+including three that serve live traffic on this mini: **Project-DS,
+Project-Showalter, Project-VoiceToColumn**. On those repos the loop's first
+automated step did not exist, and an alert would have sat silent until a resolver
+session happened to look.
+
+Enabled on all sixteen (POLICY, *Repo security settings — visibility is
+authorized*: additive only, and explicitly in scope). `PUT` returned 204 for each;
+re-reading `.enabled` across all 39 afterwards returns **enabled=39, disabled=0**.
+This closes no alert today — there are none — which is exactly why it went
+unnoticed for weeks.
+
+> **"Coverage" is two switches, not one.** `vulnerability-alerts` is the sensor;
+> `automated-security-fixes` is the responder. A repo with the first and not the
+> second reports as covered by every check this project was running, and is
+> silently manual. Measure both, and say which one you measured.
+
+#### The other thing an empty board hid: the panel was not showing the work
+
+POLICY's reporting rule has said since 2026-08-23 that every resolver merge,
+resolution and publish must appear in the dashboard's Repo Grooming panel *"so
+the dashboard shows what Harah fixed without anyone reading logs"*, and names
+building it as **Harah's own first-priority backlog item** if the panel does not
+render them. It did not.
+
+`/api/grooming` had been returning a `resolver_actions` array for days — **27
+actions, 169 closed alerts**. The panel read only the `merged` / `queued` half,
+which `groom.sh` writes from open dependabot **PRs**. There are none, so both
+arrays are empty and the panel displayed:
+
+> All repos current — nothing to merge or review.
+
+directly over the complete record it had already fetched and was throwing away.
+Fixed in **#49**.
+
+> **An empty panel is ambiguous in a way an empty list is not.** "Nothing to
+> show" and "showing nothing" render identically. The wording was also doing
+> damage — `groom.sh` measures *"no open dependabot PRs"*, and the panel
+> generalised that to *"all repos current"*, a much larger claim it had no
+> evidence for. It now says what it measured.
+
+Two implementation notes worth keeping. **The state file holds two generations of
+writer** — older actions carry `merged_commit` / `deployed` / `days_behind_main` /
+`by`, newer ones `merge_commit` / `deployed_or_days_behind` / `lineage` — so
+every field past `kind` and `repo` is optional and the panel normalises both,
+including parsing the days-behind number back out of the newer prose form. And
+an **unrecognised `kind` still renders** with its raw label: the failure being
+fixed here is a record silently not appearing, and a strict `kind` map would have
+rebuilt that same failure one schema change later.
+
+**Verification, and the part `tsc` cannot do.** Delta vs `main`, both sides in the
+same pass: `npm run build` (`tsc -b && vite build`) exit 0 / exit 0; `npm run
+lint` (`oxlint`) exit 0 / exit 0 with the same single pre-existing
+`App.tsx:133` warning. That proves types, not rendering — so the panel was driven
+in **headless chromium against the live dashboard on this mini**, serving the
+real `/api/grooming`: 1 matching panel, **27 rows for 27 actions**, 26 PR links
+(the one `coverage`-kind action has `pr: null` and correctly renders without one),
+**zero console errors**. Post-merge, rebuilding from `main` produced the
+**identical asset hash** (`index-vjvQJ9_3.js`), so the bundle exercised in the
+browser is byte-identical to what `main` builds.
+
+Playwright is not installed in this repo; the `scout` skill's `node_modules`
+already has it and a throwaway harness placed **inside that `node_modules`**
+resolves it (Node resolves from the script's path, not `cwd` — the same trick this
+file records for the puppeteer replay). Deleted after use.
+
+#### Deployment — and one merge that genuinely did ship
+
+`deploy-check/verify.py` on all four served targets, measured today:
+
+| target | days behind `main` | live |
+|---|---|---|
+| `reactive-resume` | **51** | both tenants HTTP 200, image 2026-07-03 |
+| `Project-VoiceToColumn` | **50** | HTTP 200, image 2026-07-03 |
+| `Project-Jordyn` | **15** | HTTP 200, image 2026-08-08 |
+| `Project-Showalter` | **35** | `unhealthy` — pre-existing, not today's |
+
+Every one of their CI runs concluded `skipped` at the publish gate, and all four
+are gated on `dockerhub-pat-dead`, **day 9**, org secrets still
+`created = updated = 2025-10-18T19:47Z`.
+
+**#49 is the exception, and it is worth being precise about why:** the dashboard
+is not in the DockerHub path at all. It runs as the launchd job
+`com.lxrbckl.servermanager-dashboard` and FastAPI serves `web/dist` from disk, so
+`verify.py` correctly answers `unknown repo` and the change was live the moment
+it was built. Confirmed by function and not just liveness, per this file's own
+rule: `/api/health` 200, **`/api/containers` → 35 containers** (Docker
+reachability), `/api/grooming` serving the actions.
+
+#### The ping, and a note on repeating oneself
+
+The dedicated OPERATOR-BLOCKED ping for UTC-day 2026-08-25 was sent, and per the
+registry's own standing instruction it named the **ghcr.io alternative** for the
+first time: the shared workflow could publish to GitHub Container Registry with
+the built-in `GITHUB_TOKEN` and need no DockerHub credential at all. Stated
+explicitly as Alex's infrastructure decision — it changes where images live and
+what watchtower pulls — and therefore **not** something Harah executes
+unattended.
+
+Recorded for the next session, because it is a judgment about the ask rather than
+the credential: **if a tenth repetition also produces nothing, stop re-sending the
+same two options daily and put it to Alex as a yes/no choice between them.** Nine
+identical asks is a signal about the ask.
+
+**Status: `EXHAUSTED`.** Both halves of the board are zero and were re-swept
+per-repo after the merge. What remains is not actionable by Harah:
+
+- **`dockerhub-pat-dead`**, day 9 — the only thing between the merged estate and
+  a deployed one, and the reason four targets sit 15–51 days behind `main`.
+- **`summons-authority-conflict`** — still needs Alex's word.
+- **`Project-Evermore` `main`** red on the intermittent a11y contrast assertion
+  (issue #24, no Dependabot lineage — filed, not fixed) and **branch protection
+  on that repo**, a recommendation POLICY does not authorise Harah to apply.
+- **`Project-Harah` #11**, Harah's own retrospective, left open deliberately.
+  Its history holds up; its "still blocked" paragraph did not, so it now carries
+  a signed comment correcting the four claims rather than being quietly merged.
+
+— Harah
