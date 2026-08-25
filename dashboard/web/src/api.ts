@@ -75,7 +75,7 @@ export interface GroomingResp {
   updated_by_resolver?: number | null;
 }
 
-export interface WatchTarget { name: string; kind: string; repo: string; ok: boolean; detail: string; known_bad: boolean; }
+export interface WatchTarget { name: string; kind: string; repo: string; ok: boolean; detail: string; known_bad: boolean; known_bad_reason?: string | null; }
 export interface Incident { target: string; ts: number; outcome: string; action: string; detail: string; }
 export interface WatchdogResp {
   last_run: number | null;

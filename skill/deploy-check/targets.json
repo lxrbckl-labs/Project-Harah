@@ -52,8 +52,10 @@
   "containers": [
    "showalter"
   ],
-  "urls": [],
-  "notes": "Reports UNHEALTHY and has for weeks — pre-existing, see OPEN-ITEMS. Don't attribute it to a dependency merge."
+  "urls": [
+   "https://sawyer.showalter.business"
+  ],
+  "notes": "Serves sawyer.showalter.business via Caddy -> :5827 (the site block was here all along; this entry carried urls=[] until 2026-08-25, which is why the one target flagged unhealthy was also the one never probed). The container reports UNHEALTHY and always has — FailingStreak 13614 — because the image's HEALTHCHECK dials http://localhost:5827/api/health, /etc/hosts resolves localhost to ::1 first, and the Next server binds IPv4-only, so the probe is refused. 127.0.0.1 returns {\"ok\":true} and the public URL returns 200. Root cause filed as Project-Showalter#91. Don't attribute the unhealthy flag to a dependency merge."
  },
  "lxrbckl-labs/Project-ASBC": {
   "image": null,
@@ -72,7 +74,9 @@
   "containers": [
    "project-ds-mcp-1"
   ],
-  "urls": [],
-  "notes": "MCP server only. Published on :4000 with no Caddy site block, so container-health only (same shape as Project-FlyingGitman). apps/web is NOT deployed on this mini as of 2026-08-23 - no container, no Caddy block - so a days-behind number here measures the MCP image alone. project-ds-postgres-1 is its database, deliberately not listed: it runs postgres:17-alpine, not an image this repo builds."
+  "urls": [
+   "https://ds.lxrbckl.com"
+  ],
+  "notes": "MCP server on :4000 plus a Caddy site block at ds.lxrbckl.com. CORRECTION 2026-08-25: the previous note said apps/web has 'no Caddy block' — it does. ds.lxrbckl.com routes /mcp* to :4000 and everything else to host.docker.internal:3671, which is the compose stack's `app` service. That service has no container on this mini and lxrbckl/project-ds-app:main is not even pulled, so the site root returns HTTP 502 and has for at least as long as this entry has been blind to it. The URL is listed unsuppressed on purpose: a 502 on a live domain is a real defect awaiting a decision (bring `app` up, or narrow the Caddy block to /mcp*), not an accepted condition. days-behind here still measures the MCP image alone. project-ds-postgres-1 is its database, deliberately not listed: it runs postgres:17-alpine, not an image this repo builds."
  }
 }
