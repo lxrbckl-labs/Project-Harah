@@ -37,12 +37,42 @@ export interface BackupsResp { databases: BackupDb[]; backup_dir: string; }
 
 export interface GroomingItem { kind: string; repo: string; pr: number; title: string; reason: string; }
 
+/** One thing the resolver actually did — a merge, a resolution, a publish, a
+ *  tooling repair. Written by the resolver session per POLICY's reporting rule
+ *  ("every fix lands in the UI"), so this panel is the record of Harah's work
+ *  without anyone reading a log.
+ *
+ *  Two generations of writer exist and both are in the file on disk: the older
+ *  one wrote `merged_commit` / `deployed` / `days_behind_main` / `by`, the newer
+ *  one writes `merge_commit` / `deployed_or_days_behind` / `lineage`. Everything
+ *  past `kind` and `repo` is therefore optional and the panel normalises. */
+export interface ResolverAction {
+  kind: string;
+  repo: string;
+  pr?: number | null;
+  what?: string;
+  lineage?: string;
+  verified_by?: string;
+  alerts_closed?: number[];
+  alerts_closed_count?: number;
+  merged_commit?: string | null;
+  merge_commit?: string | null;
+  deployed?: boolean;
+  days_behind_main?: number | null;
+  deployed_or_days_behind?: string;
+  deploy_note?: string;
+  timestamp?: number;
+  by?: string;
+}
+
 export interface GroomingResp {
   last_run: number | null;
   dry_run: boolean;
   merged: GroomingItem[];
   queued: GroomingItem[];
-  totals: { merged: number; queued: number; repos_with_prs: number };
+  totals: { merged: number; queued: number; repos_with_prs: number; alerts_closed_by_resolver?: number };
+  resolver_actions?: ResolverAction[];
+  updated_by_resolver?: number | null;
 }
 
 export interface WatchTarget { name: string; kind: string; repo: string; ok: boolean; detail: string; known_bad: boolean; }
