@@ -2564,6 +2564,26 @@ org secrets `DOCKERHUB_TOKEN` / `DOCKERHUB_USERNAME` still read
 ping for UTC-day 2026-08-25 went out at 04:5xZ, this session ran at 10:5xZ the
 same UTC day, and daily was already satisfied.
 
+#### A process slip worth writing down: don't dump container env to read a healthcheck
+
+Diagnosing the `showalter` probe, this session ran
+
+```sh
+docker inspect showalter --format '... {{range .Config.Env}}{{println .}}{{end}}'
+```
+
+to find the port the server was told to bind. It printed **every** environment
+variable, including a live application secret, into the session transcript. It
+was not written to any file, commit, PR body, issue, or state file, and nothing
+needs rotating on account of it — but the guardrail is *never read, move or print
+secrets*, and a wide `--format` over `.Config.Env` is a read of all of them.
+
+> **Ask for the field you want.** `{{json .Config.Healthcheck}}`, `docker port`,
+> and `{{json .Config.ExposedPorts}}` answered the actual question — what does the
+> probe dial and what is published — without touching `Env` at all. If a specific
+> variable really is needed, grep for that one name rather than ranging over the
+> whole set.
+
 #### The regression the first PR introduced, caught the same session (#52)
 
 `watch.sh` logs a pass only when the output contains `UNHEALTHY` / `WENT DOWN` /
