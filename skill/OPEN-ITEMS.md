@@ -13,7 +13,12 @@
   **This is now the ONLY thing between Harah and a maintained estate** — as of
   2026-08-23 the alert board is empty and the publish authority question is
   settled, so this credential is the whole remaining gap. Tracked as
-  OPERATOR-BLOCKED `dockerhub-pat-dead` (day 7) and texted daily.
+  OPERATOR-BLOCKED `dockerhub-pat-dead` (**day 9** as of 2026-08-25) and
+  texted daily. The 2026-08-25 ping added a second option to offer:
+  **ghcr.io**, which the shared workflow could publish to with the built-in
+  `GITHUB_TOKEN` and no DockerHub credential at all — Alex's infrastructure
+  call (it moves where images live and what watchtower pulls), not Harah's
+  to execute.
   Contrast worth knowing: the PyPI token in `lxRbckl/lxRbckl`, also never
   rotated (2023-11-21), published fine on 2026-08-23 — this is Docker Hub's
   revocation, not a generic secrets problem. Safe failure mode confirmed: a
@@ -38,10 +43,17 @@
   re-derivations the board of record, and every count previously listed here
   went stale within days and then contradicted live measurement (the 2026-08-22
   drill). Read dev-notes, then measure live with `gh`, in that order.
-  **Last measured 2026-08-23 19:45 CDT: 0 open alerts across all 39 owned
-  non-archived repos** (coverage re-swept the same minute: 39/39 have
-  Dependabot alerts enabled, 0 dark). Nothing is queued and nothing is blocked
-  behind a human PR.
+  **Last measured 2026-08-25: 0 open alerts AND 0 open dependabot PRs across
+  all 39 owned non-archived repos, 0 dark.** Nothing is queued and nothing is
+  blocked behind a human PR.
+  **Coverage is two switches, and only one had ever been measured here.**
+  `vulnerability-alerts` is the sensor; `automated-security-fixes` is the
+  responder that opens the remediation PR. Alerts read 39/39 for weeks while
+  security updates were **23/39** — sixteen repos, including the deployed
+  Project-DS, Project-Showalter and Project-VoiceToColumn, could see a
+  vulnerability and not propose the fix. Enabled on all sixteen 2026-08-25
+  (POLICY: visibility); re-read afterwards, **39/39 on both switches**. When
+  reporting coverage, say which switch was measured.
 - 🟡 **`reactive-resume` `main` still cannot `pnpm build`** (since 2026-08-15).
   The original cause — the unbounded `"h3": ">=2.0.1-rc.17"` override floating
   to `h3@2.0.1-rc.20`, which dropped `resolveDotSegments` — is fixed by **PR
