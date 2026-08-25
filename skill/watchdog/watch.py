@@ -66,6 +66,32 @@ def classify_container(name: str, status: str, code: int) -> dict:
             "known_bad_reason": reason if suppressed else None}
 
 
+def summarize(targets: list, problems: list, prev_problems: list,
+              transitions: list) -> str:
+    """The one line watch.sh greps to decide whether this pass is worth logging.
+
+    `UNHEALTHY` / `WENT DOWN` / `RECOVERED` are the words that put a pass in the
+    log, so an unchanged problem must not print any of them — otherwise a single
+    long-lived failure writes an identical line every ten minutes and buries the
+    events the log exists for. That is not hypothetical: adding
+    ds.lxrbckl.com (HTTP 502, awaiting a decision, not a repair) turned every
+    pass into a logged one.
+
+    The problem stays in `problems` and the estate stays `healthy: false` — this
+    governs the LOG, not the truth. A changed problem set is news; the same set
+    twice is not.
+    """
+    if not problems:
+        return f"all {len(targets)} targets healthy"
+    line = f"UNHEALTHY ({len(problems)}/{len(targets)}): " + "; ".join(problems[:6])
+    if transitions or set(problems) != set(prev_problems):
+        return line
+    # Unchanged. Say it without the words that trigger a log write.
+    return (f"steady: {len(targets) - len(problems)}/{len(targets)} serving, "
+            f"{len(problems)} known problem(s) unchanged since the last pass "
+            f"[{'; '.join(problems[:6])}]")
+
+
 def sh(*args: str, timeout: int = 30) -> tuple[int, str]:
     try:
         p = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
@@ -76,12 +102,14 @@ def sh(*args: str, timeout: int = 30) -> tuple[int, str]:
 
 def main() -> int:
     cfg = json.loads(TARGETS.read_text())
-    prev = {}
+    prev, prev_problems = {}, []
     if STATE.exists():
         try:
-            prev = {t["name"]: t for t in json.loads(STATE.read_text()).get("targets", [])}
+            was = json.loads(STATE.read_text())
+            prev = {t["name"]: t for t in was.get("targets", [])}
+            prev_problems = was.get("problems", [])
         except Exception:
-            prev = {}
+            prev, prev_problems = {}, []
 
     targets, problems, transitions = [], [], []
     for repo, t in cfg.items():
@@ -130,10 +158,7 @@ def main() -> int:
 
     for line in transitions:
         print(line)
-    if problems:
-        print(f"UNHEALTHY ({len(problems)}/{len(targets)}): " + "; ".join(problems[:6]))
-    else:
-        print(f"all {len(targets)} targets healthy")
+    print(summarize(targets, problems, prev_problems, transitions))
     # Non-zero only on a NEW failure, so the runner logs a quiet pass quietly.
     return 1 if any(t.startswith("WENT DOWN") for t in transitions) else 0
 
