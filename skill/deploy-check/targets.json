@@ -5,7 +5,13 @@
   "",
   "Used by verify.py to answer the only question that matters after a merge:",
   "is the thing this repo serves still up, and is it running the code we",
-  "just merged, or the old image?"
+  "just merged, or the old image?",
+  "",
+  "\"checks\" (optional, used by prove/): functional probes run against the LIVE app",
+  "after its image changes. {name, url, status?, contains?}. A target with urls",
+  "but no checks gets one default GET per url expecting 2xx/3xx. Add a check for",
+  "every user-visible function worth not losing: a page that must render, an API",
+  "that must answer, a login form that must exist."
  ],
  "lxrbckl-labs/reactive-resume": {
   "image": "lxrbckl/reactive-resume:main",
@@ -17,7 +23,19 @@
    "https://resume.lxrbckl.com",
    "https://resume.jbarger.app"
   ],
-  "notes": "Two tenants share one image. msymmonds tenant was spun down; its Caddy block is stale."
+  "notes": "Two tenants share one image. msymmonds tenant was spun down; its Caddy block is stale.",
+  "checks": [
+   {
+    "name": "lxrbckl tenant",
+    "url": "https://resume.lxrbckl.com/",
+    "status": 200
+   },
+   {
+    "name": "jbarger tenant",
+    "url": "https://resume.jbarger.app/",
+    "status": 200
+   }
+  ]
  },
  "lxrbckl-labs/Project-Jordyn": {
   "image": "lxrbckl/project-jordyn:main",
@@ -27,7 +45,14 @@
   "urls": [
    "https://jbarger.app"
   ],
-  "notes": "Serves jbarger.app via Caddy -> :8047 -> container :8080."
+  "notes": "Serves jbarger.app via Caddy -> :8047 -> container :8080.",
+  "checks": [
+   {
+    "name": "home",
+    "url": "https://jbarger.app/",
+    "status": 200
+   }
+  ]
  },
  "lxrbckl-labs/Project-FlyingGitman": {
   "image": "lxrbckl/project-flyinggitman:main",
@@ -35,7 +60,7 @@
    "flyinggitman"
   ],
   "urls": [],
-  "notes": "No published port and no Caddy site block — container-health only."
+  "notes": "No published port and no Caddy site block \u2014 container-health only."
  },
  "lxrbckl-labs/Project-VoiceToColumn": {
   "image": "lxrbckl/project-voicetocolumn:main",
@@ -45,7 +70,14 @@
   "urls": [
    "https://voicetocolumn.lxrbckl.com"
   ],
-  "notes": ""
+  "notes": "",
+  "checks": [
+   {
+    "name": "home",
+    "url": "https://voicetocolumn.lxrbckl.com/",
+    "status": 200
+   }
+  ]
  },
  "lxrbckl-labs/Project-Showalter": {
   "image": "lxrbckl/project-showalter:main",
@@ -55,13 +87,26 @@
   "urls": [
    "https://sawyer.showalter.business"
   ],
-  "notes": "Serves sawyer.showalter.business via Caddy -> :5827 (the site block was here all along; this entry carried urls=[] until 2026-08-25, which is why the one target flagged unhealthy was also the one never probed). The container reports UNHEALTHY and always has — FailingStreak 13614 — because the image's HEALTHCHECK dials http://localhost:5827/api/health, /etc/hosts resolves localhost to ::1 first, and the Next server binds IPv4-only, so the probe is refused. 127.0.0.1 returns {\"ok\":true} and the public URL returns 200. Root cause filed as Project-Showalter#91. Don't attribute the unhealthy flag to a dependency merge."
+  "notes": "Serves sawyer.showalter.business via Caddy -> :5827 (the site block was here all along; this entry carried urls=[] until 2026-08-25, which is why the one target flagged unhealthy was also the one never probed). The container reports UNHEALTHY and always has \u2014 FailingStreak 13614 \u2014 because the image's HEALTHCHECK dials http://localhost:5827/api/health, /etc/hosts resolves localhost to ::1 first, and the Next server binds IPv4-only, so the probe is refused. 127.0.0.1 returns {\"ok\":true} and the public URL returns 200. Root cause filed as Project-Showalter#91. Don't attribute the unhealthy flag to a dependency merge.",
+  "checks": [
+   {
+    "name": "site root",
+    "url": "https://sawyer.showalter.business/",
+    "status": 200
+   },
+   {
+    "name": "api health",
+    "url": "https://sawyer.showalter.business/api/health",
+    "status": 200,
+    "contains": "\"ok\":true"
+   }
+  ]
  },
  "lxrbckl-labs/Project-ASBC": {
   "image": null,
   "containers": [],
   "urls": [],
-  "notes": "Not deployed on the mini. No CI, no tests, no container — POLICY forbids merging here regardless."
+  "notes": "Not deployed on the mini. No CI, no tests, no container \u2014 POLICY forbids merging here regardless."
  },
  "lxrbckl-labs/Project-RCoD": {
   "image": null,
@@ -77,6 +122,12 @@
   "urls": [
    "https://ds.lxrbckl.com"
   ],
-  "notes": "MCP server on :4000 plus a Caddy site block at ds.lxrbckl.com. CORRECTION 2026-08-25: the previous note said apps/web has 'no Caddy block' — it does. ds.lxrbckl.com routes /mcp* to :4000 and everything else to host.docker.internal:3671, which is the compose stack's `app` service. That service has no container on this mini and lxrbckl/project-ds-app:main is not even pulled, so the site root returns HTTP 502 and has for at least as long as this entry has been blind to it. The URL is listed unsuppressed on purpose: a 502 on a live domain is a real defect awaiting a decision (bring `app` up, or narrow the Caddy block to /mcp*), not an accepted condition. days-behind here still measures the MCP image alone. project-ds-postgres-1 is its database, deliberately not listed: it runs postgres:17-alpine, not an image this repo builds."
+  "notes": "MCP server on :4000 plus a Caddy site block at ds.lxrbckl.com. CORRECTION 2026-08-25: the previous note said apps/web has 'no Caddy block' \u2014 it does. ds.lxrbckl.com routes /mcp* to :4000 and everything else to host.docker.internal:3671, which is the compose stack's `app` service. That service has no container on this mini and lxrbckl/project-ds-app:main is not even pulled, so the site root returns HTTP 502 and has for at least as long as this entry has been blind to it. The URL is listed unsuppressed on purpose: a 502 on a live domain is a real defect awaiting a decision (bring `app` up, or narrow the Caddy block to /mcp*), not an accepted condition. days-behind here still measures the MCP image alone. project-ds-postgres-1 is its database, deliberately not listed: it runs postgres:17-alpine, not an image this repo builds.",
+  "checks": [
+   {
+    "name": "mcp endpoint answers",
+    "url": "https://ds.lxrbckl.com/mcp"
+   }
+  ]
  }
 }

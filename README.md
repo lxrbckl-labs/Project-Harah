@@ -14,18 +14,17 @@ ServerManager is deliberately **Docker- and Caddy-oriented**. It assumes:
 - A **Caddy** container is the reverse proxy, with its `Caddyfile` reachable
   (typically a bind mount from the host).
 
-## project-harah — the GitHub App identity (2026-08-23)
+## Harah — the housekeeper (2026-10-25)
 
-Harah acts on GitHub as **`project-harah`**: summon it with an `@project-harah`
-comment on any PR in Alex's repos (author-gated to Alex; the mention is his
-per-PR word to FIX that PR — doctrine in `skill/grooming/POLICY.md` "The
-summons"). The App identity machinery lives in
-[`skill/app/`](skill/app/) — registration runbook, token minting, and the
-`as-bot.sh` wrapper that makes comments/commits genuinely come from
-`project-harah[bot]`. **Status: machinery ready; App registration awaits Alex**
-(10-minute browser form — `skill/app/README.md`); until then everything
-runs on the legacy identity with the `— Harah` signature and Harah git
-author. Never grant the App wider permissions than POLICY allows.
+Harah keeps Alex's GitHub estate in three scheduled layers on the Mac mini:
+**sweep** (merge the safe Dependabot PRs), **resolve** (a headless session
+fixes the rest through verified pull requests), **prove** (after a deploy,
+test the live app against its last known-good baseline). Doctrine in
+[`skill/`](skill/README.md); merge authority only in
+[`skill/grooming/POLICY.md`](skill/grooming/POLICY.md). Harah merges; Alex
+publishes. The `project-harah` GitHub App identity (`skill/app/`) is optional
+machinery; without its credentials everything runs as the legacy identity with
+the `— Harah` signature.
 
 ## What's here
 
