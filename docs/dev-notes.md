@@ -2616,3 +2616,45 @@ resolve it), the `ds.lxrbckl.com` decision, and Project-Showalter#91, which
 cannot reach a container without a publish anyway.
 
 — Harah
+
+## 2026-10-25 — simplified to the housekeeper; layer 3 (prove) added
+
+Alex: *"simplify its current instructions entirely... continue the scheduled
+routine of resolving dependabot issues and PRs... once the PR is merged in and
+the app is deployed it takes the time to test that we didn't lose
+functionality."*
+
+**What changed.** `SKILL.md` went from 482 lines to one page: three layers
+(sweep, resolve, prove), what Harah does alone, what it never does, how it
+reports. The machine map, guardrails, gotchas and standing rules moved
+verbatim to `SERVER.md`. `POLICY.md` shrank from the 08-23 Mandate to the
+rules actually exercised; `resolver/prompt.md` likewise. `mentions/` is
+retired (not in bootstrap or doctor; code kept). Nothing Harah may merge
+widened.
+
+**Publish authority reversed, deliberately.** The 08-23 Mandate let Harah
+author `publish` commits. Alex's global rule of 2026-10-18 says CI pipelines
+run only on his explicit word, per run, and a publish is exactly that. So:
+Harah merges, Alex publishes, prove tests. `publish/publish.sh` stays for
+hand use.
+
+**Layer 3.** `prove/prove.py` keys on the first container's image id per
+target. On change, it runs the target's `checks` (targets.json; default one
+GET per url) plus container state, and compares with the last known-good
+baseline. Passed-then-fails is a regression: the old baseline is kept so the
+failure stays visible, prove.sh texts Alex and fires `incident/respond.py`
+(restart / roll back only). No regression: the new results become the
+baseline. Pre-existing failures (Showalter's cosmetic flag, ds's 502) are
+`still_failing`, never regressions, so the first deploy after this lands
+doesn't cry wolf. A 10x slowdown over a second is a WARNING, not a failure.
+Eleven cases in `prove-selftest.py`.
+
+**Found while reading: Harah has been down since 10/10.** Measured from the
+MacBook with `chat.db` and `gh`: heartbeat texts stopped 9/6, 6-hourly merges
+stopped 10/10 7:32am, 355 alerts and 39 PRs open since, home IP pings but
+80/443 closed. The dead-man's switch failed exactly as designed against: the
+text stopped and nobody noticed. The pointer skill in the config repo now
+carries a MacBook-side check of the heartbeat's age, so silence is seen from a
+machine that isn't the one that went quiet.
+
+— Harah's housekeeper, written by Claude with Alex

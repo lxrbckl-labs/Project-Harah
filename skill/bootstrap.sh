@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Harah self-deploy — one idempotent command that takes a mini from "doctrine
 # on disk" to "machinery running 24/7". Standing-authorized (Alex, 2026-08-23):
-# ANY Harah session on the mini that finds routines dead runs this — the
+# ANY Harah session on the mini that finds routines dead runs this (mentions retired 2026-10-25) — the
 # machinery being down is itself a maintenance failure Harah owns.
 # Safe to re-run any time; enable scripts are idempotent.
 set -uo pipefail
@@ -19,7 +19,7 @@ mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs" "$HOME/.harah"
 
 git -C "$HERE/.." pull --rebase --autostash 2>/dev/null || echo "⚠ pull failed — deploying the code already on disk"
 
-for r in watchdog mentions alerts grooming resolver heartbeat; do
+for r in watchdog prove alerts grooming resolver heartbeat; do
   echo "── enabling $r"
   bash "$HERE/$r/enable.sh" || echo "⚠ $r enable failed — doctor will show it; keep going"
 done

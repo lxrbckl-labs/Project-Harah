@@ -26,7 +26,7 @@ age() { # age of a file in human terms, or "never"
 }
 
 check_routine() { # name label log expected_max_age_hours [state_file]
-  # state_file is for TRANSITION-ONLY routines (watchdog, mentions): they log
+  # state_file is for TRANSITION-ONLY routines (watchdog, prove): they log
   # only when something happens, so a quiet log is health, not silence. Their
   # real liveness signal is the state file they rewrite every pass. Without
   # this, doctor reported both ⚠ STALE forever while they ran perfectly —
@@ -70,7 +70,7 @@ check_routine() { # name label log expected_max_age_hours [state_file]
 
 hdr "launchd routines (label · state · last log write · verdict)"
 check_routine "watchdog"  "com.alex.harah-watchdog"  "$HOME/Library/Logs/harah-watchdog.log"  1 "$HOME/.harah/watchdog-state.json"
-check_routine "mentions"  "com.alex.harah-mentions"  "$HOME/Library/Logs/harah-mentions.log"  1 "$HOME/.harah/mentions-state.json"
+check_routine "prove"     "com.alex.harah-prove"     "$HOME/Library/Logs/harah-prove.log"     1 "$HOME/.harah/prove-state.json"
 check_routine "alerts"    "com.alex.harah-alerts"    "$HOME/Library/Logs/harah-alerts.log"    7
 check_routine "grooming"  "com.alex.harah-grooming"  "$HOME/Library/Logs/harah-grooming.log"  26
 check_routine "resolver"  "com.alex.harah-resolver"  "$HOME/Library/Logs/harah-resolver.log"  26
@@ -98,7 +98,7 @@ hdr "the silent killers"
 # marker all three logs share), and only anchored real error shapes, which
 # markdown prose about them cannot match.
 AUTH_RE='^([0-9]{4}-[0-9]{2}-[0-9]{2}[ T][0-9:]+ )?(ERROR: gh not authenticated|Failed to authenticate|Invalid API key|Please run /login|Not logged in)'
-for lg in harah-resolver harah-grooming harah-mentions; do
+for lg in harah-resolver harah-grooming; do
   f="$HOME/Library/Logs/$lg.log"
   [ -f "$f" ] || continue
   latest=$(awk '/^===== /{buf=""} {buf=buf $0 "\n"} END{printf "%s", buf}' "$f" 2>/dev/null)
@@ -112,7 +112,7 @@ for lg in harah-resolver harah-grooming harah-mentions; do
   fi
 done
 # 2. gh auth (routines read GitHub read-only, but dead auth = empty passes)
-gh auth status >/dev/null 2>&1 && echo "✓ gh authenticated" || echo "✗ gh NOT authenticated — alerts/mentions/grooming see nothing"
+gh auth status >/dev/null 2>&1 && echo "✓ gh authenticated" || echo "✗ gh NOT authenticated — alerts/grooming/resolver see nothing"
 # 3. Checkout freshness: routines run from this checkout; a stale one runs old code.
 # WHICH BRANCH comes first, because "behind" is meaningless off main (2026-08-24):
 # a session that ends on its own branch leaves the checkout there, and
