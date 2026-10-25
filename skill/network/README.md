@@ -68,3 +68,29 @@ Behind the access code: `ipalloc.ha` (fixed allocations), `dhcpserver.ha`,
 enabled"; any prior request fixes it. Login posts `nonce`, blank `password`,
 `hashpassword = md5(code + nonce)`, `Continue`, exactly as the page's own
 `hashpwd()` does. TLS is self-signed.
+
+## Later: what devices are doing, not just who is here (parked 2026-10-25)
+
+The gateway reports presence only: who joined, who left, who moved. It keeps
+no per-device traffic or DNS log and has no API for one. To see *what* a
+device does on the internet, add a DNS layer on the mini once it is up:
+
+1. Run **AdGuard Home** (or Pi-hole) as one more Docker stack on the mini,
+   DNS on `:53`, admin UI behind Caddy on the LAN only (never public).
+2. Point the gateway's DHCP DNS at the mini (`dhcpserver.ha`, access code),
+   so every device resolves through it. Keep AT&T's resolvers as the
+   upstream.
+3. Harah reads AdGuard's query log per client (its API is simple) and the
+   roster gains a "what it talks to" view; blocking lists are a bonus.
+
+Not started. Needs the mini on and addressed at `.200` first. Alex's call per
+step, like every other gateway change.
+
+## On the mini
+
+Same script, Python stdlib only, same LAN, nothing to install. What the mini
+needs that the MacBook already has: its own `~/.harah/gateway-access-code`
+(Alex writes it once) and a routine. `network/enable.sh` on the watchdog
+pattern (`diff` every 10 min, `vault` once a day, a text on `NEW`), wired into
+`bootstrap.sh` and `doctor.sh`, gets written the day the mini is up, then
+the MacBook stops being the runner.
