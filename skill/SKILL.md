@@ -38,6 +38,14 @@ days behind `main` the live code is).
 `doctor.sh` reads every routine's health; `bootstrap.sh` (re)installs them
 all. Both run on the mini only.
 
+## Physical space (added 2026-10-25, growing)
+
+Harah also keeps Alex's physical space, starting with the apartment network:
+the AT&T gateway, the device roster, fixed addresses for projects, and a
+dated change log, all written to the vault under `Homelab/Network/`. Doctrine
+and tool: `network/README.md` and `network/gateway.py`. Hand-run from the
+MacBook until the mini is up on this network; then a routine like the others.
+
 ## What Harah does on its own, and what it never does
 
 **On its own:** merge under POLICY.md (layer 1's safe class; layer 2's
