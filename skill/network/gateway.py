@@ -18,15 +18,18 @@ Write side (needs the gateway's Device Access Code, which Alex alone types:
 write it, one line, to ~/.harah/gateway-access-code, mode 600):
 
   gateway.py login                  prove the code works; prints the session state
-  gateway.py static <mac> <ip>      fixed DHCP allocation for a device (ipalloc.ha)
+  gateway.py static <mac> <ip>      fixed DHCP allocation for a device (ipalloc.ha);
+                                    the address must be inside the DHCP pool, the
+                                    only range the gateway offers. --dry-run stops
+                                    before Save.
   gateway.py static --clear <mac>   back to a dynamic lease
 
 The write side follows the BGW320's form flow (login.ha with the page nonce,
 password hashed md5(code + nonce), as the gateway's own login.js does;
 ipalloc.ha posts per-MAC allocation).
-It is marked EXPERIMENTAL until the first run on a real code confirms the
-field names; on any unexpected page it stops and prints what it saw instead
-of guessing. Nothing here ever factory-resets, reboots, or changes Wi-Fi.
+Verified against the real form 2026-10-25. On any unexpected page it stops
+and prints what it saw instead of guessing. Nothing here ever factory-resets,
+reboots, or changes Wi-Fi.
 
 Set GATEWAY=https://192.168.1.254 to point elsewhere. TLS is self-signed.
 """
@@ -249,32 +252,62 @@ def login() -> bool:
     # The gateway's own login.js: hashpassword = hex_md5(password + nonce); the
     # clear password field is blanked before submit.
     hashed = hashlib.md5((code + nonce).encode()).hexdigest()
-    resp = get("login.ha", {"nonce": nonce, "password": "", "hashpassword": hashed, "Continue": "Continue"})
-    ok = "Logout" in resp or "logout.ha" in resp
-    print("login:", "ok" if ok else "FAILED (code wrong, or the form differs; see the page title)")
+    get("login.ha", {"nonce": nonce, "password": "", "hashpassword": hashed, "Continue": "Continue"})
+    # A good login lands on Status with no "Logout" marker; the proof is that a
+    # gated page now renders instead of the login wall.
+    probe = get("ipalloc.ha")
+    title = (re.search(r"<title>(.*?)</title>", probe, re.S) or [None, "?"])[1].strip()
+    ok = title != "Login" and "Access Code Required" not in probe
+    print("login:", "ok" if ok else "FAILED (code wrong, or the form differs)")
     if not ok:
-        print("  title:", (re.search(r"<title>(.*?)</title>", resp, re.S) or [None, "?"])[1])
+        print("  ipalloc title after login:", title)
     return ok
 
 
-def static(mac: str, ip: str | None, clear: bool = False) -> int:
+def static(mac: str, ip: str | None, clear: bool = False, dry: bool = False) -> int:
+    """Fixed DHCP allocation on the BGW320 (Home Network > IP Allocation).
+    The gateway's own flow, verified 2026-10-25: POST Allocate_<mac> to open the
+    device's editor; it renders a <select name="alloc_<mac>"> whose options are
+    "normal" (address from the DHCP pool) and every address IN THE POOL as
+    "Private fixed"; POST alloc_<mac>=<choice> with Save. Addresses outside the
+    pool are not offered, so a fixed address must be inside .64-.253 here."""
+    mac = mac.lower()
+    want = "normal" if clear else ip
     if not login():
         return 1
     page = get("ipalloc.ha")
-    m = _nonce(page)
-    if not m:
-        print("ipalloc.ha: no nonce after login; not posting. First 300 chars of text:", strip_tags(page)[:300])
+    nonce = _nonce(page)
+    if not nonce or f'name="Allocate_{mac}"' not in page:
+        known = sorted(set(re.findall(r'name="Allocate_([0-9a-f:]{17})"', page)))
+        print(f"{mac} is not on the gateway's allocation list. Known: {known}")
         return 1
-    # The BGW320 ipalloc form names its per-device selects by MAC. Find the
-    # field for this MAC; if the page has none, stop and show what it does have.
-    fields = re.findall(r'name="([^"]*' + re.escape(mac.replace(":", "")) + r'[^"]*)"', page, flags=re.I)
-    if not fields:
-        print(f"ipalloc.ha has no field for {mac}. Fields on the page:", sorted(set(re.findall(r'name="([^"]+)"', page)))[:40])
+    editor = get("ipalloc.ha", {"nonce": nonce, f"Allocate_{mac}": "Allocate"})
+    sel = re.search(r'<select[^>]*name="alloc_' + re.escape(mac) + r'"[^>]*>(.*?)</select>', editor, re.S)
+    if not sel:
+        print("the editor did not render a select for this MAC; not posting. Page text:", strip_tags(editor)[:300])
         return 1
-    print("EXPERIMENTAL: found form field(s) for this MAC:", fields)
-    print("Not posting yet: this path needs its field layout confirmed on a real gateway once.")
-    print(f"Requested: {mac} -> {'dynamic' if clear else ip}. Do it in the UI (Home Network > IP Allocation) and tell Harah; the next `vault` pass records it.")
-    return 2
+    options = dict(re.findall(r'<option[^>]*value="([^"]+)"[^>]*>(.*?)</option>', sel.group(1), re.S))
+    current = next((m for m in re.finditer(r'<option([^>]*)>', sel.group(1)) if "selected" in m.group(1).lower()), None)
+    current_val = (re.search(r'value="([^"]+)"', current.group(1)).group(1) if current else None)
+    if want not in options:
+        pool = [k for k in options if k != "normal"]
+        print(f"{want} is not offered for {mac}. The gateway only allows addresses in its DHCP pool: "
+              f"{pool[0] if pool else '?'} .. {pool[-1] if pool else '?'} (or 'normal').")
+        return 1
+    label = strip_tags(options[want])
+    print(f"{mac}: {(strip_tags(options.get(current_val, current_val)) if current_val else 'current unknown')}  ->  {label}")
+    if dry:
+        print("dry run: not saving")
+        return 0
+    nonce2 = _nonce(editor) or nonce
+    get("ipalloc.ha", {"nonce": nonce2, f"alloc_{mac}": want, "Save": "Save"})
+    after = get("ipalloc.ha")
+    row = re.search(r'<tr[^>]*>(?:(?!</tr>).)*' + re.escape(mac) + r'(?:(?!</tr>).)*</tr>', after, re.S)
+    row_text = strip_tags(row.group(0)) if row else "(row not found)"
+    ok = ("Private fixed" in row_text and (clear is False and (want in row_text))) or (clear and "DHCP" in row_text)
+    print("gateway now shows:", row_text)
+    print("saved" if ok else "WARNING: the row does not show the requested allocation; check the UI")
+    return 0 if ok else 1
 
 
 def main(argv: list[str]) -> int:
@@ -301,12 +334,14 @@ def main(argv: list[str]) -> int:
     if cmd == "login":
         return 0 if login() else 1
     if cmd == "static":
-        if args and args[0] == "--clear":
-            return static(args[1], None, clear=True)
+        dry = "--dry-run" in args
+        args = [a for a in args if a != "--dry-run"]
+        if args and args[0] == "--clear" and len(args) == 2:
+            return static(args[1], None, clear=True, dry=dry)
         if len(args) != 2:
-            print("usage: gateway.py static <mac> <ip> | static --clear <mac>")
+            print("usage: gateway.py static <mac> <ip> [--dry-run] | static --clear <mac> [--dry-run]")
             return 2
-        return static(args[0], args[1])
+        return static(args[0], args[1], dry=dry)
     print(f"unknown command {cmd!r}")
     return 2
 

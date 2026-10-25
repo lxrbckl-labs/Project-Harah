@@ -16,8 +16,11 @@ devices are and their configurations."*
 - **Noticing change.** New devices, devices gone, addresses moved
   (`gateway.py diff`). A new MAC on the network is news; say so.
 - **Providing addresses.** Fixed allocations for anything a project needs
-  to find by address (`gateway.py static <mac> <ip>`). Convention: `.1`–`.63`
-  is outside the DHCP pool and is the static range; the mini keeps `.200`.
+  to find by address (`gateway.py static <mac> <ip>`). The BGW320 only
+  offers addresses **inside its DHCP pool** (`.64`–`.253` here) as fixed;
+  nothing outside it can be assigned. Convention: servers and project boxes
+  take `.200`–`.253` (the mini keeps `.200`); phones, laptops and the rest
+  stay dynamic.
 - **Port forwards and the rest** (NAT/Gaming pinholes for Caddy, DHCP range,
   Wi-Fi) are configuration changes Alex approves per change; Harah performs
   and records them. Nothing here reboots, factory-resets, or changes Wi-Fi
@@ -31,12 +34,13 @@ note's change log. That log is the dialog Alex asked for.
 `gateway.py` (this directory). Read side needs nothing; write side needs the
 gateway's **Device Access Code**:
 
-> **To unlock the write side (future task):** Alex writes the access code
-> (printed on the gateway's label), one line, to `~/.harah/gateway-access-code`
-> with `chmod 600`, on the machine that runs `gateway.py`. Harah reads it from
-> there and never prints, logs, or copies it. The first real `login` confirms
-> the form; the first `static` is run with Alex watching and then the
-> EXPERIMENTAL guard in `static()` comes off.
+> **The access code** (printed on the gateway's label, the line above the QR
+> code) lives, one line, in `~/.harah/gateway-access-code` with `chmod 600`
+> on the machine that runs `gateway.py`. In place on the MacBook since
+> 2026-10-25; the mini needs its own copy when it comes up. Harah reads it
+> from there and never prints, logs, or copies it. Login and the allocation
+> form were verified against the real gateway the same day; `static` posts
+> for real, `--dry-run` stops before Save.
 
 ## Runner
 
