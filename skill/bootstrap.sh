@@ -19,7 +19,7 @@ mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs" "$HOME/.harah"
 
 git -C "$HERE/.." pull --rebase --autostash 2>/dev/null || echo "⚠ pull failed — deploying the code already on disk"
 
-for r in watchdog prove alerts grooming resolver heartbeat; do
+for r in watchdog prove network alerts grooming resolver heartbeat; do
   echo "── enabling $r"
   bash "$HERE/$r/enable.sh" || echo "⚠ $r enable failed — doctor will show it; keep going"
 done

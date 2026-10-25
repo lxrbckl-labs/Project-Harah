@@ -71,6 +71,7 @@ check_routine() { # name label log expected_max_age_hours [state_file]
 hdr "launchd routines (label · state · last log write · verdict)"
 check_routine "watchdog"  "com.alex.harah-watchdog"  "$HOME/Library/Logs/harah-watchdog.log"  1 "$HOME/.harah/watchdog-state.json"
 check_routine "prove"     "com.alex.harah-prove"     "$HOME/Library/Logs/harah-prove.log"     1 "$HOME/.harah/prove-state.json"
+check_routine "network"   "com.alex.harah-network"   "$HOME/Library/Logs/harah-network.log"   1 "$HOME/.harah/network-state.json"
 check_routine "alerts"    "com.alex.harah-alerts"    "$HOME/Library/Logs/harah-alerts.log"    7
 check_routine "grooming"  "com.alex.harah-grooming"  "$HOME/Library/Logs/harah-grooming.log"  26
 check_routine "resolver"  "com.alex.harah-resolver"  "$HOME/Library/Logs/harah-resolver.log"  26
