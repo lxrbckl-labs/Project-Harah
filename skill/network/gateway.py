@@ -239,6 +239,7 @@ def _nonce(page: str) -> str | None:
 
 
 def login() -> bool:
+    get("home.ha")          # a cold login.ha renders "Cookies must be enabled"; any prior hit fixes it
     page = get("login.ha")
     nonce = _nonce(page)
     if not nonce:
