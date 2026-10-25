@@ -54,10 +54,12 @@ python3 skill/network/gateway.py diff     # anything new since last time?
 python3 skill/network/gateway.py vault    # refresh the roster in the vault
 ```
 
-When the mini is up: a `network/enable.sh` on the watchdog pattern
-(`diff` every 10 min, `vault` once a day), added to `bootstrap.sh` and
-`doctor.sh` like the others. Not written until there is a machine to run it
-on; doctrine rule 1 (name the runner or say it's hand-run) applies.
+Routine: `network.sh` (`diff` every 10 min, roster refresh in the vault once
+a day, a text on a NEW device), installed by `enable.sh` as
+`com.alex.harah-network`, in `bootstrap.sh` and `doctor.sh`. Written
+2026-10-25 and run by hand on the MacBook; **not yet verified by
+`launchctl kickstart` on the mini**, which is the only proof that counts.
+Report the exit code the first time it fires there.
 
 ## Gateway facts worth not re-deriving
 
