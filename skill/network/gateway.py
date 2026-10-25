@@ -288,7 +288,8 @@ def static(mac: str, ip: str | None, clear: bool = False, dry: bool = False) -> 
         return 1
     options = dict(re.findall(r'<option[^>]*value="([^"]+)"[^>]*>(.*?)</option>', sel.group(1), re.S))
     current = next((m for m in re.finditer(r'<option([^>]*)>', sel.group(1)) if "selected" in m.group(1).lower()), None)
-    current_val = (re.search(r'value="([^"]+)"', current.group(1)).group(1) if current else None)
+    # no "selected" attribute means the browser would show the first option, which is "normal"
+    current_val = (re.search(r'value="([^"]+)"', current.group(1)).group(1) if current else next(iter(options), None))
     if want not in options:
         pool = [k for k in options if k != "normal"]
         print(f"{want} is not offered for {mac}. The gateway only allows addresses in its DHCP pool: "
