@@ -102,7 +102,7 @@ more. `skill/grooming/POLICY.md` remains the sole merge authorization.
   `gh api repos/lxrbckl-dev/.github` happily returns `lxrbckl-labs/.github` —
   but GitHub Actions does not.** So the ref looks valid under every check you
   would naturally run, while every real run dies before starting a job.
-  `Project-FlyingGitman` and `Project-Jordyn` were fixed on 2026-08-08;
+  `Project-FlyingGitman` and `Project-[redacted]` were fixed on 2026-08-08;
   `reactive-resume` was missed.
   **FIXED 2026-08-18** — PR #19 merged as `7b35f4c6`. Verified on `main`, not
   just on the branch:
@@ -144,8 +144,8 @@ grep -c 'Harah' /tmp/b.txt          # grep the ASCII name, NOT the em-dash form
 ```
 
 Measured 2026-08-18: `reactive-resume` #19 → 1 (Harah's), `Project-ASBC` #18 →
-1 (Harah's, known-good control); `reactive-resume` #15 → 0, `Project-Jordyn`
-#16 → 0, `Project-Jordyn` #13 → 0 (all Alex's). Re-measured 2026-08-18 (later
+1 (Harah's, known-good control); `reactive-resume` #15 → 0, `Project-[redacted]`
+#16 → 0, `Project-[redacted]` #13 → 0 (all Alex's). Re-measured 2026-08-18 (later
 session), unchanged, plus `reactive-resume` #9/#4 → 0 and `lxRbckl/lxRbckl`
 #1 → 1. Run the control too — an empty body silently greps to 0 and looks
 like "human".
@@ -201,7 +201,7 @@ branches; this is the repair move for one that already exists.
 |---|---|---|
 | `reactive-resume` | `pnpm typecheck` (green on `main`) | `pnpm build` is **broken on `main`** — unbounded `h3` override floated to `2.0.1-rc.20`, which dropped the `resolveDotSegments` export `h3-rules` imports. `biome check` has a pre-existing nit. Judge by delta. **CI resolves again as of 2026-08-18** (#19) — it reports `skipped` on ordinary commits, so it is a publish-gate signal, not a build signal. |
 | `Project-FlyingGitman` | `npm ci` + `npm run build` (`tsc`) + `npm audit` | `npm test` is an unimplemented stub that exits 1 on `main`. Not a signal. |
-| `Project-Jordyn` | `pnpm install --frozen-lockfile` + `pnpm run build` + `pnpm run lint` — **all green on `main`** | Use **pnpm 10** (10.30.2 verified). See the correction below; the earlier "pnpm 10 rewrites the lockfile" warning was wrong. |
+| `Project-[redacted]` | `pnpm install --frozen-lockfile` + `pnpm run build` + `pnpm run lint` — **all green on `main`** | Use **pnpm 10** (10.30.2 verified). See the correction below; the earlier "pnpm 10 rewrites the lockfile" warning was wrong. |
 | `Project-ASBC`, `Project-RCoD` | **constructed** — `poetry check --lock` + `poetry lock` delta + `poetry install` + a functional exercise of the changed dependency | No CI, no tests, no container. See the correction below — the earlier "nothing can be merged here" reading was retired 2026-08-18. Poetry now lives at `~/.harah/tools/poetry-venv` (2.4.1 on python3.12). |
 
 **Correction (2026-08-18): "the repo has no verification" is not the same as
@@ -278,12 +278,12 @@ at the end of this file.** The rule itself stands; it was applied one level too
 shallow. "No published fix for the package" is not the same as "no fix for the
 alert", because a *transitive* package can be removed by moving its parent.
 
-**Correction (2026-08-16, measured — supersedes the earlier Jordyn row).** The
-previous note said Jordyn was pinned to pnpm 9.15.9 by PR #13 and that local
+**Correction (2026-08-16, measured — supersedes the earlier [redacted] row).** The
+previous note said [redacted] was pinned to pnpm 9.15.9 by PR #13 and that local
 pnpm 10.x "rewrites the lockfile format and guarantees a conflict." Both halves
 are wrong now:
 
-- **pnpm 10.30.2 installs Jordyn from the committed lockfile with
+- **pnpm 10.30.2 installs [redacted] from the committed lockfile with
   `--frozen-lockfile` and leaves `pnpm-lock.yaml` byte-identical.** No format
   rewrite. The lockfile is already `lockfileVersion: '9.0'`, which pnpm 10
   reads and writes natively.
@@ -299,7 +299,7 @@ The general lesson is standing rule 4 again: this table is a snapshot, and a
 repo's `main` moves underneath it. Re-measure before trusting a row.
 
 **Lockfile work collides with human PRs — check first, and own it if you
-collide.** Merging Jordyn #17 (transitive `pnpm.overrides`) flipped Alex's #16
+collide.** Merging [redacted] #17 (transitive `pnpm.overrides`) flipped Alex's #16
 from MERGEABLE to CONFLICTING. That was a foreseeable cost of touching
 `pnpm-lock.yaml` while a dependency PR was in flight. It was survivable —
 `package.json` still merged cleanly, only the lockfile conflicted, and a
@@ -318,7 +318,7 @@ raw counts read double) across four causes:
 
 | alerts | what | blocked on |
 |---|---|---|
-| 42 | `Project-Jordyn` `next` — needs **15.5.21**, a major | Alex's #16 (complete migration: next 15 + React 19 + eslint-config lockstep + `tsconfig`). Dependabot #11 is `MERGEABLE` and **verified green**, but partial — `react` stays 18.3.1 — and a prior session left Alex an explicit open question on it ("say the word and I'll land this"). Unanswered ≠ authorized. |
+| 42 | `Project-[redacted]` `next` — needs **15.5.21**, a major | Alex's #16 (complete migration: next 15 + React 19 + eslint-config lockstep + `tsconfig`). Dependabot #11 is `MERGEABLE` and **verified green**, but partial — `react` stays 18.3.1 — and a prior session left Alex an explicit open question on it ("say the word and I'll land this"). Unanswered ≠ authorized. |
 | 20 | `reactive-resume` `better-auth` — needs **1.6.22+** | Alex's #15 lands **1.6.26**, closing all 20. `CONFLICTING/DIRTY` on its own lockfile, not from anything Harah merged. |
 | 1 | `reactive-resume` `drizzle-orm` — needs `0.45.2` or `1.0.0-beta.20` | also Alex's #15 (→ `1.0.0-rc.4`). The dependabot alternative #4 is a prerelease→prerelease bump, which POLICY disqualifies outright. |
 | 1 | `reactive-resume` `extract-zip` | ~~**no published fix exists** — advisory covers `<= 2.0.1` and npm `latest` *is* 2.0.1. Nothing to override to; not a version wall, a dead end.~~ **WRONG — RESOLVED 2026-08-19 by PR #21** (bump the transitive parent). See the correction at the end of this file. |
@@ -349,7 +349,7 @@ re-measured from live data rather than carried over:
 - `lxRbckl/lxRbckl` **#1 targets the `PyPI` branch, not `main`** — so merging it
   *is* the publish, not a step before it. That is why it stays open: it needs
   Alex's word as a release, and no amount of verification substitutes.
-- Jordyn dependabot **#11**'s open question to Alex (2026-08-17T13:43Z) is still
+- [redacted] dependabot **#11**'s open question to Alex (2026-08-17T13:43Z) is still
   **unanswered** — its last comment is Harah's own. Unanswered ≠ authorized.
 
 **Re-derived again 2026-08-18 (later resolver session) — unchanged, and now
@@ -361,10 +361,10 @@ DB schema changes** — precisely the shape POLICY says to queue, on a
 Postgres-backed service where the only usable signal (`pnpm typecheck`) cannot
 show that auth still works. `drizzle-orm` `main` is `^1.0.0-beta.12-a5629fb`:
 the stable fix `0.45.2` is a cross-line *downgrade* and `1.0.0-beta.20` is
-prerelease→prerelease, which POLICY disqualifies. Jordyn #11's open question to
+prerelease→prerelease, which POLICY disqualifies. [redacted] #11's open question to
 Alex (2026-08-17T13:43Z) is **still unanswered** — last comment on the thread is
 Harah's own. A sweep of every non-archived org repo found open dependabot PRs in
-exactly two repos (`reactive-resume` 2, `Project-Jordyn` 1), and all four
+exactly two repos (`reactive-resume` 2, `Project-[redacted]` 1), and all four
 personal `lxRbckl` repos report **0 open alerts**. Nothing new is actionable.
 
 **`Project-ACLG` is ARCHIVED — its 2 open dependabot PRs are permanently out of
@@ -380,7 +380,7 @@ re-investigate it — and note the 403 is *not* a permissions problem, despite
 ### The Docker Hub publish credential is DEAD — every org publish fails (2026-08-18)
 
 Found by running `deploy-check/verify.py` after re-deriving the board, not by
-looking for it. **`Project-Jordyn`'s most recent CI run is a genuine build
+looking for it. **`Project-[redacted]`'s most recent CI run is a genuine build
 failure**, and the cause is not code:
 
 ```
@@ -391,17 +391,17 @@ unauthorized: incorrect username or password
 Run `32082150509`, head commit `publish: next 14.2.35 + 29 transitive security
 fixes`, 2026-08-17T23:50, failed in 25s at `docker/login-action` — **before the
 build step ran at all**. So the publish Alex attempted last night did not ship,
-and Jordyn's 29 transitive security fixes are still not in production.
+and [redacted]'s 29 transitive security fixes are still not in production.
 
-**This is org-wide, not a Jordyn problem.** `DOCKERHUB_USERNAME` /
+**This is org-wide, not a [redacted] problem.** `DOCKERHUB_USERNAME` /
 `DOCKERHUB_TOKEN` are **organization** secrets on `lxrbckl-labs` with
 `visibility: all` — one credential pair behind every repo's publish:
 
 | | |
 |---|---|
 | secrets created / last updated | **2025-10-18** (never rotated) |
-| last *successful* publish | `Project-Jordyn` **2026-08-08T05:01** |
-| first failure with this signature | `Project-Jordyn` **2026-08-17T23:50** |
+| last *successful* publish | `Project-[redacted]` **2026-08-08T05:01** |
+| first failure with this signature | `Project-[redacted]` **2026-08-17T23:50** |
 
 The GitHub-side secret has not changed since 2025-10-18, so what changed is on
 **Docker Hub's side** — an expired or revoked PAT is the obvious candidate
@@ -417,7 +417,7 @@ per deploy. Diagnosis stops at the door; the fix is Alex's.
 Consequences worth stating plainly:
 
 - **Every remaining alert on the board is now double-blocked.** Even when Alex
-  answers the Jordyn question and lands the 42-alert `next` migration, or lands
+  answers the [redacted] question and lands the 42-alert `next` migration, or lands
   `reactive-resume` #15 for the 20 `better-auth` alerts, **none of it can reach
   production** until this credential is restored. POLICY already says alerts
   closed on GitHub are not fixes in production until the image rolls; this is
@@ -441,7 +441,7 @@ issue comments, non-merge commits) are signed `— Harah`.
 ### Re-derived 2026-08-19 (resolver loop, session 1) — board unchanged at 66
 
 Totals identical again: **2 critical / 32 high / 26 medium / 6 low = 66**, same
-five rows, same four repos (`reactive-resume` 22, `Project-Jordyn` 42,
+five rows, same four repos (`reactive-resume` 22, `Project-[redacted]` 42,
 `Project-ASBC` 1, `Project-RCoD` 1). All four personal `lxRbckl` repos still
 report **0**. An all-org GraphQL sweep of open PRs on non-archived repos returns
 exactly eight, and no new dependabot PR has appeared since 2026-08-18.
@@ -464,12 +464,12 @@ Re-measured at the source rather than carried over:
   diagnosis stands untested — deliberately, since re-running that job would be a
   deploy. `verify.py` now names the failing step (`Log in to DockerHub`) instead
   of calling it a broken build.
-- **Days behind `main`, measured today:** Project-Jordyn **9**, reactive-resume
+- **Days behind `main`, measured today:** Project-[redacted] **9**, reactive-resume
   **45**, Project-FlyingGitman **43**, Project-VoiceToColumn **35**,
   Project-Showalter **35** (still `unhealthy`, still pre-existing). Every one is
   serving HTTP 200 on an image built 2026-07-03 or 2026-08-08.
 
-`Project-Jordyn` **#11**'s question to Alex (2026-08-17T13:43Z) is **still
+`Project-[redacted]` **#11**'s question to Alex (2026-08-17T13:43Z) is **still
 unanswered** — the last two comments on the thread are both Harah's own. It stays
 queued. The temptation here is real and worth naming: #11 is dependabot-authored,
 `MERGEABLE`, verified green, and closes 42 of the 66 alerts on the board, so
@@ -582,21 +582,21 @@ image built 2026-07-03. Alert closed on GitHub ≠ fixed in production.
 ### Re-derived 2026-08-19 (resolver loop, later session) — 65 open, zero closable
 
 Board after PR #21: **2 critical / 31 high / 26 medium / 6 low = 65**, across
-`reactive-resume` 21, `Project-Jordyn` 42, `Project-ASBC` 1, `Project-RCoD` 1.
+`reactive-resume` 21, `Project-[redacted]` 42, `Project-ASBC` 1, `Project-RCoD` 1.
 All four personal `lxRbckl` repos still report **0**. An org-wide GraphQL sweep
 of open PRs on non-archived repos returns nine, only three of them dependabot's
-(`reactive-resume` #4/#9, `Project-Jordyn` #11) and all three superseded by a
+(`reactive-resume` #4/#9, `Project-[redacted]` #11) and all three superseded by a
 human PR. **Nothing was merged this session, and nothing should have been.**
 
 The authorship check was re-run with its control in the same batch, because it
 gates a hard stop: `reactive-resume` #21 → 1 and `Project-ASBC` #18 → 1 (Harah's,
-control healthy); `reactive-resume` #15 → 0, `Project-Jordyn` #16 → 0, #13 → 0,
+control healthy); `reactive-resume` #15 → 0, `Project-[redacted]` #16 → 0, #13 → 0,
 #11 → 0 (Alex's / dependabot's). Bodies 2.9–4.4 KB, so no silent empty-fetch.
 
 Three blockers were re-derived from upstream sources rather than carried over,
 and two of them were recorded here for the wrong reason:
 
-- **`Project-Jordyn` — no 14.x backport exists, now measured.** All 21 distinct
+- **`Project-[redacted]` — no 14.x backport exists, now measured.** All 21 distinct
   `next` advisories behind the 42 alerts were expanded with
   `gh api /advisories/<GHSA>`. Every one pairs a 15.5.x range with a 16.2.x
   range (`>= 13.0.0, < 15.5.21 -> 15.5.21` and `>= 16.0.0, < 16.2.11 ->
@@ -622,7 +622,7 @@ and two of them were recorded here for the wrong reason:
   `main.py`), so dropping the dependency to shed its transitive pytest is not
   available. PyPI still serves 3.6.0 from 2024-11-18.
 
-`Project-Jordyn` **#11**'s question to Alex (2026-08-17T13:43Z) is **still
+`Project-[redacted]` **#11**'s question to Alex (2026-08-17T13:43Z) is **still
 unanswered** — the thread's last comments remain Harah's own. Held again, for
 the reason already recorded: a session that answers its own open question to
 Alex has not resolved anything.
@@ -630,9 +630,9 @@ Alex has not resolved anything.
 **Deployment, measured today** (`deploy-check/verify.py`, both targets):
 `reactive-resume` CI `skipped` on `8c368d86` — the publish gate, working as
 designed, **no image built** — both tenants `Up 18 hours (healthy)`, HTTP 200,
-running an image from 2026-07-03: **46 days behind `main`**. `Project-Jordyn`'s
+running an image from 2026-07-03: **46 days behind `main`**. `Project-[redacted]`'s
 newest run is still the 2026-08-17 `publish` that died in `Log in to DockerHub`;
-container up, `jbarger.app` HTTP 200 on an image from 2026-08-08: **9 days behind
+container up, `[redacted]` HTTP 200 on an image from 2026-08-08: **9 days behind
 `main`**. **The org Docker Hub credential is still dead** — no publish has been
 attempted anywhere in the org since, deliberately, since re-running that job
 would itself be a deploy.
@@ -650,15 +650,15 @@ looking at the wrong package.
 ### Re-derived 2026-08-20 (resolver loop, session 1) — 65 open, zero closable, and the human PRs have not moved in 12 days
 
 Board byte-identical to yesterday: **2 critical / 31 high / 26 medium / 6 low =
-65**, across `reactive-resume` 21, `Project-Jordyn` 42, `Project-ASBC` 1,
+65**, across `reactive-resume` 21, `Project-[redacted]` 42, `Project-ASBC` 1,
 `Project-RCoD` 1. All four personal `lxRbckl` repos still report **0**. An
 org-wide GraphQL sweep of open PRs on non-archived repos returns **seven**, three
-of them dependabot's (`Project-Jordyn` #11, `reactive-resume` #4/#9) and all
+of them dependabot's (`Project-[redacted]` #11, `reactive-resume` #4/#9) and all
 three superseded by a human PR. **Nothing merged this session, and nothing
 should have been.**
 
 Authorship re-checked with the control in the same batch: `Project-ASBC` #18 → 1
-and `reactive-resume` #21 → 1 (Harah's, control healthy); `Project-Jordyn`
+and `reactive-resume` #21 → 1 (Harah's, control healthy); `Project-[redacted]`
 #13/#16 → 0 and `reactive-resume` #15 → 0 (Alex's). Bodies 2.8–4.4 KB, so no
 silent empty-fetch. **The `for … set -- $p` loop failed again** — in **zsh**
 `$p` does not word-split, so every `gh pr view` got an empty argument and
@@ -668,7 +668,7 @@ a different cause: write the checks as explicit calls or a shell function taking
 
 **The one new fact, and it is about trend, not about a version.** Alex's #15 and
 #16 — which between them own **63 of the 65** — have had **no new commits since
-2026-08-08**, now 12 days, and both are `CONFLICTING`. `Project-Jordyn` #11's
+2026-08-08**, now 12 days, and both are `CONFLICTING`. `Project-[redacted]` #11's
 question to Alex (2026-08-17T13:43Z) has **zero non-Harah comments in its entire
 history**; the thread is three Harah comments and nothing else. The board is not
 slowly resolving in the background. It is parked, and every session that reports
@@ -676,7 +676,7 @@ slowly resolving in the background. It is parked, and every session that reports
 
 #### Method: the alert already gives you the forward floor; the advisory tells you about backwards
 
-Both this file and the Jordyn vault note say *"the alerts API alone cannot answer
+Both this file and the [redacted] vault note say *"the alerts API alone cannot answer
 [whether a backport exists] — it returns only the vulnerability matching the
 installed version."* That is true as stated and **operationally misleading**, and
 the two notes it produced (expand all 21 advisories for `next`; read the advisory
@@ -686,7 +686,7 @@ Reconciled, measured today:
 An alert's matched `security_vulnerability` is the vulnerable range **containing
 the version you have installed**, and its `first_patched_version` is therefore
 the **minimum version you must reach to leave that range** — which is exactly the
-forward-fix floor. Verified on the two ends of the Jordyn set:
+forward-fix floor. Verified on the two ends of the [redacted] set:
 
 | GHSA | range containing 14.2.35 | alert's `first_patched_version` |
 |---|---|---|
@@ -718,9 +718,9 @@ parent-bump move does not apply here. `lxrbckl` on PyPI is still **3.6.0**
 (uploaded 2024-11-18), still declaring `pytest<8.0.0,>=7.4.2` as a runtime
 requirement, so the two `pytest` alerts remain unsatisfiable from the consumers.
 
-**Deployment, measured today** (`deploy-check/verify.py`): `Project-Jordyn`'s
+**Deployment, measured today** (`deploy-check/verify.py`): `Project-[redacted]`'s
 newest run is still the 2026-08-17 `publish` that died in `Log in to DockerHub`;
-container `Up 31 hours`, `jbarger.app` HTTP 200 on an image from 2026-08-08 —
+container `Up 31 hours`, `[redacted]` HTTP 200 on an image from 2026-08-08 —
 **9 days behind `main`**. `reactive-resume` CI `skipped` on `8c368d86` (publish
 gate, healthy, no image built); both tenants `Up 31 hours (healthy)`, HTTP 200 on
 an image from 2026-07-03 — **46 days behind `main`**. **The org Docker Hub
@@ -733,11 +733,11 @@ since, deliberately, because re-running that job is itself a deploy.
 
 Board re-derived live and byte-identical for the third consecutive day: **2
 critical / 31 high / 26 medium / 6 low = 65**, across `reactive-resume` 21,
-`Project-Jordyn` 42, `Project-ASBC` 1, `Project-RCoD` 1. All four personal
+`Project-[redacted]` 42, `Project-ASBC` 1, `Project-RCoD` 1. All four personal
 `lxRbckl` repos re-checked individually (not from the state file) → **0 each**.
 Org-wide open PRs: seven, three of them dependabot's, all three superseded by a
 human PR. Authorship re-checked with the control in the same batch — `ASBC` #18
-and `reactive-resume` #21 → 1 (control healthy); `Jordyn` #11/#13/#16 and
+and `reactive-resume` #21 → 1 (control healthy); `[redacted]` #11/#13/#16 and
 `reactive-resume` #4/#9/#15 → 0. Bodies 2.9–16 KB, no silent empty-fetch.
 **Nothing merged, and nothing should have been.**
 
@@ -764,7 +764,7 @@ line exists at all. **No row has an unexamined direction left.**
 
 **Trend, which is now the only thing that moves.** Alex's #15 and #16 own 63 of
 the 65 between them; still `CONFLICTING`, still no commits since 2026-08-08 —
-now 12 days. `Project-Jordyn` #11's question to Alex (2026-08-17T13:43Z) still
+now 12 days. `Project-[redacted]` #11's question to Alex (2026-08-17T13:43Z) still
 has **zero non-Harah comments in the thread's entire history** — four Harah
 comments and nothing else. No fifth was added this pass; a thread that is
 already all one voice does not get louder usefully.
@@ -779,9 +779,9 @@ and I'll land this"* on that thread, and landing the same 42 by another route is
 answering its own question to Alex with extra steps. Routing around a hold is
 not clearing it.
 
-**Deployment, measured today** (`deploy-check/verify.py`): `Project-Jordyn`'s
+**Deployment, measured today** (`deploy-check/verify.py`): `Project-[redacted]`'s
 newest run is still the 2026-08-17 `publish` that died in `Log in to DockerHub`;
-container `Up 37 hours`, `jbarger.app` HTTP 200 on an image from 2026-08-08 —
+container `Up 37 hours`, `[redacted]` HTTP 200 on an image from 2026-08-08 —
 **9 days behind `main`**. `reactive-resume` CI `skipped` on `8c368d86` (publish
 gate, healthy, no image built); both tenants `Up 37 hours (healthy)`, HTTP 200 on
 an image from 2026-07-03 — **46 days behind `main`**. The org Docker Hub
@@ -794,7 +794,7 @@ deliberately.
 
 Board re-derived live and byte-identical for the fourth consecutive day: **2
 critical / 31 high / 26 medium / 6 low = 65**, across `reactive-resume` 21,
-`Project-Jordyn` 42, `Project-ASBC` 1, `Project-RCoD` 1. Grouped at the source
+`Project-[redacted]` 42, `Project-ASBC` 1, `Project-RCoD` 1. Grouped at the source
 this time — 65 alerts are **34 distinct advisories**: 21 `next` × 2 manifests,
 10 `better-auth` × 2, 1 `drizzle-orm`, 2 `pytest` (one each in ASBC/RCoD).
 Nothing merged, and nothing should have been.
@@ -809,9 +809,9 @@ Blockers re-confirmed at the upstream source, not carried over:
   and `DOCKERHUB_USERNAME` both read `updated_at = 2025-10-18T19:47Z` — the
   original creation timestamp. No publish has been attempted anywhere in the org
   since the 2026-08-17 failure, deliberately.
-- **Deployment, measured today:** `Project-Jordyn` **9 days behind `main`**
+- **Deployment, measured today:** `Project-[redacted]` **9 days behind `main`**
   (newest run still the 2026-08-17 `publish` that died in `Log in to DockerHub`;
-  container `Up 2 days`, `jbarger.app` HTTP 200 on an image built 2026-08-08).
+  container `Up 2 days`, `[redacted]` HTTP 200 on an image built 2026-08-08).
   `reactive-resume` **46 days behind `main`** (CI `skipped` on `8c368d86` —
   publish gate, healthy, no image built; both tenants `Up 2 days (healthy)`,
   HTTP 200 on an image from 2026-07-03).
@@ -821,7 +821,7 @@ Blockers re-confirmed at the upstream source, not carried over:
 `/users/lxRbckl/events` shows pushes, PRs and merges on **2026-08-22 itself**
 (`lxRbckl/.claude`, `roulette-skill`, `Project-Evermore`). What is untouched is
 specifically the four alerting repos — `#15`/`#16` still `CONFLICTING` with no
-commits since 2026-08-08 (now 14 days), and `Project-Jordyn` #11's question to
+commits since 2026-08-08 (now 14 days), and `Project-[redacted]` #11's question to
 Alex (2026-08-17T13:43Z) still has **zero non-Harah comments in its entire
 history** (four Harah comments, nothing else). No fifth was added. That is a
 sharper and less self-flattering statement of the same blocker: these are
@@ -838,7 +838,7 @@ Nobody had asked whether the org-wide alerts endpoint was reporting on
 | | repos |
 |---|---|
 | enabled (204) | 25 |
-| **disabled (404)** | **10** — `Project-StadiumRun`, `Project-WindNoise`, `Project-DS`, `Project-PTL`, `Project-VoiceToColumn`, `Project-JordynLinkedIn`, `Project-Wdjat`, **`Project-Harah`**, `Project-StreetsForKC`, `Project-Fabricator` |
+| **disabled (404)** | **10** — `Project-StadiumRun`, `Project-WindNoise`, `Project-DS`, `Project-PTL`, `Project-VoiceToColumn`, `Project-[redacted]`, `Project-Wdjat`, **`Project-Harah`**, `Project-StreetsForKC`, `Project-Fabricator` |
 
 Two of those matter more than the rest:
 
@@ -887,7 +887,7 @@ was not the number but what the number covers.
 
 Board re-derived live and byte-identical for the fifth consecutive day:
 **2 critical / 31 high / 26 medium / 6 low = 65**, across `reactive-resume` 21,
-`Project-Jordyn` 42, `Project-ASBC` 1, `Project-RCoD` 1. All four personal
+`Project-[redacted]` 42, `Project-ASBC` 1, `Project-RCoD` 1. All four personal
 `lxRbckl` repos re-checked individually → **0 each**. Grouped at the source:
 65 alerts = **34 distinct advisories** (21 `next` × 2 manifests, 10
 `better-auth` × 2, 1 `drizzle-orm`, 2 `pytest`). **Zero alerts closed, and
@@ -907,9 +907,9 @@ Docker Hub credential **still dead** — `DOCKERHUB_TOKEN` / `DOCKERHUB_USERNAME
 both still read `updated_at = 2025-10-18T19:47Z`. **Deployment measured today:**
 `reactive-resume` CI `skipped` on `8c368d86` (publish gate, healthy, no image
 built), both tenants `Up 2 days (healthy)`, HTTP 200 on an image built
-2026-07-03 — **46 days behind `main`**. `Project-Jordyn`'s newest run is still
+2026-07-03 — **46 days behind `main`**. `Project-[redacted]`'s newest run is still
 the 2026-08-17 `publish` that died in `Log in to DockerHub`; container
-`Up 2 days`, `jbarger.app` HTTP 200 on an image from 2026-08-08 — **9 days
+`Up 2 days`, `[redacted]` HTTP 200 on an image from 2026-08-08 — **9 days
 behind `main`**.
 
 #### What this session actually did: settled a 7-day-old untested hypothesis
@@ -1023,7 +1023,7 @@ matters more than it looks):
    that line changes, every future session will read it, and it will keep
    winning — it is written to.
 
-Once both land, 63 of the 65 alerts become workable: `Project-Jordyn` **#16**
+Once both land, 63 of the 65 alerts become workable: `Project-[redacted]` **#16**
 (42 alerts) is the tractable one — `pnpm build` + `pnpm lint` are green on
 `main`, so the repo's own verification can actually cover it.
 `reactive-resume` **#15** (21 alerts) stays hard even with the grant, and
@@ -1056,7 +1056,7 @@ altered.
 
 ### 2026-08-23 (resolver loop, session 1, later) — the board moved: 65 → 23, and the reason the loop was stuck was a stale checkout
 
-**42 alerts closed.** `Project-Jordyn` went **42 → 0**; the org went **65 → 23**.
+**42 alerts closed.** `Project-[redacted]` went **42 → 0**; the org went **65 → 23**.
 Six consecutive prior sessions reported `EXHAUSTED` against this board. They were
 not wrong about the *data* — they were reading doctrine from the wrong ref.
 
@@ -1097,7 +1097,7 @@ Alex's unpushed `93e86aa` was **not** pushed, rebased or altered. It is now also
 preserved on the local branch `alex/unpushed-resolver-backoff` so the divergence
 can be reconciled later without risking it.
 
-#### What landed: Project-Jordyn PR #19 (merged `a3c2e19`)
+#### What landed: Project-[redacted] PR #19 (merged `a3c2e19`)
 
 All 42 alerts were `next`, all patched only at 15.x. Human PR **#16** had held them
 for **6 days** without a commit (the 72h hold long expired); dependabot **#11** was
@@ -1172,8 +1172,8 @@ write, fresh-machine (missing file), and a corrupt file.
 1. **The DockerHub PAT is still dead** — `DOCKERHUB_TOKEN`/`DOCKERHUB_USERNAME` both
    still read `updated_at = 2025-10-18T19:47Z`, and the 2026-08-17 publish concluded
    `failure` at `Log in to DockerHub`. **Nothing can reach production until Alex
-   rotates it.** Measured today: `Project-Jordyn` is **15 days behind `main`**
-   (jbarger.app HTTP 200 on an image built 2026-08-08 — the old image);
+   rotates it.** Measured today: `Project-[redacted]` is **15 days behind `main`**
+   ([redacted] HTTP 200 on an image built 2026-08-08 — the old image);
    `reactive-resume` 46 days behind.
 2. **A live authority conflict.** `origin/main`'s POLICY *authorizes* Harah to
    publish; the prompt this session actually booted from *forbids* it. This session
@@ -1359,7 +1359,7 @@ the publish and the publish authority is contested — see below.
 1. **DockerHub PAT dead, day 6.** Both org secrets still read
    `updated_at = 2025-10-18T19:47Z`. **89 alerts were closed in source today and
    none of them are in production.** Measured: `reactive-resume` **50 days behind
-   `main`**, `Project-VoiceToColumn` **50 days**, `Project-Jordyn` 15. Every one
+   `main`**, `Project-VoiceToColumn` **50 days**, `Project-[redacted]` 15. Every one
    serving HTTP 200 on an image built 2026-07-03 or 2026-08-08.
 2. **Publish authority is contested.** `origin/main`'s POLICY authorizes Harah to
    publish; the brief this session booted from forbids it outright. Third run in a
@@ -1372,7 +1372,7 @@ The ping went out on the heartbeat channel, which existed for the first time tod
 **Status: `EXHAUSTED`.** Written as `MORE_WORK` first, on the reasoning that the
 ten newly-enabled repos might still be scanning. That was a guess, and it was
 checked rather than left: five of them (`Project-StadiumRun`, `Project-WindNoise`,
-`Project-PTL`, `Project-JordynLinkedIn`, `Project-Wdjat`) contain **no lockfile of
+`Project-PTL`, `Project-[redacted]`, `Project-Wdjat`) contain **no lockfile of
 any kind**, so their 0 is genuine and not pending, and `lxRbckl/FantasyFootball`
 is 0 as well. All four personal repos re-checked individually: 0 each.
 
@@ -1690,7 +1690,7 @@ The registry justified `dockerhub-pat-dead` from **secret age**
 had already disproved it: the `lxRbckl` PyPI token has never been rotated either
 and published fine on 08-23. Age is not evidence of revocation.
 
-The real evidence is a genuine publish attempt: **`Project-Jordyn` run
+The real evidence is a genuine publish attempt: **`Project-[redacted]` run
 `32082150509`** (2026-08-17, `publish: next 14.2.35 + 29 transitive security
 fixes`) — step 5 **`Log in to DockerHub` → failure**:
 
@@ -1709,7 +1709,7 @@ HTTP 200 on stale images):
 |---|---|---|
 | `reactive-resume` | **50** | `skipped` (publish gate) |
 | `Project-VoiceToColumn` | **50** | `skipped` |
-| `Project-Jordyn` | **15** | `skipped` |
+| `Project-[redacted]` | **15** | `skipped` |
 
 Zero open alerts and 50 days behind are both true at once. The alerts are closed
 *in source*; the running containers have never seen the fixes.
@@ -1875,7 +1875,7 @@ question was *how many more are there?* Swept `pnpm.overrides` / `overrides` /
 |---|---|---|---|
 | `reactive-resume` | `pnpm.overrides` | 40 | **1** |
 | `Project-DS` | `pnpm.overrides` | 16 | 0 |
-| `Project-Jordyn` | `pnpm.overrides` | 15 | 0 |
+| `Project-[redacted]` | `pnpm.overrides` | 15 | 0 |
 | `Project-VoiceToColumn` | `overrides` | 3 | 0 |
 | `Project-PasCam` | `overrides` | 2 | 0 |
 | `Project-Evermore`, `Project-JA` | `pnpm.overrides` / `overrides` | 1 each | 0 |
@@ -1980,7 +1980,7 @@ machinery work and let the record show that.
 
 Checking whether "0 open" might be masking repos where Dependabot is enabled but
 sees no manifests, the first sweep queried `?state=all` and returned **`ever=0`
-for all 39 repos** — including Jordyn and reactive-resume, which provably had 42
+for all 39 repos** — including [redacted] and reactive-resume, which provably had 42
 and 98 alerts closed days earlier.
 
 > **`state=all` is not a valid value for the Dependabot alerts API, and it does
@@ -1993,7 +1993,7 @@ and 98 alerts closed days earlier.
 #### The one outlier, measured instead of assumed
 
 `Project-Evermore`: 630 packages in the dependency graph, **zero alerts ever** —
-the only substantial repo with no history (DS 528, Jordyn 605, Fabricator 958,
+the only substantial repo with no history (DS 528, [redacted] 605, Fabricator 958,
 reactive-resume 1604 all have plenty). Alerts enabled (`204`), automated security
 fixes on, graph populated, actively pushed 08-23. So either it is genuinely clean
 or detection is dark on it, and those need distinguishing.
@@ -2008,7 +2008,7 @@ Recorded so the next session does not re-open it as a suspected blind spot.
 |---|---|---|
 | `reactive-resume` | **51** | `skipped` (publish gate) |
 | `Project-VoiceToColumn` | **50** | `skipped` |
-| `Project-Jordyn` | **15** | `skipped` |
+| `Project-[redacted]` | **15** | `skipped` |
 
 All three serving HTTP 200 on stale images. `dockerhub-pat-dead` is **day 8**,
 re-measured independently rather than inherited: both org secrets still read
@@ -2038,7 +2038,7 @@ is now recorded in the registry's ping note.
   live summons to act on, and both drill comments stay in `mentions-state.json`'s
   seen-set — re-arming a dispatch to perform the contested act would launder the
   conflict rather than resolve it (the 08-24 session-1 reasoning still holds).
-- **No supersession comments re-posted** on Jordyn #16 / reactive-resume #15.
+- **No supersession comments re-posted** on [redacted] #16 / reactive-resume #15.
   Both already carry signed Harah comments (latest 08-23) and POLICY dedupes
   across passes. Their alerts are long since banked to zero.
 
@@ -2388,7 +2388,7 @@ file records for the puppeteer replay). Deleted after use.
 |---|---|---|
 | `reactive-resume` | **51** | both tenants HTTP 200, image 2026-07-03 |
 | `Project-VoiceToColumn` | **50** | HTTP 200, image 2026-07-03 |
-| `Project-Jordyn` | **15** | HTTP 200, image 2026-08-08 |
+| `Project-[redacted]` | **15** | HTTP 200, image 2026-08-08 |
 | `Project-Showalter` | **35** | `unhealthy` — pre-existing, not today's |
 
 Every one of their CI runs concluded `skipped` at the publish gate, and all four
@@ -2447,7 +2447,7 @@ Re-derived from live data before touching anything, both halves, per-repo:
 
 Run 5's `automated-security-fixes` fix held: the second switch reads 39/39 a day
 later, so the sixteen repos it enabled did not drift back. No supersession
-comments were re-posted (Jordyn #16, reactive-resume #15, Jordyn #13 all carry
+comments were re-posted ([redacted] #16, reactive-resume #15, [redacted] #13 all carry
 signed Harah comments already; POLICY dedupes across passes), and
 `lxRbckl/.claude` #39 is authored by **`aarbuckle2`, the work account** — a hard
 stop, not read, not touched.
@@ -2556,7 +2556,7 @@ first-sighted target has no previous state to have fallen from.
 | `reactive-resume` | **51** | both tenants HTTP 200, image 2026-07-03 |
 | `Project-VoiceToColumn` | **50** | HTTP 200, image 2026-07-03 |
 | `Project-Showalter` | **35** | HTTP 200 public; container flag cosmetic (above) |
-| `Project-Jordyn` | **15** | HTTP 200, image 2026-08-08 |
+| `Project-[redacted]` | **15** | HTTP 200, image 2026-08-08 |
 
 All four CI runs `skipped` at the publish gate. `dockerhub-pat-dead` is **day 9**;
 org secrets `DOCKERHUB_TOKEN` / `DOCKERHUB_USERNAME` still read

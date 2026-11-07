@@ -30,7 +30,7 @@ watch = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(watch)
 
 KNOWN = "showalter"          # carries a reason in watch.KNOWN_BAD
-UNKNOWN = "project-jordyn"   # carries none
+UNKNOWN = "project-redacted"   # carries none
 
 # (label, name, docker-ps status, exit code, expect ok, expect suppressed)
 CASES = [

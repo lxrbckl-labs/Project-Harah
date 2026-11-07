@@ -16,40 +16,16 @@
  "lxrbckl-labs/reactive-resume": {
   "image": "lxrbckl/reactive-resume:main",
   "containers": [
-   "resume_lxrbckl-app-1",
-   "resume_jbarger-app-1"
+   "resume_lxrbckl-app-1"
   ],
   "urls": [
-   "https://resume.lxrbckl.com",
-   "https://resume.jbarger.app"
+   "https://resume.lxrbckl.com"
   ],
   "notes": "Two tenants share one image. msymmonds tenant was spun down; its Caddy block is stale.",
   "checks": [
    {
     "name": "lxrbckl tenant",
     "url": "https://resume.lxrbckl.com/",
-    "status": 200
-   },
-   {
-    "name": "jbarger tenant",
-    "url": "https://resume.jbarger.app/",
-    "status": 200
-   }
-  ]
- },
- "lxrbckl-labs/Project-Jordyn": {
-  "image": "lxrbckl/project-jordyn:main",
-  "containers": [
-   "project-jordyn"
-  ],
-  "urls": [
-   "https://jbarger.app"
-  ],
-  "notes": "Serves jbarger.app via Caddy -> :8047 -> container :8080.",
-  "checks": [
-   {
-    "name": "home",
-    "url": "https://jbarger.app/",
     "status": 200
    }
   ]
