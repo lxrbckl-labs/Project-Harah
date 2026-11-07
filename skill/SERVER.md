@@ -11,7 +11,7 @@ Read the section the task needs.
 | **Hardware** | Mac mini (2024), **Apple M4 Pro**, 12-core CPU (8P+4E), 16-core GPU, **48 GB** unified RAM |
 | **OS** | macOS 15.x |
 | **LAN IP** | `192.168.68.200` |
-| **Public** | Domains (`*.lxrbckl.com`, `jbarger.app`, etc.) resolve **straight to the home IP** — no Cloudflare |
+| **Public** | Domains (`*.lxrbckl.com`, `[redacted]`, etc.) resolve **straight to the home IP** — no Cloudflare |
 | **Docker** | Docker Desktop, containerd image store, ~35 containers; the Linux VM is allocated **~23.4 GB** |
 | **Storage** | internal ~926 GB boot + **2× 4 TB external NVMe**: `/Volumes/NVME1` (immich photos), `/Volumes/NVME2` (vaultwarden data) |
 
