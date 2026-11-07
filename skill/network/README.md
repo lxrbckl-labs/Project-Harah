@@ -16,9 +16,13 @@ devices are and their configurations."*
 - **Noticing change.** New devices, devices gone, addresses moved
   (`gateway.py diff`). A new MAC on the network is news; say so.
 - **Providing addresses.** Fixed allocations for anything a project needs
-  to find by address (`gateway.py static <mac> <ip>`). The BGW320 only
+  to find by address (`gateway.py static <mac> <ip>`; `gateway.py static
+  --list` shows which hosts are fixed). The BGW320 only
   offers addresses **inside its DHCP pool** (`.64`–`.253` here) as fixed;
-  nothing outside it can be assigned. Convention: servers and project boxes
+  nothing outside it can be assigned. Note `gateway.py devices` reports
+  the lease kind from `devices.ha`, where a fixed allocation still reads
+  `dhcp`; only `ipalloc.ha` (behind the access code) tells fixed from
+  dynamic. Convention: servers and project boxes
   take `.200`–`.253` (the mini keeps `.200`); phones, laptops and the rest
   stay dynamic.
 - **Port forwards and the rest** (NAT/Gaming pinholes for Caddy, DHCP range,
