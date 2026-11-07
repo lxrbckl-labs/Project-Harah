@@ -23,6 +23,15 @@ write it, one line, to ~/.harah/gateway-access-code, mode 600):
                                     only range the gateway offers. --dry-run stops
                                     before Save.
   gateway.py static --clear <mac>   back to a dynamic lease
+  gateway.py pinhole --list         the NAT/Gaming "Hosted Applications" table
+  gateway.py pinhole <mac> <service>
+                                    open a firewall pinhole: forward the gateway's
+                                    predefined <service> (apphosting.ha's list,
+                                    e.g. HTTP = 80, HTTPS = 443, both TCP/UDP) to
+                                    the device with that MAC. --dry-run stops
+                                    before Add.
+  gateway.py pinhole --remove <mac> <service>
+                                    delete that rule again.
 
 The write side follows the BGW320's form flow (login.ha with the page nonce,
 password hashed md5(code + nonce), as the gateway's own login.js does;
@@ -246,6 +255,10 @@ def login() -> bool:
     page = get("login.ha")
     nonce = _nonce(page)
     if not nonce:
+        if "web server sessions are in use" in page:
+            print("login: the gateway has no free web sessions (it caps concurrent logins and each one lives "
+                  "until it times out, a few minutes). Wait, then retry; nothing was changed.")
+            return False
         print("login.ha has no nonce field; page title:", (re.search(r"<title>(.*?)</title>", page, re.S) or [None, "?"])[1])
         return False
     code = access_code()
@@ -262,6 +275,17 @@ def login() -> bool:
     if not ok:
         print("  ipalloc title after login:", title)
     return ok
+
+
+def logout() -> None:
+    """There is no logout on the BGW320 (logout.ha is a 400; home.ha carries no
+    Logout control; verified 2026-11-02). A web session lives until its idle
+    timeout, and the gateway caps concurrent sessions, so a burst of commands
+    that each log in can lock everyone out with "all web server sessions are
+    in use" (hit 2026-11-02 after ~10 logins in a few minutes). The lockout
+    cleared on its own within the hour. Keep logins few: one command, one
+    login. Kept as a no-op hook so a future firmware with a logout can use it."""
+    return None
 
 
 def static(mac: str, ip: str | None, clear: bool = False, dry: bool = False) -> int:
@@ -311,6 +335,91 @@ def static(mac: str, ip: str | None, clear: bool = False, dry: bool = False) -> 
     return 0 if ok else 1
 
 
+def _hosted(page: str) -> list[dict]:
+    """Rows of the NAT/Gaming "Hosted Applications" table: service, device
+    (name the gateway shows), and the name of the row's Delete button so a
+    rule can be removed by posting it back."""
+    out = []
+    for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", page, re.S | re.I):
+        cells = [strip_tags(c).strip() for c in re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S | re.I)]
+        btn = re.search(r'name="(Delete[^"]*)"', tr) or re.search(r'name="(Remove[^"]*)"', tr)
+        if cells and btn:
+            out.append({"cells": cells, "delete": btn.group(1)})
+    return out
+
+
+def pinhole(mac: str | None, service: str | None, remove: bool = False, dry: bool = False, list_only: bool = False) -> int:
+    """Firewall pinhole on the BGW320 (Firewall > NAT/Gaming, apphosting.ha).
+    The gateway's own flow, verified 2026-11-02: the page carries a <select
+    name="service"> of ~150 predefined services (HTTP is 80-80 TCP/UDP, HTTPS
+    443-443 TCP/UDP; custom ones are defined on services.ha) and a <select
+    name="device"> keyed by MAC; POST service + device with Add. Each row of
+    the resulting "Hosted Applications" table carries a Remove_<n> button whose
+    name is posted back to remove the rule. Port-80 services trigger a Warning
+    interstitial (apphostwarn.ha) that this confirms."""
+    if not login():
+        return 1
+    page = get("apphosting.ha")
+    if list_only:
+        rows = _hosted(page)
+        if not rows:
+            print("no hosted applications (nothing is forwarded)")
+        for r in rows:
+            print("  " + " | ".join(r["cells"]) + f"   [{r['delete']}]")
+        return 0
+    mac = mac.lower()
+    nonce = _nonce(page)
+    svc_sel = re.search(r'<select[^>]*name="service"[^>]*>(.*?)</select>', page, re.S)
+    dev_sel = re.search(r'<select[^>]*name="device"[^>]*>(.*?)</select>', page, re.S)
+    if not (nonce and svc_sel and dev_sel):
+        print("apphosting.ha did not render the service/device form; not posting. Title:",
+              (re.search(r"<title>(.*?)</title>", page, re.S) or [None, "?"])[1])
+        return 1
+    services = dict(re.findall(r'<option[^>]*value="([^"]+)"[^>]*>(.*?)</option>', svc_sel.group(1), re.S))
+    devs = {k.lower(): strip_tags(v) for k, v in re.findall(r'<option[^>]*value="([^"]+)"[^>]*>(.*?)</option>', dev_sel.group(1), re.S)}
+    if service not in services:
+        near = [k for k in services if service.lower() in k.lower()]
+        print(f"{service!r} is not a predefined service on the gateway. Close matches: {near or 'none'}; define it on services.ha first.")
+        return 1
+    if mac not in devs:
+        print(f"{mac} is not in the gateway's device list; known: {sorted(devs)}")
+        return 1
+    before = _hosted(page)
+    have = [r for r in before if r["cells"] and r["cells"][0] == service and any(mac in c.lower() or devs[mac] in c for c in r["cells"])]
+    if remove:
+        if not have:
+            print(f"no rule {service} -> {devs[mac]} ({mac}) to remove")
+            return 1
+        print(f"remove: {service} -> {devs[mac]} ({mac})")
+        if dry:
+            print("dry run: not removing")
+            return 0
+        get("apphosting.ha", {"nonce": nonce, have[0]["delete"]: "Delete"})
+    else:
+        if have:
+            print(f"already there: {service} -> {devs[mac]} ({mac})")
+            return 0
+        print(f"add: {service} -> {devs[mac]} ({mac})")
+        if dry:
+            print("dry run: not adding")
+            return 0
+        resp = get("apphosting.ha", {"nonce": nonce, "service": service, "device": mac, "Add": "Add"})
+        # Some services (HTTP/80, seen 2026-11-02) come back as a "Warning" page:
+        # "may cause AT&T U-verse TV to stop working properly", Confirm/Cancel,
+        # posted to apphostwarn.ha with its own nonce. Confirm it; there is no
+        # U-verse TV here.
+        if "<title>Warning</title>" in resp and 'action="/cgi-bin/apphostwarn.ha"' in resp:
+            wn = _nonce(resp)
+            print("gateway asked to confirm (U-verse TV warning); confirming")
+            get("apphostwarn.ha", {"nonce": wn, "Confirm": "Confirm"})
+    after = _hosted(get("apphosting.ha"))
+    now = [r for r in after if r["cells"] and r["cells"][0] == service and any(mac in c.lower() or devs[mac] in c for c in r["cells"])]
+    print("gateway now shows:", [" | ".join(r["cells"]) for r in after] or "no hosted applications")
+    ok = (not now) if remove else bool(now)
+    print("saved" if ok else "WARNING: the table does not show the change; check the UI")
+    return 0 if ok else 1
+
+
 def main(argv: list[str]) -> int:
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__)
@@ -343,9 +452,25 @@ def main(argv: list[str]) -> int:
             print("usage: gateway.py static <mac> <ip> [--dry-run] | static --clear <mac> [--dry-run]")
             return 2
         return static(args[0], args[1], dry=dry)
+    if cmd == "pinhole":
+        dry = "--dry-run" in args
+        args = [a for a in args if a != "--dry-run"]
+        if args == ["--list"]:
+            return pinhole(None, None, list_only=True)
+        if args and args[0] == "--remove" and len(args) == 3:
+            return pinhole(args[1], args[2], remove=True, dry=dry)
+        if len(args) != 2:
+            print("usage: gateway.py pinhole --list | pinhole <mac> <service> [--dry-run] | pinhole --remove <mac> <service> [--dry-run]")
+            return 2
+        return pinhole(args[0], args[1], dry=dry)
     print(f"unknown command {cmd!r}")
     return 2
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    try:
+        rc = main(sys.argv[1:])
+    finally:
+        if len(sys.argv) > 1 and sys.argv[1] in ("login", "static", "pinhole"):
+            logout()
+    sys.exit(rc)
