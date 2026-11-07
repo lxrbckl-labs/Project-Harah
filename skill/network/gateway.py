@@ -18,10 +18,13 @@ Write side (needs the gateway's Device Access Code, which Alex alone types:
 write it, one line, to ~/.harah/gateway-access-code, mode 600):
 
   gateway.py login                  prove the code works; prints the session state
+  gateway.py static --list          the IP Allocation table as the gateway shows it:
+                                    which hosts are Fixed and which are DHCP
   gateway.py static <mac> <ip>      fixed DHCP allocation for a device (ipalloc.ha);
                                     the address must be inside the DHCP pool, the
-                                    only range the gateway offers. --dry-run stops
-                                    before Save.
+                                    only range the gateway offers. A host that is
+                                    already fixed at <ip> is reported, not re-posted.
+                                    --dry-run stops before Save.
   gateway.py static --clear <mac>   back to a dynamic lease
   gateway.py pinhole --list         the NAT/Gaming "Hosted Applications" table
   gateway.py pinhole <mac> <service>
@@ -124,7 +127,11 @@ def status() -> dict:
 
 def devices() -> list[dict]:
     """devices.ha is one table per device with rows 'MAC Address', 'IPv4 Address / Name',
-    'Last Activity', 'Status', 'Allocation', 'Connection Type', ... Split on the MAC row."""
+    'Last Activity', 'Status', 'Allocation', 'Connection Type', ... Split on the MAC row.
+    Its 'Allocation' is the lease kind as the gateway's DHCP server sees it: 'dhcp' covers
+    fixed allocations too (a reservation is still a DHCP lease); 'static' means the device
+    set its own address. For fixed-vs-dynamic use `static --list` (ipalloc.ha, needs the
+    access code)."""
     page = get("devices.ha")
     out: list[dict] = []
     cur: dict | None = None
@@ -288,6 +295,44 @@ def logout() -> None:
     return None
 
 
+def _ipalloc_rows(page: str) -> list[dict]:
+    """Rows of ipalloc.ha: ip, name, mac, status, allocation ("Fixed Allocation" /
+    "DHCP Allocation") and the name of the row's Allocate button. The button is
+    `Allocate_<mac>` for dynamic hosts but `ConnHost_<x>_<y>` for hosts that are
+    already fixed (seen 2026-11-07: the mini at .200 had no Allocate_ button and
+    the old check called it "not on the allocation list")."""
+    out = []
+    for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", page, re.S | re.I):
+        cells = [strip_tags(c).strip() for c in re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S | re.I)]
+        mac = next((c.lower() for c in cells if re.fullmatch(r"[0-9a-fA-F:]{17}", c)), None)
+        if not mac:
+            continue
+        btn = re.search(r'<input[^>]*name="([^"]+)"[^>]*value="Allocate"', tr, re.I) or \
+              re.search(r'<input[^>]*value="Allocate"[^>]*name="([^"]+)"', tr, re.I)
+        ipname = cells[0] if cells else ""
+        m = re.match(r"^(\d+\.\d+\.\d+\.\d+)\s*(?:/\s*(.*))?$", ipname)
+        alloc = next((c for c in cells if "Allocation" in c), "")
+        out.append({
+            "ip": m.group(1) if m else "", "name": (m.group(2) or "").strip() if m else ipname,
+            "mac": mac, "status": next((c for c in cells if c in ("on", "off")), ""),
+            "allocation": "fixed" if alloc.lower().startswith("fixed") else ("dhcp" if alloc else ""),
+            "button": btn.group(1) if btn else "",
+        })
+    return out
+
+
+def static_list() -> int:
+    if not login():
+        return 1
+    rws = _ipalloc_rows(get("ipalloc.ha"))
+    if not rws:
+        print("no allocation rows parsed; check the UI")
+        return 1
+    for r in sorted(rws, key=lambda r: tuple(int(x) for x in r["ip"].split(".")) if r["ip"] else (999,)):
+        print(f"{r['ip'] or '-':15} {r['mac']}  {r['status']:3} {r['allocation']:5}  {r['name']}")
+    return 0
+
+
 def static(mac: str, ip: str | None, clear: bool = False, dry: bool = False) -> int:
     """Fixed DHCP allocation on the BGW320 (Home Network > IP Allocation).
     The gateway's own flow, verified 2026-10-25: POST Allocate_<mac> to open the
@@ -301,12 +346,21 @@ def static(mac: str, ip: str | None, clear: bool = False, dry: bool = False) -> 
         return 1
     page = get("ipalloc.ha")
     nonce = _nonce(page)
-    if not nonce or f'name="Allocate_{mac}"' not in page:
-        known = sorted(set(re.findall(r'name="Allocate_([0-9a-f:]{17})"', page)))
+    row = next((r for r in _ipalloc_rows(page) if r["mac"] == mac), None)
+    if not nonce or row is None or not row["button"]:
+        known = sorted(r["mac"] for r in _ipalloc_rows(page))
         print(f"{mac} is not on the gateway's allocation list. Known: {known}")
         return 1
-    editor = get("ipalloc.ha", {"nonce": nonce, f"Allocate_{mac}": "Allocate"})
-    sel = re.search(r'<select[^>]*name="alloc_' + re.escape(mac) + r'"[^>]*>(.*?)</select>', editor, re.S)
+    if row["allocation"] == "fixed":
+        if not clear and row["ip"] == want:
+            print(f"{mac} is already a fixed allocation at {row['ip']}; nothing to do")
+            return 0
+        print(f"{mac} is currently fixed at {row['ip']}")
+    editor = get("ipalloc.ha", {"nonce": nonce, row["button"]: "Allocate"})
+    # The editor's select is alloc_<mac> for a dynamic host but alloc_<x>_<y> for a
+    # host whose button was ConnHost_<x>_<y> (verified 2026-11-07 against the mini).
+    field = mac if row["button"].startswith("Allocate_") else row["button"].replace("ConnHost_", "", 1)
+    sel = re.search(r'<select[^>]*name="alloc_' + re.escape(field) + r'"[^>]*>(.*?)</select>', editor, re.S)
     if not sel:
         print("the editor did not render a select for this MAC; not posting. Page text:", strip_tags(editor)[:300])
         return 1
@@ -320,12 +374,15 @@ def static(mac: str, ip: str | None, clear: bool = False, dry: bool = False) -> 
               f"{pool[0] if pool else '?'} .. {pool[-1] if pool else '?'} (or 'normal').")
         return 1
     label = strip_tags(options[want])
-    print(f"{mac}: {(strip_tags(options.get(current_val, current_val)) if current_val else 'current unknown')}  ->  {label}")
+    # a fixed host's editor marks nothing selected; its current address is the table row's
+    current_label = (f"Private fixed {row['ip']}" if row["allocation"] == "fixed"
+                     else (strip_tags(options.get(current_val, current_val)) if current_val else "current unknown"))
+    print(f"{mac}: {current_label}  ->  {label}")
     if dry:
         print("dry run: not saving")
         return 0
     nonce2 = _nonce(editor) or nonce
-    get("ipalloc.ha", {"nonce": nonce2, f"alloc_{mac}": want, "Save": "Save"})
+    get("ipalloc.ha", {"nonce": nonce2, f"alloc_{field}": want, "Save": "Save"})
     after = get("ipalloc.ha")
     row = re.search(r'<tr[^>]*>(?:(?!</tr>).)*' + re.escape(mac) + r'(?:(?!</tr>).)*</tr>', after, re.S)
     row_text = strip_tags(row.group(0)) if row else "(row not found)"
@@ -446,10 +503,12 @@ def main(argv: list[str]) -> int:
     if cmd == "static":
         dry = "--dry-run" in args
         args = [a for a in args if a != "--dry-run"]
+        if args == ["--list"]:
+            return static_list()
         if args and args[0] == "--clear" and len(args) == 2:
             return static(args[1], None, clear=True, dry=dry)
         if len(args) != 2:
-            print("usage: gateway.py static <mac> <ip> [--dry-run] | static --clear <mac> [--dry-run]")
+            print("usage: gateway.py static --list | static <mac> <ip> [--dry-run] | static --clear <mac> [--dry-run]")
             return 2
         return static(args[0], args[1], dry=dry)
     if cmd == "pinhole":
