@@ -105,5 +105,47 @@
     "url": "https://ds.lxrbckl.com/mcp"
    }
   ]
+ },
+ "lxrbckl-labs/Project-Fenaverat": {
+  "image": "lxrbckl/project-fenaverat:v5",
+  "containers": [
+   "fenaverat"
+  ],
+  "urls": [
+   "https://lxrbckl.com"
+  ],
+  "notes": "Default branch is V5, not main; image tag v5. Compose dir ~/docker-bare-run/fenaverat, port 127.0.0.1:8048 -> Caddy lxrbckl.com. Added 2026-11-08.",
+  "checks": [
+   {
+    "name": "home",
+    "url": "https://lxrbckl.com/",
+    "status": 200
+   }
+  ]
+ },
+ "lxrbckl-labs/Project-LucidIndex": {
+  "image": "lxrbckl/lucidindex-web:main",
+  "containers": [
+   "project-lucidindex-web-1",
+   "project-lucidindex-mcp-dashboard-1",
+   "project-lucidindex-mcp-forum-1",
+   "project-lucidindex-cron-1"
+  ],
+  "urls": [
+   "https://lucidindex.lxrbckl.com"
+  ],
+  "notes": "Four images from one repo (web, mcp-dashboard, mcp-forum, cron) via its own Publish workflow with REPO-level DockerHub secrets. Compose dir ~/lxrbckl-dev/Project-LucidIndex; web 127.0.0.1:47892, mcp-dashboard 4001 (Caddy /mcp*), forum 4100, postgres 5433. Added 2026-11-08.",
+  "checks": [
+   {
+    "name": "home",
+    "url": "https://lucidindex.lxrbckl.com/",
+    "status": 200
+   },
+   {
+    "name": "mcp requires auth",
+    "url": "https://lucidindex.lxrbckl.com/mcp",
+    "status": 401
+   }
+  ]
  }
 }

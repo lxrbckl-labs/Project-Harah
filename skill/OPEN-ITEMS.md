@@ -13,10 +13,34 @@
   reactive-resume 21C/260H by Trivy). Publish + deploy per stack now run
   under POLICY without asking (Alex, same day); check the session's record
   in the vault, `Homelab/Security-Sweep-2026-11-08.md`, for what landed.
-- 🟡 **reactive-resume#36 open:** 16 packages fixed, lockfile scans clean,
-  but `main` cannot build (h3 pin → nitro export error; raising h3 exposes a
-  better-auth 1.7.7 vs `@better-auth/*` 1.6.30 split). Deployed image is from
-  2026-02-07. Repair underway in its own session.
+- 🟢 **reactive-resume: build repaired and deployed 2026-11-08** (#37 build
+  repair, #36 security deps, #38 runtime fixes). The image after #37+#36
+  built but answered 500 on every route; running each build in the live
+  stack found four layered causes (tsyringe needs `reflect-metadata` →
+  `NODE_OPTIONS=--import=reflect-metadata`; better-auth 1.7 twoFactor
+  columns → drizzle migration; `@tanstack/start-server-core` XSS override
+  vs `react-start` 1.168 → moved to 1.169/1.170; `inputValidator` →
+  `validator`). Rolled back to the 2026-02-07 Hub image between attempts
+  (POLICY layer 3). **Lesson for the resolver: a passing `docker build` is
+  not verification for this repo; swap the image into the stack and request
+  `/`, `/auth/login`, `/api/auth/ok`.** Residual: each SSR render logs
+  `router.serverSsr?.isDehydrated is not a function` (react-start-server
+  1.167.52 vs router-core 1.171) while still returning 200; watch for the
+  TanStack release that aligns them.
+- 🟡 **reactive-resume compose: `seaweedfs-create-bucket` uses
+  `quay.io/minio/mc:latest`, which is gone** (quay returns 401 anonymously,
+  Docker Hub `minio/mc` removed). The bucket already exists, so the stack was
+  brought up with `--no-deps` around it (2026-11-08). Replace the helper
+  (e.g. `amazon/aws-cli` or SeaweedFS's own `weed shell`) or drop the service.
+- 🟢 **Showalter healthcheck fixed** (#93, issue #91 closed): dials 127.0.0.1;
+  container healthy for the first time since deploy. Image built locally.
+- 🟡 **Probing the public URL from the mini does not hairpin** on the
+  apartment AT&T gateway: `deploy-check/verify.py` now resolves the host to
+  127.0.0.1 (where Caddy listens); `prove/prove.py` still uses urllib on the
+  public name and will read every target as down from the mini. Fix the same
+  way before re-enabling prove.
+- 🟢 **deploy-check targets** gained Project-Fenaverat (V5, `lxrbckl.com`) and
+  Project-LucidIndex (four images, `lucidindex.lxrbckl.com`).
 - 🟡 **Watchtower image is from 2023-11, project archived, 5C/54H.** Replace
   (Alex's call; it is a third-party image under `~/docker-bare-run/`).
 - 🟢 **Stale Dependabot alerts to dismiss:** ~80 on Project-Fenaverat cite a
