@@ -10,8 +10,9 @@
 - 🔴 **Merged, not deployed:** Project-DS#48, Project-LucidIndex#142,
   Project-Showalter#92, Project-Fenaverat#16 (V5) landed 2026-11-08 with
   build runs `skipped`. Images on the mini are months old (DS 19C/233H,
-  reactive-resume 21C/260H by Trivy). A `publish` per repo on Alex's word,
-  then `compose pull && up` once he brings the fleet back.
+  reactive-resume 21C/260H by Trivy). Publish + deploy per stack now run
+  under POLICY without asking (Alex, same day); check the session's record
+  in the vault, `Homelab/Security-Sweep-2026-11-08.md`, for what landed.
 - 🟡 **reactive-resume#36 open:** 16 packages fixed, lockfile scans clean,
   but `main` cannot build (h3 pin → nitro export error; raising h3 exposes a
   better-auth 1.7.7 vs `@better-auth/*` 1.6.30 split). Deployed image is from
