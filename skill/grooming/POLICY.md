@@ -79,10 +79,19 @@ interactive, may:
 4. Report plainly: what merged, what is "merged, not deployed", what could
    not pass and why.
 
-**What it does not change.** Publish and deploy stay Alex's (next two
-sections): a `publish` commit runs CI, and a `compose pull && up` starts
-containers. While Alex has the fleet stopped (2026-11-07) nothing starts a
-container, Immich above all. Third-party images (Vaultwarden, Immich,
+**Publish and deploy are included (Alex, 2026-11-08, later the same day).**
+Asked to merge the build repair, Alex said: "please stop asking me and just
+take over. this is why you're working on this." So for the deployed apps
+this section covers, and only for them, the session finishes the loop
+without asking: after the merge, an empty commit whose message starts with
+`publish` on the default branch (one per repo, on the day's merges, never
+speculatively), watch the run to `success`, then on the mini `docker compose
+pull && docker compose up -d` for that app's stack only, and check the app
+over HTTPS. This is the one standing exception to the global per-run CI rule
+(2026-10-18) and to "Deploys are Alex's" below; both still hold for
+everything else. Stacks that are not part of the day's work are not started:
+the 2026-11-07 fleet stop (Immich above all) is lifted only for the stacks
+whose own image changed. Third-party images (Vaultwarden, Immich,
 Postgres, Valkey, Caddy, Jupyter, SeaweedFS, Browserless, Watchtower) are
 not Harah's to patch: report the upstream tag and leave the bump to Alex.
 A repo whose default branch does not build (reactive-resume, 2026-11-08)
