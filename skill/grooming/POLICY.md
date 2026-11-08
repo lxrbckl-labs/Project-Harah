@@ -8,9 +8,15 @@ text is in git history and nothing it authorized has grown.
 ## Scope
 
 Repos owned by `lxRbckl` or `lxrbckl-labs`, not archived. Everything Harah
-touches traces to a Dependabot alert or a dependabot-authored PR, and the PR
-body names it (`Closes Dependabot alert #N on <repo>` / `Resolves dependabot
-PR #N`). No refactors, features, or upgrades without that lineage.
+touches traces to one of two lineages, and the PR body names it:
+
+- a Dependabot alert or a dependabot-authored PR (`Closes Dependabot alert
+  #N on <repo>` / `Resolves dependabot PR #N`), or
+- a vulnerability scan of a deployed app (added 2026-11-08, section below):
+  `Trivy <date>: <package> <severity> <CVE/GHSA>` for each finding closed,
+  run against the image the mini is running or the default branch's lockfile.
+
+No refactors, features, or upgrades without one of those lineages.
 
 ## Layer 1: what the sweep merges on its own
 
@@ -43,6 +49,50 @@ For alerts with no PR, major bumps, conflicts and failing checks:
    take the next item. A half-verified merge is worse than an open alert.
 6. **Run `deploy-check/verify.py <owner/repo>`** and report the days-behind
    number. A merge does not deploy here; say "merged, not deployed".
+
+## Deployed-app security maintenance (Alex, 2026-11-08)
+
+On 2026-11-08, after a hand-run sweep (Trivy over the mini's 28 running
+images and each own-image repo's default-branch lockfile, cross-checked
+against open Dependabot alerts) opened five `security/deps-2026-11-08` PRs
+and the session asked whether to merge, Alex said: "Merge the four", then
+**"you dont have to ask me i just want you to automatically maintain these."**
+"These" are the apps deployed on the mini. This section is that
+authorization, written where he chose to put it.
+
+**What it authorizes.** Any session acting under this policy, scheduled or
+interactive, may:
+
+1. Scan the deployed images and their repos' default-branch lockfiles for
+   critical and high findings (Trivy; Docker Scout needs a Docker Hub login
+   and is not used). Medium and low are reported, not chased.
+2. Fix them under Layer 2 steps 1 to 5: human PRs enumerated first, branch
+   `security/<what>` off fresh `origin/<default>`, the real work (changelog,
+   migration, callers; `pnpm.overrides` for a transitive with no direct bump),
+   the repo's own verification judged as a delta against the base, a local
+   `docker build` of every image the repo ships as the gate, and a Trivy
+   lockfile scan that comes back zero critical/high.
+3. **Merge without asking Alex per PR** once that verification actually ran
+   and passed. Squash, title in the repo's existing style. The squash title
+   must not start with `publish` and the merge must not be a `Merge …` commit
+   containing `publish`, so the merge itself can never trigger a build.
+4. Report plainly: what merged, what is "merged, not deployed", what could
+   not pass and why.
+
+**What it does not change.** Publish and deploy stay Alex's (next two
+sections): a `publish` commit runs CI, and a `compose pull && up` starts
+containers. While Alex has the fleet stopped (2026-11-07) nothing starts a
+container, Immich above all. Third-party images (Vaultwarden, Immich,
+Postgres, Valkey, Caddy, Jupyter, SeaweedFS, Browserless, Watchtower) are
+not Harah's to patch: report the upstream tag and leave the bump to Alex.
+A repo whose default branch does not build (reactive-resume, 2026-11-08)
+gets its PR opened and left open with the reason; repairing the build is
+its own task, not a merge.
+
+**Runner.** Hand-run from a session today. No `scan/` routine exists yet
+(OPEN-ITEMS); until it does, this duty only happens when a session is
+started on the mini and told to maintain the apps, or when the resolver's
+prompt grows the scan step.
 
 ## Layer 3: what prove may do after a deploy
 
