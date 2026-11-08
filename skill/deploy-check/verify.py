@@ -38,6 +38,7 @@ actually wrong, 2 usage/unknown repo.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -176,7 +177,12 @@ def main() -> int:
 
     # 4. The only end-to-end proof: a real request through Caddy.
     for u in t["urls"]:
+        # From the mini itself the public IP does not hairpin through the AT&T
+        # gateway (apartment network, 2026-11-08), so resolve the host to the
+        # loopback where Caddy listens; SNI and Host stay the real name.
+        host = re.sub(r"^https?://", "", u).split("/")[0]
         code, out = sh("curl", "-s", "-o", "/dev/null", "-w", "%{http_code}",
+                       "--resolve", f"{host}:443:127.0.0.1",
                        "--max-time", "20", u)
         good = out.startswith("2") or out.startswith("3")
         print(f"\n3. {u} -> HTTP {out or '000'}{'' if good else '  <-- NOT SERVING'}")
