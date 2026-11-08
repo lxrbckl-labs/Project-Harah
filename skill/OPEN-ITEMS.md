@@ -23,9 +23,20 @@
   `Pipfile.lock` that no longer exists; 5 on SelfStack cite a missing
   `requirements.txt`. Project-DS keeps 5 low (SvelteKit 3 major, deepmerge
   no fix).
-- 🟢 **The 10/2025 "DockerHub token dead" item below is stale:** org secrets
-  were rotated 2025-10-18 and Project-Showalter's `publish` built successfully
-  on 2026-04-29. A publish should build; verify on the first one.
+- 🔴 **DockerHub org token still dead, re-measured 2026-11-08** (correcting
+  the same-day note that called the item stale: the Showalter build that
+  succeeded on 2026-04-29 predates the August failures). Today's publishes:
+  Project-Fenaverat run 42530675666 and Project-Showalter run 42530758069
+  failed at "Log in to DockerHub" with `unauthorized: incorrect username or
+  password`; Project-DS run 42530828076 failed with "Username and password
+  required" (private repo; org secrets do not reach it on this plan).
+  **Project-LucidIndex builds**: it has REPO-level `DOCKERHUB_TOKEN` /
+  `DOCKERHUB_USERNAME` set 2026-08-08, so a working token exists. Alex's
+  one action: put that token in the org secrets (or in each repo). Until
+  then the mini builds its own images from the merged commits and runs them
+  under the compose tags (done 2026-11-08 for DS, Showalter, Fenaverat,
+  reactive-resume); Docker Hub stays stale, so Watchtower must stay off or
+  it would roll them back to the old Hub images.
 - Harah's 22 launchd routines were **disabled by Alex on 2026-11-07** for mini
   maintenance. Do not `ensure.sh`/`bootstrap.sh` until he says the mini is
   back in service.
