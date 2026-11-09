@@ -34,11 +34,15 @@
   (e.g. `amazon/aws-cli` or SeaweedFS's own `weed shell`) or drop the service.
 - 🟢 **Showalter healthcheck fixed** (#93, issue #91 closed): dials 127.0.0.1;
   container healthy for the first time since deploy. Image built locally.
-- 🟡 **Probing the public URL from the mini does not hairpin** on the
-  apartment AT&T gateway: `deploy-check/verify.py` now resolves the host to
-  127.0.0.1 (where Caddy listens); `prove/prove.py` still uses urllib on the
-  public name and will read every target as down from the mini. Fix the same
-  way before re-enabling prove.
+- 🟢 **Probing the public URL from the mini does not hairpin** on the
+  apartment AT&T gateway. Fixed in both probes: `deploy-check/verify.py`
+  resolves the host to 127.0.0.1 (where Caddy listens), and as of 2026-11-08
+  `prove/prove.py` does the same through a loopback `HTTPSConnection`
+  (SNI, Host and certificate verification stay on the real name; set
+  `HARAH_PROVE_LOOPBACK=0` to probe the public path from elsewhere). The
+  `ds` /mcp check now expects the app's own `401 unauthorized`. A hand run
+  is not proof of the scheduled path (SERVER.md rule 2): kickstart it when
+  prove is re-enabled.
 - 🟢 **deploy-check targets** gained Project-Fenaverat (V5, `lxrbckl.com`) and
   Project-LucidIndex (four images, `lucidindex.lxrbckl.com`).
 - 🟡 **Watchtower image is from 2023-11, project archived, 5C/54H.** Replace

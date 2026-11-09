@@ -37,7 +37,11 @@ Flags: --force   run checks for every target even if the image is unchanged
 """
 from __future__ import annotations
 
+import http.client
 import json
+import os
+import socket
+import ssl
 import subprocess
 import sys
 import time
@@ -51,6 +55,57 @@ STATE = Path.home() / ".harah" / "prove-state.json"
 HISTORY_KEEP = 20
 TIMEOUT = 20
 SLOW_FACTOR = 10.0
+LOOPBACK = "127.0.0.1"
+
+
+def loopback_enabled() -> bool:
+    """Probe through the mini's own Caddy by default. From the mini the public
+    IP does not hairpin through the AT&T gateway (apartment network,
+    2026-11-08), so every public-name probe would read as down. Set
+    HARAH_PROVE_LOOPBACK=0 to probe the real public path (running elsewhere)."""
+    return os.environ.get("HARAH_PROVE_LOOPBACK", "1").strip().lower() not in ("0", "false", "no", "off")
+
+
+class _LoopbackHTTPConnection(http.client.HTTPConnection):
+    """Dials 127.0.0.1 but keeps the real name for the Host header."""
+
+    def connect(self):
+        self.sock = socket.create_connection((LOOPBACK, self.port), self.timeout)
+
+
+class _LoopbackHTTPSConnection(http.client.HTTPSConnection):
+    """Dials 127.0.0.1 (where Caddy listens) while SNI, Host and certificate
+    verification stay on the real hostname. Verification is NOT relaxed."""
+
+    def connect(self):
+        sock = socket.create_connection((LOOPBACK, self.port), self.timeout)
+        self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
+
+
+class _LoopbackHTTPHandler(urllib.request.HTTPHandler):
+    def http_open(self, req):
+        return self.do_open(_LoopbackHTTPConnection, req)
+
+
+class _LoopbackHTTPSHandler(urllib.request.HTTPSHandler):
+    def https_open(self, req):
+        return self.do_open(_LoopbackHTTPSConnection, req, context=self._context)
+
+
+def _is_local(host: str) -> bool:
+    # Already an address or localhost: nothing to redirect.
+    return host == "localhost" or host.startswith("127.") or host.startswith("[") or host.replace(".", "").isdigit()
+
+
+def open_url(req: urllib.request.Request, timeout: float):
+    """urlopen, except public hostnames are reached via loopback (see
+    loopback_enabled). Local addresses are probed as given."""
+    host = (req.host or "").rsplit(":", 1)[0]
+    if loopback_enabled() and not _is_local(host):
+        opener = urllib.request.build_opener(
+            _LoopbackHTTPHandler(), _LoopbackHTTPSHandler(context=ssl.create_default_context()))
+        return opener.open(req, timeout=timeout)
+    return urllib.request.urlopen(req, timeout=timeout)
 
 
 def sh(*args: str, timeout: int = 30) -> tuple[int, str]:
@@ -92,7 +147,7 @@ def run_check(check: dict) -> dict:
     status, body, err = 0, "", ""
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "harah-prove/1"})
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+        with open_url(req, TIMEOUT) as r:
             status = r.status
             body = r.read(512 * 1024).decode("utf-8", "replace")
     except urllib.error.HTTPError as e:

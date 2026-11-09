@@ -66,5 +66,27 @@ check("explicit checks win over urls",
 r = prove.run_check({"name": "nowhere", "url": "http://127.0.0.1:9/"})
 check("unreachable url fails cleanly", r["pass"] is False and "HTTP 000" in r["detail"])
 
+# 11. loopback: a non-local hostname is dialled on 127.0.0.1, Host stays the real name;
+#     HARAH_PROVE_LOOPBACK=0 turns that off (the name then does not resolve -> clean fail)
+import os, threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+seen = []
+class _H(BaseHTTPRequestHandler):
+    def do_GET(self):
+        seen.append(self.headers.get("Host"))
+        self.send_response(200); self.end_headers(); self.wfile.write(b"hello-loopback")
+    def log_message(self, *a): pass
+srv = HTTPServer(("127.0.0.1", 0), _H)
+threading.Thread(target=srv.serve_forever, daemon=True).start()
+url = f"http://harah-selftest.invalid:{srv.server_port}/"
+os.environ.pop("HARAH_PROVE_LOOPBACK", None)
+r = prove.run_check({"name": "lb", "url": url, "contains": "hello-loopback"})
+check("loopback default reaches 127.0.0.1 with real Host", r["pass"] and seen == [f"harah-selftest.invalid:{srv.server_port}"])
+os.environ["HARAH_PROVE_LOOPBACK"] = "0"
+r = prove.run_check({"name": "lb-off", "url": url})
+check("HARAH_PROVE_LOOPBACK=0 disables it", r["pass"] is False and "HTTP 000" in r["detail"])
+os.environ.pop("HARAH_PROVE_LOOPBACK", None)
+srv.shutdown()
+
 print(f"{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)
