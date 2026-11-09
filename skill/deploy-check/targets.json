@@ -102,7 +102,9 @@
   "checks": [
    {
     "name": "mcp endpoint answers",
-    "url": "https://ds.lxrbckl.com/mcp"
+    "url": "https://ds.lxrbckl.com/mcp",
+    "status": 401,
+    "contains": "unauthorized"
    }
   ]
  },
