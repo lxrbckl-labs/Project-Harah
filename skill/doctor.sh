@@ -75,6 +75,7 @@ check_routine "alerts"    "com.alex.harah-alerts"    "$HOME/Library/Logs/harah-a
 check_routine "grooming"  "com.alex.harah-grooming"  "$HOME/Library/Logs/harah-grooming.log"  26
 check_routine "resolver"  "com.alex.harah-resolver"  "$HOME/Library/Logs/harah-resolver.log"  26
 check_routine "heartbeat" "com.alex.harah-heartbeat" "$HOME/Library/Logs/harah-heartbeat.log" 26
+check_routine "pihole"    "com.alex.harah-pihole"    "$HOME/Library/Logs/harah-pihole.log"    192 "$HOME/.harah/pihole-state.json"
 
 hdr "the silent killers"
 # 1. Keychain: headless claude -p dies without the login keychain. Proxy check:
@@ -98,7 +99,7 @@ hdr "the silent killers"
 # marker all three logs share), and only anchored real error shapes, which
 # markdown prose about them cannot match.
 AUTH_RE='^([0-9]{4}-[0-9]{2}-[0-9]{2}[ T][0-9:]+ )?(ERROR: gh not authenticated|Failed to authenticate|Invalid API key|Please run /login|Not logged in)'
-for lg in harah-resolver harah-grooming; do
+for lg in harah-resolver harah-grooming harah-pihole; do
   f="$HOME/Library/Logs/$lg.log"
   [ -f "$f" ] || continue
   latest=$(awk '/^===== /{buf=""} {buf=buf $0 "\n"} END{printf "%s", buf}' "$f" 2>/dev/null)

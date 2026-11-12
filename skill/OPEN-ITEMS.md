@@ -1,5 +1,18 @@
 # Open items (measured, dated; re-measure before acting)
 
+**2026-11-12, Pi-hole (mini):**
+
+- 🟡 **Whole-LAN routing through the Pi-hole is undecided.** The BGW320 cannot
+  hand out a custom DNS over DHCP (no field on `dhcpserver.ha`). Options, all
+  Alex's call, in `skill/pihole/README.md`: per-device DNS (works now), a root
+  DHCP server on the mini with the gateway's DHCP off (needs `sudo`; dnsmasq
+  without root fails on the BPF socket, measured 2026-11-12), or a router of
+  Alex's own in IP Passthrough. Until then only hand-pointed devices are
+  filtered.
+- 🟡 **Per-client visibility is lost in Docker Desktop.** Every LAN query
+  reaches the `pihole` container from one NAT address. `network_mode: host`
+  on Docker Desktop ≥ 4.34 claims to keep the source IP; untested here.
+
 **2026-11-08, measured on the mini (security sweep, Caddy up, fleet stopped):**
 
 - 🔴 **No `scan/` routine.** POLICY's deployed-app security maintenance

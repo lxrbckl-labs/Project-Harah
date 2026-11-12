@@ -73,7 +73,7 @@ enabled"; any prior request fixes it. Login posts `nonce`, blank `password`,
 `hashpassword = md5(code + nonce)`, `Continue`, exactly as the page's own
 `hashpwd()` does. TLS is self-signed.
 
-## Later: what devices are doing, not just who is here (parked 2026-10-25)
+## What devices are doing, not just who is here (parked 2026-10-25; step 1 done 2026-11-12)
 
 The gateway reports presence only: who joined, who left, who moved. It keeps
 no per-device traffic or DNS log and has no API for one. To see *what* a
@@ -87,8 +87,15 @@ device does on the internet, add a DNS layer on the mini once it is up:
 3. Harah reads AdGuard's query log per client (its API is simple) and the
    roster gains a "what it talks to" view; blocking lists are a bonus.
 
-Not started. Needs the mini on and addressed at `.200` first. Alex's call per
-step, like every other gateway change.
+Status 2026-11-12: step 1 is done as **Pi-hole** (`../pihole/README.md`), with
+four blocklists and the weekly leak audit. Step 2 as written is impossible: the
+BGW320's `dhcpserver.ha` form has **no DNS field** (verified against the live
+page: only the enable switch, the pool range and the lease time), so the
+gateway cannot hand clients a different resolver. The ways to route the whole
+LAN through the mini are in `../pihole/README.md` ("Routing"), each Alex's call.
+Until one is chosen, devices are pointed at `192.168.1.200` one by one. Step 3
+is limited by Docker Desktop: every LAN client reaches the container as one
+NAT address, so the Pi-hole cannot tell devices apart.
 
 ## On the mini
 
