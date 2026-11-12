@@ -97,6 +97,34 @@ Until one is chosen, devices are pointed at `192.168.1.200` one by one. Step 3
 is limited by Docker Desktop: every LAN client reaches the container as one
 NAT address, so the Pi-hole cannot tell devices apart.
 
+## DHCP on the mini (Alex's decision 2026-11-12; the switch is pending)
+
+The Pi-hole only filters devices that ask it, and the BGW320 cannot name it as
+the DNS server, so DHCP itself moves to the mini: `dnsmasq` (Homebrew, DHCP
+only, `port=0`) runs as a **root** LaunchDaemon (`sudo brew services start
+dnsmasq`; DHCP needs the BPF socket, measured: a user process fails on it) with
+`dnsmasq.conf` from this directory, same pool `.64–.253`, same 1-day lease,
+router `.254`, DNS `.200`, and the fixed allocations copied from `ipalloc.ha`.
+Then `gateway.py dhcp off`. The mini itself sits on a manual IP first
+(`networksetup -setmanual`) so it never waits on a DHCP server, and keeps the
+gateway as its own resolver.
+
+`dhcp-takeover.sh` is the runbook: `install-config` (repo → `/opt/homebrew/etc`),
+`preflight`, `steps` (the exact commands, who runs which), `status` (who serves
+DHCP, current leases). It never runs `sudo` and never posts to the gateway;
+the two sudo lines are Alex's, the gateway switch is Harah's on his word, and
+both land in the vault's change log. Rollback is the reverse: `gateway.py dhcp
+on`, `sudo brew services stop dnsmasq`. Known costs: the gateway's guest Wi-Fi
+loses DHCP; the gateway no longer learns hostnames, so `devices.ha` names go
+blank over time (`dnsmasq.leases` on the mini has them instead); dual-stack
+devices still get the gateway's IPv6 resolver by RA/DHCPv6 until `gateway.py
+ipv6lan dhcpv6 off`, a separate decision.
+
+`gateway.py dhcp` / `gateway.py ipv6lan` read those pages; `dhcp on|off` and
+`ipv6lan ipv6|dhcpv6 on|off` post the whole form back with one select flipped
+and `Save`, `--dry-run` shows the payload (verified read side and dry run
+2026-11-12; the first real `dhcp off` is the switch itself).
+
 ## On the mini
 
 Same script, Python stdlib only, same LAN, nothing to install. What the mini

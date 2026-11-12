@@ -2,13 +2,15 @@
 
 **2026-11-12, Pi-hole (mini):**
 
-- 🟡 **Whole-LAN routing through the Pi-hole is undecided.** The BGW320 cannot
-  hand out a custom DNS over DHCP (no field on `dhcpserver.ha`). Options, all
-  Alex's call, in `skill/pihole/README.md`: per-device DNS (works now), a root
-  DHCP server on the mini with the gateway's DHCP off (needs `sudo`; dnsmasq
-  without root fails on the BPF socket, measured 2026-11-12), or a router of
-  Alex's own in IP Passthrough. Until then only hand-pointed devices are
-  filtered.
+- 🟡 **DHCP moves to the mini; the switch is pending.** Alex chose it
+  2026-11-12 (the BGW320 has no DHCP DNS field). Prepared: `skill/network/
+  dnsmasq.conf` installed to `/opt/homebrew/etc`, `gateway.py dhcp on|off`,
+  `dhcp-takeover.sh` (preflight passes except the mini's manual IP). Waiting
+  on Alex at the keyboard: `sudo networksetup -setmanual …`, `sudo brew
+  services start dnsmasq`, then his word for `gateway.py dhcp off`. Until then
+  only hand-pointed devices are filtered. Second decision after it: `gateway.py
+  ipv6lan dhcpv6 off` so dual-stack devices stop using the gateway's IPv6
+  resolver.
 - 🟡 **Per-client visibility is lost in Docker Desktop.** Every LAN query
   reaches the `pihole` container from one NAT address. `network_mode: host`
   on Docker Desktop ≥ 4.34 claims to keep the source IP; untested here.

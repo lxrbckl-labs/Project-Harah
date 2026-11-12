@@ -84,15 +84,15 @@ So the choices, each Alex's call, cheapest first:
 1. **Per-device DNS = `192.168.1.200`** (Wi-Fi settings on the phone, the
    Macs, the TV). Works today, reversible per device, no new single point of
    failure. Not "all traffic", but all of Alex's.
-2. **DHCP moves to the mini as root:** `sudo brew services start dnsmasq` as
-   a system LaunchDaemon with `port=0`, `dhcp-range=192.168.1.64,192.168.1.253`,
-   `dhcp-option=option:router,192.168.1.254`,
-   `dhcp-option=option:dns-server,192.168.1.200` and the fixed allocations
-   copied from `ipalloc.ha`; then the gateway's DHCP switched **off**
-   (`dhcpserver.ha`, `dhcp` select; `gateway.py` does not write it yet). Every
-   device then depends on the mini for an address; the gateway's guest Wi-Fi
-   loses DHCP. Needs Alex at the keyboard for `sudo` and his word for the
-   gateway change, logged in the vault like every gateway change.
+2. **DHCP moves to the mini as root** — **Alex's choice, 2026-11-12.** dnsmasq
+   (DHCP only, `port=0`) as a root LaunchDaemon hands out the gateway's own
+   pool with DNS = `192.168.1.200`, then the gateway's DHCP goes off. The
+   config is `../network/dnsmasq.conf`, the switch is `gateway.py dhcp off`,
+   and `../network/dhcp-takeover.sh steps` is the runbook (preflight, the two
+   sudo lines Alex runs, the switch, the proof, the rollback). Every device
+   then depends on the mini for an address; the gateway's guest Wi-Fi loses
+   DHCP; dual-stack devices still see the gateway's IPv6 resolver until
+   `gateway.py ipv6lan dhcpv6 off` (second decision).
 3. **Alex's own router in IP Passthrough** (the Deco from the previous
    network) with its DHCP DNS set to `.200`. Cleanest for "all traffic",
    biggest change.
