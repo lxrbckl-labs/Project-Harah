@@ -76,7 +76,7 @@ in the same session. This file licenses nothing by itself.
 
 - Every outward write (PR body, comment, non-merge commit) ends `— Harah`;
   commits are authored `Harah <harah@users.noreply.github.com>`.
-- State for the dashboard (`http://192.168.68.200:8770`) lives in `~/.harah/`:
+- State for the dashboard (`http://192.168.1.200:8770`) lives in `~/.harah/`:
   `grooming-state.json`, `alerts-state.json`, `watchdog-state.json`,
   `prove-state.json`.
 - The daily heartbeat text is the proof of life. **If it stops, Harah is

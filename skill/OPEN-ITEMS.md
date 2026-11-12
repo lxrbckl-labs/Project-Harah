@@ -11,6 +11,7 @@
   only hand-pointed devices are filtered. Second decision after it: `gateway.py
   ipv6lan dhcpv6 off` so dual-stack devices stop using the gateway's IPv6
   resolver.
+- 🟡 **Dashboard frontend still hardcodes the old LAN IP:** `dashboard/web/src/App.tsx` `SERVER_HOST = '192.168.68.200'`; needs the `.1.200` value, `npm run build` and a service restart (dev-notes). Doctrine files were corrected 2026-11-12.
 - 🟡 **Per-client visibility is lost in Docker Desktop.** Every LAN query
   reaches the `pihole` container from one NAT address. `network_mode: host`
   on Docker Desktop ≥ 4.34 claims to keep the source IP; untested here.

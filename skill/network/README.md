@@ -50,7 +50,7 @@ gateway's **Device Access Code**:
 
 The pass belongs on the **Mac mini** like every other Harah routine. The mini
 is at the apartment but powered off (2026-10-25), and its recorded address
-(`192.168.68.200`) is from the previous network. Until it is up and
+(`192.168.68.200`) was from the previous network; it is `192.168.1.200` since 2026-11-07. Until it was up and
 re-addressed here, the network pass is **hand-run from the MacBook**:
 
 ```sh
