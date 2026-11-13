@@ -97,14 +97,14 @@ Until one is chosen, devices are pointed at `192.168.1.200` one by one. Step 3
 (per-device view) needs the dnsmasq DNS front door described below, because
 Docker Desktop NATs every LAN client to one address.
 
-## DHCP on the mini (Alex's decision 2026-11-12; the switch is pending)
+## DHCP on the mini (Alex's decision 2026-11-12; switched 2026-11-12 23:59)
 
 The Pi-hole only filters devices that ask it, and the BGW320 cannot name it as
 the DNS server, so DHCP itself moves to the mini: `dnsmasq` (Homebrew) runs as a **root** LaunchDaemon (`sudo brew services start
 dnsmasq`; DHCP needs the BPF socket, measured: a user process fails on it) with
 `dnsmasq.conf` from this directory, same pool `.64–.253`, same 1-day lease,
 router `.254`, DNS `.200`, and the fixed allocations copied from `ipalloc.ha`.
-Then `gateway.py dhcp off`. The mini itself sits on a manual IP first
+`gateway.py dhcp off` ran 2026-11-12 23:59 on Alex's word; the first lease (MacBook-Pro, `.201`) followed within a minute. The mini itself sits on a manual IP first
 (`networksetup -setmanual`) so it never waits on a DHCP server, and keeps the
 gateway as its own resolver.
 
