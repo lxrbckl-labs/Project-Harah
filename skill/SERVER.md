@@ -10,7 +10,7 @@ Read the section the task needs.
 |---|---|
 | **Hardware** | Mac mini (2024), **Apple M4 Pro**, 12-core CPU (8P+4E), 16-core GPU, **48 GB** unified RAM |
 | **OS** | macOS 15.x |
-| **LAN IP** | `192.168.68.200` |
+| **LAN IP** | `192.168.1.200` (fixed allocation on the BGW320; `.68.200` was the previous network, until 2026-10) |
 | **Public** | Domains (`*.lxrbckl.com`, `[redacted]`, etc.) resolve **straight to the home IP** — no Cloudflare |
 | **Docker** | Docker Desktop, containerd image store, ~35 containers; the Linux VM is allocated **~23.4 GB** |
 | **Storage** | internal ~926 GB boot + **2× 4 TB external NVMe**: `/Volumes/NVME1` (immich photos), `/Volumes/NVME2` (vaultwarden data) |
@@ -42,7 +42,7 @@ cd ../backend && .venv/bin/uvicorn app:app --host 0.0.0.0 --port 8770
 ```
 
 FastAPI serves the built `web/dist` **and** the API from one origin, so it's reachable at
-`http://192.168.68.200:8770` from any device on the LAN. It is deliberately **not** behind Caddy.
+`http://192.168.1.200:8770` from any device on the LAN. It is deliberately **not** behind Caddy.
 
 ---
 

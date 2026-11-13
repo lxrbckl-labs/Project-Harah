@@ -1,5 +1,21 @@
 # Open items (measured, dated; re-measure before acting)
 
+**2026-11-12, Pi-hole (mini):**
+
+- 🟢 **DHCP moved to the mini (2026-11-12 23:59 CST).** Gateway DHCP off via
+  `gateway.py dhcp off` on Alex's word; the mini's root dnsmasq serves DHCP on
+  `:67` and DNS on `:53` (front door for the Pi-hole on `127.0.0.1:5335`). First
+  lease proven: MacBook-Pro `192.168.1.201`, 23:59:44. Devices still holding a
+  gateway lease roll over within their 1-day lease. **Open follow-on decision:**
+  `gateway.py ipv6lan dhcpv6 off` so dual-stack devices stop using the
+  gateway's IPv6 resolver (today they can bypass the Pi-hole over IPv6).
+  Rollback: `gateway.py dhcp on` + `sudo brew services stop dnsmasq`.
+- 🟡 **Dashboard frontend still hardcodes the old LAN IP:** `dashboard/web/src/App.tsx` `SERVER_HOST = '192.168.68.200'`; needs the `.1.200` value, `npm run build` and a service restart (dev-notes). Doctrine files were corrected 2026-11-12.
+- 🟢 **Per-client visibility** (2026-11-12): solved by putting the root dnsmasq
+  in front of the Pi-hole on the LAN's `:53` with EDNS0 Client Subnet; the
+  container moved to `127.0.0.1:5335` (5353 is mDNSResponder's). Verify after
+  the switch that the dashboard shows `192.168.1.x` clients.
+
 **2026-11-08, measured on the mini (security sweep, Caddy up, fleet stopped):**
 
 - 🔴 **No `scan/` routine.** POLICY's deployed-app security maintenance

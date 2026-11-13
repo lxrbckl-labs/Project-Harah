@@ -35,6 +35,11 @@ write it, one line, to ~/.harah/gateway-access-code, mode 600):
                                     before Add.
   gateway.py pinhole --remove <mac> <service>
                                     delete that rule again.
+  gateway.py dhcp [--json]                 the LAN DHCP server: on/off, pool, lease (access code)
+  gateway.py dhcp on|off [--dry-run]      switch the gateway's DHCP server (Alex's word per change;
+                                          off = the mini's dnsmasq hands out addresses, see dnsmasq.conf)
+  gateway.py ipv6lan [--json]              LAN IPv6 / DHCPv6 switches (access code)
+  gateway.py ipv6lan ipv6|dhcpv6 on|off [--dry-run]
 
 The write side follows the BGW320's form flow (login.ha with the page nonce,
 password hashed md5(code + nonce), as the gateway's own login.js does;
@@ -477,6 +482,102 @@ def pinhole(mac: str | None, service: str | None, remove: bool = False, dry: boo
     return 0 if ok else 1
 
 
+
+def _form_state(page: str) -> dict[str, str]:
+    """Every control on a gateway settings page with its current value: text inputs
+    as rendered, selects as the selected option (first option when none is
+    marked), checked radios. Submit buttons are left out so the caller picks one."""
+    state: dict[str, str] = {}
+    for tag in re.finditer(r'<input[^>]*>', page, re.I):
+        t = tag.group(0)
+        name = re.search(r'name="([^"]+)"', t)
+        typ = (re.search(r'type="([^"]+)"', t) or re.search(r'()', ""))
+        typ = typ.group(1).lower() if typ and typ.group(1) else "text"
+        if not name or typ in ("submit", "button"):
+            continue
+        val = re.search(r'value="([^"]*)"', t)
+        if typ == "radio":
+            if "checked" in t.lower():
+                state[name.group(1)] = val.group(1) if val else "on"
+        elif typ == "checkbox":
+            if "checked" in t.lower():
+                state[name.group(1)] = val.group(1) if val else "on"
+        else:
+            state[name.group(1)] = val.group(1) if val else ""
+    for sel in re.finditer(r'<select[^>]*name="([^"]+)"[^>]*>(.*?)</select>', page, re.S | re.I):
+        opts = list(re.finditer(r'<option([^>]*)>', sel.group(2), re.I))
+        chosen = next((o for o in opts if "selected" in o.group(1).lower()), opts[0] if opts else None)
+        if chosen:
+            v = re.search(r'value="([^"]*)"', chosen.group(1))
+            state[sel.group(1)] = v.group(1) if v else ""
+    return state
+
+
+def _switch_page(page_name: str, field: str, want: str, dry: bool, label: str) -> int:
+    """Flip one on/off select on a gateway settings page and Save, keeping every
+    other control at its current value (the page posts the whole form). Verified
+    shape: dhcpserver.ha and ip6lan.ha both post to themselves with a nonce and a
+    Save button (2026-11-12)."""
+    if want not in ("on", "off"):
+        print(f"usage: {label} on|off [--dry-run]")
+        return 2
+    if not login():
+        return 1
+    page = get(page_name)
+    state = _form_state(page)
+    nonce = _nonce(page)
+    if field not in state or not nonce:
+        print(f"{page_name} did not render a {field!r} control; not posting. Page text:", strip_tags(page)[:300])
+        return 1
+    print(f"{label}: {state[field]}  ->  {want}")
+    if state[field] == want:
+        print("already there; nothing to do")
+        return 0
+    body = dict(state)
+    body[field] = want
+    body["nonce"] = nonce
+    body["Save"] = "Save"
+    if dry:
+        shown = {k: v for k, v in body.items() if k != "nonce"}
+        print("dry run: would POST to", page_name, json.dumps(shown, indent=2))
+        return 0
+    get(page_name, body)
+    after = _form_state(get(page_name))
+    now = after.get(field)
+    print(f"gateway now shows {field} = {now}")
+    print("saved" if now == want else "WARNING: the page does not show the requested value; check the UI")
+    return 0 if now == want else 1
+
+
+def dhcp_status(as_json: bool) -> int:
+    if not login():
+        return 1
+    st = _form_state(get("dhcpserver.ha"))
+    info = {"dhcp": st.get("dhcp"), "lan_ip": st.get("ipaddr"), "mask": st.get("ipmask"),
+            "pool_start": st.get("dhcpstart"), "pool_end": st.get("dhcpend"),
+            "lease": f"{st.get('dhcpday','?')}d {st.get('dhcphour','?')}h {st.get('dhcpmin','?')}m",
+            "public_subnet": st.get("pubsub"), "cascaded_router": st.get("cr")}
+    if as_json:
+        print(json.dumps(info, indent=2))
+    else:
+        for k, v in info.items():
+            print(f"{k:16} {v}")
+    return 0
+
+
+def ipv6lan_status(as_json: bool) -> int:
+    if not login():
+        return 1
+    st = _form_state(get("ip6lan.ha"))
+    info = {"ipv6": st.get("ipv6lan"), "dhcpv6": st.get("dhcpv6"), "dhcpv6_pd": st.get("dhcpv6pd"), "ra_mtu": st.get("MTU6")}
+    if as_json:
+        print(json.dumps(info, indent=2))
+    else:
+        for k, v in info.items():
+            print(f"{k:16} {v}")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__)
@@ -522,6 +623,21 @@ def main(argv: list[str]) -> int:
             print("usage: gateway.py pinhole --list | pinhole <mac> <service> [--dry-run] | pinhole --remove <mac> <service> [--dry-run]")
             return 2
         return pinhole(args[0], args[1], dry=dry)
+    if cmd == "dhcp":
+        dry = "--dry-run" in args
+        args = [a for a in args if a != "--dry-run"]
+        if not args or args == ["--json"]:
+            return dhcp_status("--json" in args)
+        return _switch_page("dhcpserver.ha", "dhcp", args[0], dry, "gateway DHCP server")
+    if cmd == "ipv6lan":
+        dry = "--dry-run" in args
+        args = [a for a in args if a != "--dry-run"]
+        if not args or args == ["--json"]:
+            return ipv6lan_status("--json" in args)
+        if len(args) != 2 or args[0] not in ("ipv6", "dhcpv6"):
+            print("usage: gateway.py ipv6lan [--json] | ipv6lan ipv6|dhcpv6 on|off [--dry-run]")
+            return 2
+        return _switch_page("ip6lan.ha", "ipv6lan" if args[0] == "ipv6" else "dhcpv6", args[1], dry, f"LAN {args[0]}")
     print(f"unknown command {cmd!r}")
     return 2
 
@@ -530,6 +646,6 @@ if __name__ == "__main__":
     try:
         rc = main(sys.argv[1:])
     finally:
-        if len(sys.argv) > 1 and sys.argv[1] in ("login", "static", "pinhole"):
+        if len(sys.argv) > 1 and sys.argv[1] in ("login", "static", "pinhole", "dhcp", "ipv6lan"):
             logout()
     sys.exit(rc)

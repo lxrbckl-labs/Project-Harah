@@ -29,7 +29,9 @@ Supporting: `alerts/` (sensor, every 6h, read-only), `watchdog/` + `incident/`
 absence is the alarm), `deploy-check/` (`verify.py <owner/repo>` and
 `targets.json`, the measured repo → container → URL → checks map),
 `publish/` (hand-run by Alex only; not scheduled), `app/` (the
-`project-harah` GitHub App identity, optional).
+`project-harah` GitHub App identity, optional), `pihole/` (the LAN DNS ad
+blocker: `pihole.py` CRUD over its API, `audit.sh` weekly Sunday 20:00 leak
+audit that proposes, never denies, unless Alex sets the apply knob).
 
 `doctor.sh` — one read-only health pass over every routine. Run it first when
 anything seems silent. `bootstrap.sh` — installs all routines on the mini;
