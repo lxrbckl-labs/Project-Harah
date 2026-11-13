@@ -1,5 +1,24 @@
 # Open items (measured, dated; re-measure before acting)
 
+**2026-11-13, Docker networking (mini):**
+
+- 🔴 **Containers cannot reach the LAN (192.168.1.0/24).** Measured 00:50 CST
+  from a throwaway `curlimages/curl` container and from the `caddy` container:
+  TCP to `192.168.1.254:80`, `192.168.1.201:443`, and even the mini's own
+  `192.168.1.200:8753` all time out ("Host is unreachable"); internet and
+  `host.docker.internal` work. Docker Desktop 4.98.0 / engine 29.9.2. Possibly
+  related: the mini is dual-homed, `en1` (Wi-Fi) holds `192.168.1.82` by DHCP
+  with its own default route next to `en0`'s manual `.200`. **Consequences
+  today:** the Pi-hole's upstream `192.168.1.254` and its revServers target
+  `192.168.1.200` never answer (FTL upstream stats: count 15 / 10, response 0),
+  so it resolves via `1.1.1.1` only and the dashboard shows no device names;
+  the Relay live suite cannot be run from a container against a LAN host.
+  **Candidate fixes, Alex's call:** (a) Pi-hole: point `FTLCONF_dns_revServers`
+  (and, if wanted, the first upstream) at `host.docker.internal`, which does
+  reach the host dnsmasq from the pihole container (verified: PTR for `.201`
+  returns `MacBook-Pro.attlocal.net`); (b) turn Wi-Fi off on the mini or move it
+  off the LAN subnet, then re-measure; (c) Docker Desktop's network settings.
+
 **2026-11-12, Pi-hole (mini):**
 
 - 🟢 **DHCP moved to the mini (2026-11-12 23:59 CST).** Gateway DHCP off via
