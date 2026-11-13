@@ -84,15 +84,16 @@ So the choices, each Alex's call, cheapest first:
 1. **Per-device DNS = `192.168.1.200`** (Wi-Fi settings on the phone, the
    Macs, the TV). Works today, reversible per device, no new single point of
    failure. Not "all traffic", but all of Alex's.
-2. **DHCP moves to the mini as root** — **Alex's choice, 2026-11-12.** dnsmasq
-   (DHCP only, `port=0`) as a root LaunchDaemon hands out the gateway's own
-   pool with DNS = `192.168.1.200`, then the gateway's DHCP goes off. The
-   config is `../network/dnsmasq.conf`, the switch is `gateway.py dhcp off`,
-   and `../network/dhcp-takeover.sh steps` is the runbook (preflight, the two
-   sudo lines Alex runs, the switch, the proof, the rollback). Every device
-   then depends on the mini for an address; the gateway's guest Wi-Fi loses
-   DHCP; dual-stack devices still see the gateway's IPv6 resolver until
-   `gateway.py ipv6lan dhcpv6 off` (second decision).
+2. **DHCP moves to the mini as root** — **Alex's choice, done 2026-11-12
+   23:59.** dnsmasq as a root LaunchDaemon hands out the gateway's own pool
+   with DNS = `192.168.1.200` and is also the LAN's DNS front door on `:53`
+   (forwarding to the Pi-hole on `127.0.0.1:5335`, see Caveats); the
+   gateway's DHCP is off. The config is `../network/dnsmasq.conf`, the switch
+   was `gateway.py dhcp off`, and `../network/dhcp-takeover.sh` is the
+   runbook (`preflight`, `steps`, `status`). Every device depends on the
+   mini for an address; the gateway's guest Wi-Fi has no DHCP; dual-stack
+   devices still see the gateway's IPv6 resolver until `gateway.py ipv6lan
+   dhcpv6 off` (second decision, pending).
 3. **Alex's own router in IP Passthrough** (the Deco from the previous
    network) with its DHCP DNS set to `.200`. Cleanest for "all traffic",
    biggest change.
@@ -112,9 +113,29 @@ own container, a Docker restart would take its own routines' DNS down with it.
   LAN go back to dnsmasq, which knows the DHCP lease names; its `local=` lines
   stop that from looping. If dnsmasq is down, the LAN has no DNS even though
   the Pi-hole is up: `dhcp-takeover.sh status` shows both.
-- **If the mini is down, so is DNS** for every device pointed at it. Devices
-  with a secondary resolver set (the gateway, `192.168.1.254`) fall back on
-  their own, but then bypass the filter; that is the right trade for a phone.
+- **No fallback resolver, by Alex's decision** (2026-11-13, "I want to rely on
+  this one"). dnsmasq forwards only to the Pi-hole, so if the `pihole`
+  container is down, LAN DNS is down; if the mini is down, so are DNS and
+  DHCP. Do not add a second `server=` line. Recovery: `docker compose up -d`
+  in `~/docker-bare-run/pihole`; rollback of the whole switch: `gateway.py
+  dhcp on` + `sudo brew services stop dnsmasq`. Devices with their own
+  secondary resolver fall back and bypass the filter; fine for a phone.
+- **Restart order for dnsmasq changes.** Any `dnsmasq.conf` change takes
+  effect only on `sudo brew services restart dnsmasq` (Alex at the keyboard;
+  an unprivileged session cannot signal the root daemon). Stage the config and
+  the Pi-hole port first, restart last: on 2026-11-12 a restart that landed
+  before the Pi-hole's port had moved left LAN DNS dead for seven minutes.
+  `127.0.0.1:5353` is not usable for the container: macOS mDNSResponder owns
+  UDP 5353 on every address.
+- **Brew upgrades of dnsmasq need sudo.** Running it as root made brew take
+  `root:admin` ownership of its Cellar/opt paths (brew warns on every
+  restart), so `brew upgrade|reinstall|uninstall dnsmasq` fails until those
+  paths are removed with `sudo rm` first. Not a Harah PR candidate.
+- **Known bypasses, nothing to fix on the mini:** client VPNs that push their
+  own DNS (the MacBook's `10.8.0.x` VPN); devices with hard-coded DNS
+  (Chromecast and some TVs use `8.8.8.8`); browser DNS-over-HTTPS; the
+  gateway's IPv6 resolver via RA/DHCPv6 until `gateway.py ipv6lan dhcpv6 off`
+  (Alex's call, pending).
 - **A blocked page looks like a dead site.** Before blaming a service, check
   `pihole.py top --blocked`, and `pihole.py allow` the false positive, or
   `pihole.py blocking off 10` to prove it.
