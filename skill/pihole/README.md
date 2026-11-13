@@ -10,7 +10,7 @@ we can add to the list."*
 | | |
 |---|---|
 | Stack | `~/docker-bare-run/pihole/docker-compose.yml` on the mini, container `pihole`, image `pihole/pihole:latest` (v6) |
-| DNS | `192.168.1.200:53` TCP+UDP (every interface; the gateway forwards only 80/443, so it is LAN-only) |
+| DNS | `127.0.0.1:5335` TCP+UDP, loopback only. The LAN's `192.168.1.200:53` is the root dnsmasq (`../network/dnsmasq.conf`), which forwards every query here with the real client as EDNS0 Client Subnet. (5353 is taken by macOS mDNSResponder.) |
 | Admin UI / API | `http://192.168.1.200:8753` (LAN only; never put it behind Caddy on a public name) |
 | Password | `PIHOLE_PASSWORD` in `~/docker-bare-run/pihole/.env`, mode 600. Alex reads it there; Harah never prints it |
 | Data | `~/docker-bare-run/pihole/etc-pihole/` (gravity DB, query DB, config). Small; not on the NVMe volumes |
@@ -103,11 +103,15 @@ own container, a Docker restart would take its own routines' DNS down with it.
 
 ## Caveats
 
-- **Clients are indistinguishable.** Docker Desktop NATs every LAN query to
-  one source address, so the Pi-hole's client view, and step 3 of the network
-  plan ("what each device talks to"), do not work here. Docker Desktop ≥ 4.34
-  offers `network_mode: host` that claims to keep the source IP; untested,
-  and it would need the `53:53` port lines removed.
+- **Per-client stats come through dnsmasq, not Docker.** Docker Desktop NATs
+  every LAN query to one source address, so the container alone cannot tell
+  devices apart. Since 2026-11-12 the root dnsmasq on the mini owns the LAN's
+  `:53`, forwards uncached to the Pi-hole on `127.0.0.1:5335` and stamps the
+  client address on each query as EDNS0 Client Subnet (`add-subnet=32,128`);
+  FTL (`dns.EDNS0ECS=true`) logs that as the client. Reverse lookups for the
+  LAN go back to dnsmasq, which knows the DHCP lease names; its `local=` lines
+  stop that from looping. If dnsmasq is down, the LAN has no DNS even though
+  the Pi-hole is up: `dhcp-takeover.sh status` shows both.
 - **If the mini is down, so is DNS** for every device pointed at it. Devices
   with a secondary resolver set (the gateway, `192.168.1.254`) fall back on
   their own, but then bypass the filter; that is the right trade for a phone.

@@ -43,7 +43,14 @@ preflight() {
   # netstat sees root-owned sockets without sudo; lsof does not.
   if netstat -an -p udp 2>/dev/null | /usr/bin/grep -qE '\.67 '; then ok "something already listens on UDP 67 on the mini: $(pgrep -x dnsmasq >/dev/null && echo dnsmasq || echo 'not dnsmasq')"; else warn "nothing listens on UDP 67 yet (expected before step 2)"; fi
   if /usr/bin/grep -q 'option:dns-server,192.168.1.200' "$DST"; then ok "clients will get DNS 192.168.1.200 (the Pi-hole)"; else bad "config does not hand out the Pi-hole as DNS"; fi
-  dig +short +time=3 example.com @192.168.1.200 >/dev/null 2>&1 && ok "the Pi-hole answers on 192.168.1.200:53" || bad "the Pi-hole does not answer on :53; do not switch"
+  dig +short +time=3 example.com @127.0.0.1 -p 5335 >/dev/null 2>&1 && ok "the Pi-hole answers on 127.0.0.1:5335 (behind dnsmasq)" || bad "the Pi-hole does not answer on 127.0.0.1:5335; do not switch"
+  if dig +short +time=3 example.com @192.168.1.200 >/dev/null 2>&1; then
+    ok "dnsmasq answers DNS on 192.168.1.200:53 (forwarding to the Pi-hole)"
+  elif netstat -an -p udp 2>/dev/null | /usr/bin/grep -qE '192\.168\.1\.200\.53 '; then
+    bad "something holds 192.168.1.200:53 but does not answer: dnsmasq is probably forwarding to a dead port; check 'server=' in $DST and restart the service"
+  else
+    warn "nothing answers DNS on 192.168.1.200:53 yet (expected before the service runs with the new config)"
+  fi
   echo "── gateway (read-only)"
   python3 "$HERE/gateway.py" dhcp 2>/dev/null | /usr/bin/grep -E '^(dhcp|pool|lease)' | sed 's/^/   /'
   python3 "$HERE/gateway.py" ipv6lan 2>/dev/null | /usr/bin/grep -E '^(ipv6|dhcpv6) ' | sed 's/^/   /'
@@ -88,6 +95,8 @@ TXT
 status() {
   echo "── mini"
   if netstat -an -p udp 2>/dev/null | /usr/bin/grep -qE '\.67 ' && pgrep -x dnsmasq >/dev/null; then ok "dnsmasq is serving DHCP on the mini (pid $(pgrep -x dnsmasq | head -1))"; else warn "dnsmasq is not listening on UDP 67"; fi
+  dig +short +time=3 example.com @192.168.1.200 >/dev/null 2>&1 && ok "dnsmasq answers DNS on 192.168.1.200:53" || warn "no DNS answer from 192.168.1.200:53"
+  dig +short +time=3 example.com @127.0.0.1 -p 5335 >/dev/null 2>&1 && ok "the Pi-hole answers on 127.0.0.1:5335" || warn "the Pi-hole does not answer on 127.0.0.1:5335"
   sudo -n true 2>/dev/null && true
   if [ -r "$LEASES" ]; then
     echo "   leases ($(wc -l < "$LEASES" | tr -d ' ')):"; awk '{ cmd="date -r "$1" +%H:%M"; cmd | getline t; close(cmd); printf "   %-16s %-18s %s (until %s)\n", $3, $2, $4, t }' "$LEASES" | head -n 40

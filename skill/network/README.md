@@ -94,20 +94,29 @@ page: only the enable switch, the pool range and the lease time), so the
 gateway cannot hand clients a different resolver. The ways to route the whole
 LAN through the mini are in `../pihole/README.md` ("Routing"), each Alex's call.
 Until one is chosen, devices are pointed at `192.168.1.200` one by one. Step 3
-is limited by Docker Desktop: every LAN client reaches the container as one
-NAT address, so the Pi-hole cannot tell devices apart.
+(per-device view) needs the dnsmasq DNS front door described below, because
+Docker Desktop NATs every LAN client to one address.
 
 ## DHCP on the mini (Alex's decision 2026-11-12; the switch is pending)
 
 The Pi-hole only filters devices that ask it, and the BGW320 cannot name it as
-the DNS server, so DHCP itself moves to the mini: `dnsmasq` (Homebrew, DHCP
-only, `port=0`) runs as a **root** LaunchDaemon (`sudo brew services start
+the DNS server, so DHCP itself moves to the mini: `dnsmasq` (Homebrew) runs as a **root** LaunchDaemon (`sudo brew services start
 dnsmasq`; DHCP needs the BPF socket, measured: a user process fails on it) with
 `dnsmasq.conf` from this directory, same pool `.64–.253`, same 1-day lease,
 router `.254`, DNS `.200`, and the fixed allocations copied from `ipalloc.ha`.
 Then `gateway.py dhcp off`. The mini itself sits on a manual IP first
 (`networksetup -setmanual`) so it never waits on a DHCP server, and keeps the
 gateway as its own resolver.
+
+The same dnsmasq is also the LAN's **DNS front door** (added 2026-11-12 for
+per-client stats): it listens on `192.168.1.200:53` and `127.0.0.1:53`,
+forwards every query uncached to the Pi-hole container on `127.0.0.1:5335`
+(`5353` is taken by macOS mDNSResponder, learned the hard way) and adds the
+real client address as EDNS0 Client Subnet, which Pi-hole FTL logs as the
+client. LAN names and PTRs (`attlocal.net`, `1.168.192.in-addr.arpa`) are
+answered from the leases and never forwarded, which is also what keeps the
+Pi-hole's conditional forwarding back to `.200` from looping. Changing
+`server=` or ports needs `sudo brew services restart dnsmasq`.
 
 `dhcp-takeover.sh` is the runbook: `install-config` (repo → `/opt/homebrew/etc`),
 `preflight`, `steps` (the exact commands, who runs which), `status` (who serves
