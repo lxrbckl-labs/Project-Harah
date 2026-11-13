@@ -40,7 +40,8 @@ preflight() {
   else
     warn "mini's Ethernet is still a DHCP client: step 1 below (sudo networksetup) is pending"
   fi
-  if lsof -nP -iUDP:67 2>/dev/null | /usr/bin/grep -q .; then ok "something already listens on UDP 67 on the mini: $(lsof -nP -iUDP:67 | awk 'NR==2{print $1}')"; else warn "nothing listens on UDP 67 yet (expected before step 2)"; fi
+  # netstat sees root-owned sockets without sudo; lsof does not.
+  if netstat -an -p udp 2>/dev/null | /usr/bin/grep -qE '\.67 '; then ok "something already listens on UDP 67 on the mini: $(pgrep -x dnsmasq >/dev/null && echo dnsmasq || echo 'not dnsmasq')"; else warn "nothing listens on UDP 67 yet (expected before step 2)"; fi
   if /usr/bin/grep -q 'option:dns-server,192.168.1.200' "$DST"; then ok "clients will get DNS 192.168.1.200 (the Pi-hole)"; else bad "config does not hand out the Pi-hole as DNS"; fi
   dig +short +time=3 example.com @192.168.1.200 >/dev/null 2>&1 && ok "the Pi-hole answers on 192.168.1.200:53" || bad "the Pi-hole does not answer on :53; do not switch"
   echo "── gateway (read-only)"
@@ -86,7 +87,7 @@ TXT
 
 status() {
   echo "── mini"
-  if lsof -nP -iUDP:67 2>/dev/null | /usr/bin/grep -q dnsmasq; then ok "dnsmasq is serving DHCP on the mini"; else warn "dnsmasq is not listening on UDP 67"; fi
+  if netstat -an -p udp 2>/dev/null | /usr/bin/grep -qE '\.67 ' && pgrep -x dnsmasq >/dev/null; then ok "dnsmasq is serving DHCP on the mini (pid $(pgrep -x dnsmasq | head -1))"; else warn "dnsmasq is not listening on UDP 67"; fi
   sudo -n true 2>/dev/null && true
   if [ -r "$LEASES" ]; then
     echo "   leases ($(wc -l < "$LEASES" | tr -d ' ')):"; awk '{ cmd="date -r "$1" +%H:%M"; cmd | getline t; close(cmd); printf "   %-16s %-18s %s (until %s)\n", $3, $2, $4, t }' "$LEASES" | head -n 40
