@@ -44,7 +44,7 @@ check_routine() { # name label log expected_max_age_hours [state_file]
   elif [ "$a" = "never" ]; then
     # Loaded but no log yet: a calendar routine awaiting its first scheduled
     # fire is HEALTHY, not dead — cry-wolf softening (2026-08-23) so the
-    # heartbeat's first-night text isn't a false red.
+    # a calendar routine's first night isn't a false red.
     verdict="⚠ pending — loaded, no log yet (first scheduled run hasn't fired)"
   else
     local m; m=$(stat -f %m "$log" 2>/dev/null || echo 0)
@@ -74,7 +74,6 @@ check_routine "prove"     "com.alex.harah-prove"     "$HOME/Library/Logs/harah-p
 check_routine "alerts"    "com.alex.harah-alerts"    "$HOME/Library/Logs/harah-alerts.log"    7
 check_routine "grooming"  "com.alex.harah-grooming"  "$HOME/Library/Logs/harah-grooming.log"  26
 check_routine "resolver"  "com.alex.harah-resolver"  "$HOME/Library/Logs/harah-resolver.log"  26
-check_routine "heartbeat" "com.alex.harah-heartbeat" "$HOME/Library/Logs/harah-heartbeat.log" 26
 check_routine "pihole"    "com.alex.harah-pihole"    "$HOME/Library/Logs/harah-pihole.log"    192 "$HOME/.harah/pihole-state.json"
 
 hdr "the silent killers"
