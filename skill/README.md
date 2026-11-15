@@ -25,8 +25,7 @@ in git history.
 | 3 Prove | `prove/` | `prove.sh` → `prove.py` (`--force`, `--repo`, `--dry-run`) | every 10 min, acts on image change |
 
 Supporting: `alerts/` (sensor, every 6h, read-only), `watchdog/` + `incident/`
-(serving? confirm → restart → escalate), `heartbeat/` (daily 9:00am text; its
-absence is the alarm), `deploy-check/` (`verify.py <owner/repo>` and
+(serving? confirm → restart → escalate), `deploy-check/` (`verify.py <owner/repo>` and
 `targets.json`, the measured repo → container → URL → checks map),
 `publish/` (hand-run by Alex only; not scheduled), `app/` (the
 `project-harah` GitHub App identity, optional), `pihole/` (the LAN DNS ad
@@ -43,16 +42,15 @@ listener; no longer scheduled or installed by bootstrap).
 ## Recovery chain
 
 1. The mini's hourly config-repo auto-pull runs a post-pull hook that
-   bootstraps dead routines (it keys on the heartbeat agent).
+   bootstraps dead routines (it compares launchd against `bootstrap.sh`'s list).
 2. Any Harah session on the mini runs `doctor.sh` and then `bootstrap.sh` on ✗.
 3. Full rebuild: `gh auth login` as lxRbckl → config repo per the
    `synchronizer` skill → `gh repo clone lxrbckl-labs/Project-Harah
    ~/lxrbckl-dev/Project-Harah` (that exact path) → layer 1 does the rest
    within the hour, or `bash skill/bootstrap.sh` now. Manual gates that
-   remain: Full Disk Access + Messages automation for the heartbeat text, the
-   login Keychain for headless `claude -p`.
-4. Proof of life is the daily text. 2026-10-25: it had been silent since 9/6
-   and merges since 10/10 before anyone measured. Silence is the outage.
+   remain: the login Keychain for headless `claude -p`.
+4. Harah does not text (Alex, 2026-11-14); proof of life is `doctor.sh` on the
+   mini. The old daily heartbeat text is retired.
 
 Doctrine changes are PRs to this repo. Before extending the machinery, read
 SKILL.md, POLICY.md and `SERVER.md`'s standing rules, then

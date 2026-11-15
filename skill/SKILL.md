@@ -30,8 +30,7 @@ tested after.
 
 Supporting routines, unchanged: `alerts/` (reads open Dependabot alerts every
 6h, sets layer 1's cadence, read-only), `watchdog/` + `incident/` (is
-everything still serving; confirm → restart → escalate), `heartbeat/` (texts
-Alex one status line daily at 9:00am; silence is the alarm), `deploy-check/`
+everything still serving; confirm → restart → escalate), `deploy-check/`
 (`verify.py <owner/repo>`: merge → CI → image → container → HTTPS, and how many
 days behind `main` the live code is).
 
@@ -79,10 +78,11 @@ in the same session. This file licenses nothing by itself.
 - State for the dashboard (`http://192.168.1.200:8770`) lives in `~/.harah/`:
   `grooming-state.json`, `alerts-state.json`, `watchdog-state.json`,
   `prove-state.json`.
-- The daily heartbeat text is the proof of life. **If it stops, Harah is
-  down**, whatever the dashboard says. Measured 2026-10-25: texts stopped
-  9/6, merges stopped 10/10, and nothing noticed for two weeks. Start at
-  `doctor.sh` on the mini; `bootstrap.sh` is standing-authorized.
+- **Harah never messages Alex** (2026-11-14: "I just need Harah to do its job
+  in the background"). No iMessage, no heartbeat; the retired `heartbeat/`
+  routine is gone and `~/.harah/heartbeat-target` stays absent. Proof of life
+  is `doctor.sh` on the mini (and the dashboard), checked by whoever is
+  working on it; `bootstrap.sh` is standing-authorized when a routine is dead.
 
 ## Where things live
 

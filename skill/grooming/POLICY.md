@@ -133,7 +133,7 @@ runs, never what it may merge.
 
 Rotate or issue credentials, type passwords, grant TCC, spend money,
 publish. Record each in `~/.harah/operator-blocked.json` with the exact
-action needed, name it in the heartbeat text, and keep working everything
+action needed, write it to the grooming log and OPEN-ITEMS (Harah does not text), and keep working everything
 else. Waiting is allowed only here, and never silently.
 
 ## Signature

@@ -19,28 +19,20 @@ mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs" "$HOME/.harah"
 
 git -C "$HERE/.." pull --rebase --autostash 2>/dev/null || echo "⚠ pull failed — deploying the code already on disk"
 
-for r in watchdog prove alerts grooming resolver heartbeat pihole; do
+for r in watchdog prove alerts grooming resolver pihole; do
   echo "── enabling $r"
   bash "$HERE/$r/enable.sh" || echo "⚠ $r enable failed — doctor will show it; keep going"
 done
 
-if [ ! -s "$HOME/.harah/heartbeat-target" ]; then
-  # Auto-derive from the Aug-21 alerter, which already texts Alex's self-chat:
-  # first +1XXXXXXXXXX-shaped handle in its run.sh is the target.
-  derived=""
-  if [ -f "$HOME/.imessage-watchdog/run.sh" ]; then
-    derived="$(grep -oE '\+1[0-9]{10}' "$HOME/.imessage-watchdog/run.sh" 2>/dev/null | head -1)"
-  fi
-  if [ -n "$derived" ]; then
-    printf '%s\n' "$derived" > "$HOME/.harah/heartbeat-target"
-    echo "✓ heartbeat-target derived from the alerter: $derived"
-  else
-    echo "⚠ ~/.harah/heartbeat-target is empty and could not be derived — heartbeat"
-    echo "  texts can't send (notification-only). Write Alex's iMessage handle there."
-  fi
+# No texts: Alex (2026-11-14) wants Harah to do its job in the background and
+# never message him about it. The heartbeat routine is retired and nothing here
+# writes ~/.harah/heartbeat-target; a leftover copy is moved aside so the
+# remaining routines' text paths stay dark.
+if [ -s "$HOME/.harah/heartbeat-target" ]; then
+  mv "$HOME/.harah/heartbeat-target" "$HOME/.harah/heartbeat-target.off"
+  echo "✓ heartbeat-target moved aside: Harah does not text"
 fi
-
-echo "── first heartbeat (proof of life to Alex's phone):"
-bash "$HERE/heartbeat/beat.sh"
+launchctl bootout "gui/$(id -u)/com.alex.harah-heartbeat" 2>/dev/null && echo "✓ retired heartbeat routine unloaded" || true
+rm -f "$HOME/Library/LaunchAgents/com.alex.harah-heartbeat.plist"
 echo "── doctor verdict:"
 bash "$HERE/doctor.sh"
