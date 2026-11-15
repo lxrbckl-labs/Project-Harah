@@ -1,39 +1,43 @@
 # Open items (measured, dated; re-measure before acting)
 
+**2026-11-14, network (mini):**
+
+- 🟡 **Step 2 pending: stop dnsmasq on or after 2026-11-16.** Step 1 of the
+  Pi-hole removal ran on <DATE-STEP1>: the gateway serves DHCP again, and the
+  mini's dnsmasq runs a DNS-only transition config (`network/dnsmasq.conf`) so
+  devices holding an old lease that names `192.168.1.200` keep resolving. The
+  last old lease expires 2026-11-15 23:01. Alex runs `bash
+  ~/pihole-removal/step2.sh` (`sudo brew services stop dnsmasq`, with checks);
+  then nothing on the network depends on the mini, and `network/dnsmasq.conf`
+  goes. Fixed addresses go back to the gateway with `gateway.py static <mac>
+  <ip>` (mini `.200`, MacBook-Pro `.201`, P1S-379 `.210`, P1S-130 `.211`).
+- 🟡 **NAT loopback for the relays is untested.** The transition dnsmasq answers
+  `relay.hivedeck.app` and `relay-b.hivedeck.app` with `192.168.1.200`. Once it
+  stops, LAN devices get the public address for those names from the gateway's
+  DNS, so whether a LAN device can reach the relays then depends on the
+  gateway's NAT loopback. Untested; the mini itself is known not to reach its
+  own relays that way (see the 2026-11-08 hairpin item). Test from a LAN
+  device before step 2, or decide on another answer for those two names.
+- 🟡 **Dashboard frontend still hardcodes the old LAN IP:** `dashboard/web/src/App.tsx` `SERVER_HOST = '192.168.68.200'`; needs the `.1.200` value, `npm run build` and a service restart (dev-notes). Doctrine files were corrected 2026-11-12.
+- 🟢 **Pi-hole removed (Alex, 2026-11-14).** The DHCP/DNS move of 2026-11-12 was
+  reversed, so its follow-ons are closed: the Pi-hole's upstream and
+  revServers question, `ipv6lan dhcpv6 off` for the filter, and per-client
+  visibility.
+
 **2026-11-13, Docker networking (mini):**
 
 - 🔴 **Containers cannot reach the LAN (192.168.1.0/24).** Measured 00:50 CST
   from a throwaway `curlimages/curl` container and from the `caddy` container:
   TCP to `192.168.1.254:80`, `192.168.1.201:443`, and even the mini's own
-  `192.168.1.200:8753` all time out ("Host is unreachable"); internet and
-  `host.docker.internal` work. Docker Desktop 4.98.0 / engine 29.9.2. Possibly
-  related: the mini is dual-homed, `en1` (Wi-Fi) holds `192.168.1.82` by DHCP
-  with its own default route next to `en0`'s manual `.200`. **Consequences
-  today:** the Pi-hole's upstream `192.168.1.254` and its revServers target
-  `192.168.1.200` never answer (FTL upstream stats: count 15 / 10, response 0),
-  so it resolves via `1.1.1.1` only and the dashboard shows no device names;
-  the Relay live suite cannot be run from a container against a LAN host.
-  **Candidate fixes, Alex's call:** (a) Pi-hole: point `FTLCONF_dns_revServers`
-  (and, if wanted, the first upstream) at `host.docker.internal`, which does
-  reach the host dnsmasq from the pihole container (verified: PTR for `.201`
-  returns `MacBook-Pro.attlocal.net`); (b) turn Wi-Fi off on the mini or move it
-  off the LAN subnet, then re-measure; (c) Docker Desktop's network settings.
-
-**2026-11-12, Pi-hole (mini):**
-
-- 🟢 **DHCP moved to the mini (2026-11-12 23:59 CST).** Gateway DHCP off via
-  `gateway.py dhcp off` on Alex's word; the mini's root dnsmasq serves DHCP on
-  `:67` and DNS on `:53` (front door for the Pi-hole on `127.0.0.1:5335`). First
-  lease proven: MacBook-Pro `192.168.1.201`, 23:59:44. Devices still holding a
-  gateway lease roll over within their 1-day lease. **Open follow-on decision:**
-  `gateway.py ipv6lan dhcpv6 off` so dual-stack devices stop using the
-  gateway's IPv6 resolver (today they can bypass the Pi-hole over IPv6).
-  Rollback: `gateway.py dhcp on` + `sudo brew services stop dnsmasq`.
-- 🟡 **Dashboard frontend still hardcodes the old LAN IP:** `dashboard/web/src/App.tsx` `SERVER_HOST = '192.168.68.200'`; needs the `.1.200` value, `npm run build` and a service restart (dev-notes). Doctrine files were corrected 2026-11-12.
-- 🟢 **Per-client visibility** (2026-11-12): solved by putting the root dnsmasq
-  in front of the Pi-hole on the LAN's `:53` with EDNS0 Client Subnet; the
-  container moved to `127.0.0.1:5335` (5353 is mDNSResponder's). Verify after
-  the switch that the dashboard shows `192.168.1.x` clients.
+  `192.168.1.200` on a published container port all time out ("Host is
+  unreachable"); internet and `host.docker.internal` work. Docker Desktop
+  4.98.0 / engine 29.9.2. Possibly related: the mini is dual-homed, `en1`
+  (Wi-Fi) holds `192.168.1.82` by DHCP with its own default route next to
+  `en0`'s manual `.200`. **Consequence today:** the Relay live suite cannot be
+  run from a container against a LAN host. **Candidate fixes, Alex's call:**
+  (a) turn Wi-Fi off on the mini or move it off the LAN subnet, then
+  re-measure; (b) Docker Desktop's network settings. (`host.docker.internal`
+  reaches the host, which is enough for anything that only needs the mini.)
 
 **2026-11-08, measured on the mini (security sweep, Caddy up, fleet stopped):**
 
