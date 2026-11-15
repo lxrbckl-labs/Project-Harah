@@ -37,7 +37,7 @@ write it, one line, to ~/.harah/gateway-access-code, mode 600):
                                     delete that rule again.
   gateway.py dhcp [--json]                 the LAN DHCP server: on/off, pool, lease (access code)
   gateway.py dhcp on|off [--dry-run]      switch the gateway's DHCP server (Alex's word per change;
-                                          off = the mini's dnsmasq hands out addresses, see dnsmasq.conf)
+                                          off = nothing hands out addresses unless something else serves DHCP; see network/README.md)
   gateway.py ipv6lan [--json]              LAN IPv6 / DHCPv6 switches (access code)
   gateway.py ipv6lan ipv6|dhcpv6 on|off [--dry-run]
 

@@ -73,66 +73,63 @@ enabled"; any prior request fixes it. Login posts `nonce`, blank `password`,
 `hashpassword = md5(code + nonce)`, `Continue`, exactly as the page's own
 `hashpwd()` does. TLS is self-signed.
 
-## What devices are doing, not just who is here (parked 2026-10-25; step 1 done 2026-11-12)
+## DHCP and DNS: the gateway's, since 2026-11-14
 
-The gateway reports presence only: who joined, who left, who moved. It keeps
-no per-device traffic or DNS log and has no API for one. To see *what* a
-device does on the internet, add a DNS layer on the mini once it is up:
+The BGW320 serves DHCP and is every device's DNS, as it was before 2026-11-12.
+Every new lease names the gateway (`192.168.1.254`) as its DNS. The gateway
+reports presence only (who joined, who left, who moved); it keeps no
+per-device traffic or DNS log and has no API for one. Nothing on the network depends on the mini for addressing or name
+resolution once step 2 below is done.
 
-1. Run **AdGuard Home** (or Pi-hole) as one more Docker stack on the mini,
-   DNS on `:53`, admin UI behind Caddy on the LAN only (never public).
-2. Point the gateway's DHCP DNS at the mini (`dhcpserver.ha`, access code),
-   so every device resolves through it. Keep AT&T's resolvers as the
-   upstream.
-3. Harah reads AdGuard's query log per client (its API is simple) and the
-   roster gains a "what it talks to" view; blocking lists are a bonus.
+**Fixed addresses** live on the gateway's reservations again, set with
+`gateway.py static <mac> <ip>` (MACs are in the vault roster and in
+`gateway.py static --list`): the mini `.200`, MacBook-Pro `.201`, P1S-379
+`.210`, P1S-130 `.211`. The mini's own Ethernet stays on a manual IP,
+`192.168.1.200`, with DNS `192.168.1.254`, so it never waits on a DHCP server.
 
-Status 2026-11-12: step 1 is done as **Pi-hole** (`../pihole/README.md`), with
-four blocklists and the weekly leak audit. Step 2 as written is impossible: the
-BGW320's `dhcpserver.ha` form has **no DNS field** (verified against the live
-page: only the enable switch, the pool range and the lease time), so the
-gateway cannot hand clients a different resolver. The ways to route the whole
-LAN through the mini are in `../pihole/README.md` ("Routing"), each Alex's call.
-Until one is chosen, devices are pointed at `192.168.1.200` one by one. Step 3
-(per-device view) needs the dnsmasq DNS front door described below, because
-Docker Desktop NATs every LAN client to one address.
+**Removal in two steps, no outage** (Alex, 2026-11-14):
 
-## DHCP on the mini (Alex's decision 2026-11-12; switched 2026-11-12 23:59)
+1. *Step 1, ran on <DATE-STEP1>.* Alex ran `bash ~/pihole-removal/step1.sh` on
+   the mini (one sudo). The gateway serves DHCP again (`gateway.py dhcp on`).
+   The mini's `dnsmasq` was restarted with the DNS-only transition config in
+   `dnsmasq.conf` (this directory; no DHCP): it forwards to the gateway
+   `192.168.1.254`, then `1.1.1.1`, so devices still holding an old lease that
+   names `192.168.1.200` as their DNS keep resolving. The same config holds two
+   local records, `relay.hivedeck.app` and `relay-b.hivedeck.app` to
+   `192.168.1.200` (the HiveDeck relays live on the mini). The `pihole`
+   container and image were removed, `~/docker-bare-run/pihole` went to the
+   Trash, and the weekly audit routine was removed.
+2. *Step 2, pending: on or after 2026-11-16* (the last old lease expires
+   2026-11-15 23:01). Alex runs `bash ~/pihole-removal/step2.sh`, which is
+   `sudo brew services stop dnsmasq` with checks. `dnsmasq.conf` and the daemon
+   go away at this step.
 
-The Pi-hole only filters devices that ask it, and the BGW320 cannot name it as
-the DNS server, so DHCP itself moves to the mini: `dnsmasq` (Homebrew) runs as a **root** LaunchDaemon (`sudo brew services start
-dnsmasq`; DHCP needs the BPF socket, measured: a user process fails on it) with
-`dnsmasq.conf` from this directory, same pool `.64–.253`, same 1-day lease,
-router `.254`, DNS `.200`, and the fixed allocations copied from `ipalloc.ha`.
-`gateway.py dhcp off` ran 2026-11-12 23:59 on Alex's word; the first lease (MacBook-Pro, `.201`) followed within a minute. The mini itself sits on a manual IP first
-(`networksetup -setmanual`) so it never waits on a DHCP server, and keeps the
-gateway as its own resolver.
+Consequence recorded in `../OPEN-ITEMS.md`: once dnsmasq stops, LAN devices
+get the public address for `relay.hivedeck.app` from the gateway's DNS, so
+reaching the relays from the LAN depends on the gateway's NAT loopback, which
+is untested.
 
-The same dnsmasq is also the LAN's **DNS front door** (added 2026-11-12 for
-per-client stats): it listens on `192.168.1.200:53` and `127.0.0.1:53`,
-forwards every query uncached to the Pi-hole container on `127.0.0.1:5335`
-(`5353` is taken by macOS mDNSResponder, learned the hard way) and adds the
-real client address as EDNS0 Client Subnet, which Pi-hole FTL logs as the
-client. LAN names and PTRs (`attlocal.net`, `1.168.192.in-addr.arpa`) are
-answered from the leases and never forwarded, which is also what keeps the
-Pi-hole's conditional forwarding back to `.200` from looping. Changing
-`server=` or ports needs `sudo brew services restart dnsmasq`.
+`dhcp-takeover.sh` is what is left of the 2026-11-12 runbook. `status` is
+read-only and truthful for this state (gateway DHCP on is healthy; dnsmasq
+serving DHCP is unexpected). `steps` prints the reversal and the two steps
+above; `preflight` prints the same and exits 1. Nothing in it moves DHCP.
 
-`dhcp-takeover.sh` is the runbook: `install-config` (repo → `/opt/homebrew/etc`),
-`preflight`, `steps` (the exact commands, who runs which), `status` (who serves
-DHCP, current leases). It never runs `sudo` and never posts to the gateway;
-the two sudo lines are Alex's, the gateway switch is Harah's on his word, and
-both land in the vault's change log. Rollback is the reverse: `gateway.py dhcp
-on`, `sudo brew services stop dnsmasq`. Known costs: the gateway's guest Wi-Fi
-loses DHCP; the gateway no longer learns hostnames, so `devices.ha` names go
-blank over time (`dnsmasq.leases` on the mini has them instead); dual-stack
-devices still get the gateway's IPv6 resolver by RA/DHCPv6 until `gateway.py
-ipv6lan dhcpv6 off`, a separate decision.
+`gateway.py dhcp` / `gateway.py ipv6lan` read the gateway's DHCP and IPv6 pages;
+`dhcp on|off` and `ipv6lan ipv6|dhcpv6 on|off` post the whole form back with one
+select flipped and `Save`; `--dry-run` shows the payload.
 
-`gateway.py dhcp` / `gateway.py ipv6lan` read those pages; `dhcp on|off` and
-`ipv6lan ipv6|dhcpv6 on|off` post the whole form back with one select flipped
-and `Save`, `--dry-run` shows the payload (verified read side and dry run
-2026-11-12; the first real `dhcp off` is the switch itself).
+## History: DHCP on the mini, 2026-11-12 to 2026-11-14
+
+On 2026-11-12 Alex had DHCP and DNS moved to the mini so a Pi-hole container
+could filter the LAN: a root `dnsmasq` LaunchDaemon served DHCP and was the
+DNS front door on `192.168.1.200:53`, forwarding every query to a `pihole`
+container on `127.0.0.1:5335` (stack `~/docker-bare-run/pihole`), with the
+gateway's DHCP off (`gateway.py dhcp off`, 23:59 that night). A weekly leak
+audit (`com.alex.harah-pihole`) and a CRUD tool (`pihole/pihole.py`) went with
+it. The BGW320's DHCP form has no DNS field, which is why DHCP itself had to
+move. On 2026-11-14 Alex: *"I want you to disintegrate and remove
+pihole the application entirely. It's more of a burden than useful."* The
+network went back to the gateway, as above. The code is in git history.
 
 ## On the mini
 

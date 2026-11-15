@@ -45,13 +45,15 @@ dated change log, all written to the vault under `Homelab/Network/`. Doctrine
 and tool: `network/README.md` and `network/gateway.py`. Hand-run from the
 MacBook until the mini is up on this network; then a routine like the others.
 
-Since 2026-11-12 the network also has a DNS layer: **Pi-hole** on the mini
-(`~/docker-bare-run/pihole`, DNS `:53`, UI `:8753` LAN only). `pihole/pihole.py`
-is the CRUD surface (adlists, allow/deny, gravity, leaks); `pihole/audit.sh`
-(`com.alex.harah-pihole`, Sundays 20:00) reads a week of permitted queries,
-shortlists ad-shaped hosts and has a headless agent judge them into
-`~/.harah/pihole-audit-report.md`, then texts Alex. It proposes; it denies only
-when `~/.harah/pihole-audit-apply` exists. Doctrine: `pihole/README.md`.
+DHCP and DNS are the gateway's. Alex had them on the mini from 2026-11-12 (a
+root `dnsmasq` in front of a Pi-hole container, with a weekly leak audit), and
+on 2026-11-14 told Harah to remove the Pi-hole entirely ("more of a burden than
+useful"). Step 1 ran on <DATE-STEP1>: the gateway serves DHCP again, a
+DNS-only transition `dnsmasq` on the mini covers old leases, and the Pi-hole,
+its folder and its audit routine are gone. Step 2 is pending: on or after
+2026-11-16 Alex runs `bash ~/pihole-removal/step2.sh` to stop dnsmasq. Fixed
+addresses are the gateway's reservations again (`gateway.py static`). See
+`network/README.md` and `OPEN-ITEMS.md`.
 
 ## What Harah does on its own, and what it never does
 
