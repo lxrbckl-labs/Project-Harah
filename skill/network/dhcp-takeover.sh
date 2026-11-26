@@ -42,10 +42,10 @@ preflight() {
   fi
   # netstat sees root-owned sockets without sudo; lsof does not.
   if netstat -an -p udp 2>/dev/null | /usr/bin/grep -qE '\.67 '; then ok "something already listens on UDP 67 on the mini: $(pgrep -x dnsmasq >/dev/null && echo dnsmasq || echo 'not dnsmasq')"; else warn "nothing listens on UDP 67 yet (expected before step 2)"; fi
-  if /usr/bin/grep -q 'option:dns-server,192.168.1.200' "$DST"; then ok "clients will get DNS 192.168.1.200 (the Pi-hole)"; else bad "config does not hand out the Pi-hole as DNS"; fi
+  if /usr/bin/grep -q 'option:dns-server,192.168.1.200' "$DST"; then ok "clients will get DNS 192.168.1.200 (dnsmasq)"; else bad "config does not hand out 192.168.1.200 as DNS"; fi
   dig +short +time=3 example.com @192.168.1.254 >/dev/null 2>&1 && ok "the gateway answers DNS on 192.168.1.254 (dnsmasq's first upstream)" || bad "the gateway does not answer DNS; do not switch"
   if dig +short +time=3 example.com @192.168.1.200 >/dev/null 2>&1; then
-    ok "dnsmasq answers DNS on 192.168.1.200:53 (forwarding to the Pi-hole)"
+    ok "dnsmasq answers DNS on 192.168.1.200:53"
   elif netstat -an -p udp 2>/dev/null | /usr/bin/grep -qE '192\.168\.1\.200\.53 '; then
     bad "something holds 192.168.1.200:53 but does not answer: dnsmasq is probably forwarding to a dead port; check 'server=' in $DST and restart the service"
   else
@@ -83,7 +83,7 @@ Switch day, in this order. Alex runs the sudo lines on the mini; Harah runs gate
 5. Harah: bash $0 status; add the change-log line to Homelab/Network/Apartment.md.
 
 IPv6 note: the gateway still advertises itself as an IPv6 resolver (RA/DHCPv6), and dual-stack
-devices will send some queries there, around the Pi-hole. Closing that is a second decision:
+devices will send some queries there instead of to dnsmasq (moot since the Pi-hole left; parked by Alex 2026-11-26):
      python3 $HERE/gateway.py ipv6lan dhcpv6 off --dry-run     (or ipv6 off for the whole LAN)
 
 Rollback (any time, in reverse): python3 $HERE/gateway.py dhcp on; sudo brew services stop dnsmasq.
