@@ -14,19 +14,15 @@ venv/
 # macOS
 .DS_Store
 
-# Dashboard build/deps
+# Build output and deps
 node_modules/
 dist/
-dashboard/backend/.venv/
 
 # Resource-history sqlite (runtime data)
 *.db
 *.db-journal
 *.db-wal
 *.db-shm
-dashboard/backend/resources.db
-dashboard/backend/guardian_config.json
 
 # local backup output (also lives outside the repo)
 servermanager-backups/
-dashboard/backend/pins.json

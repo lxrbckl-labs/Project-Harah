@@ -11,7 +11,7 @@ Examples
     ./caddy-traffic.py                 # last 5 minutes, one report
     ./caddy-traffic.py -n 15           # last 15 minutes
     ./caddy-traffic.py -n 10 --watch   # re-run every 10 minutes
-    ./caddy-traffic.py -n 60 --json    # machine-readable (for future dashboards)
+    ./caddy-traffic.py -n 60 --json    # machine-readable (for other tools)
 
 Data source: `docker exec <container> cat <logpath>`. No extra mounts needed;
 the log lives in the existing caddy_data volume.

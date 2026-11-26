@@ -17,33 +17,36 @@ so every scheduled routine in this repo failed with `Operation not permitted`
 
 ## What this repo is
 
-1. **The ServerManager dashboard** — FastAPI backend (`dashboard/backend/app.py`)
-   + Vite/React-TS frontend (`dashboard/web/`). FastAPI serves the built
-   `web/dist` *and* the API from one origin on **port 8770** (canonical — don't
-   change it). Deliberately **not** behind Caddy, and it has **no auth**.
-2. **The Harah agent doctrine** (`skill/`) — moved out of the operator's config
+1. **The Harah agent doctrine** (`skill/`) — moved out of the operator's config
    repo 2026-08-16 so that repo never names this project. Entry point:
    `skill/README.md`.
+2. **The Caddy monitoring tools** (`tools/`, `templates/`, `AGENT.md`).
+
+**The ServerManager dashboard was retired 2026-11-26** (Alex: "go ahead and
+completely erase the server manager project. we are not using that anymore").
+It was a FastAPI backend plus a Vite/React frontend under `dashboard/`, served
+on port 8770 by the launchd job `com.lxrbckl.servermanager-dashboard`: host
+stats, Caddy traffic, container start/stop/restart, the guardian (IP bans
+through Caddy), a manual `pg_dumpall` backups panel, panels over the routines'
+state files. All of it is in git history before the commit that removed
+`dashboard/`. Every mention of the dashboard below this header is history,
+left as written.
 
 ## Stack
 
-Backend: Python 3.14 (system Python — FastAPI/psutil/pydantic wheels do install
-on it), venv at `dashboard/backend/.venv`. Frontend: Vite 8 + React 19 +
-TypeScript; `npm run build` → `web/dist`. No Drizzle/pnpm/Postgres here — the
-backend reads Docker and the Caddy access log.
+Python 3.14 (system Python) and bash; the routines and tools are stdlib-only
+where possible.
 
 ## How it runs on the mini
 
 | launchd job | Schedule | Installed by |
 |---|---|---|
-| `com.lxrbckl.servermanager-dashboard` | KeepAlive + RunAtLoad | `dashboard/enable.sh` |
 | `com.alex.harah-grooming` | dynamic (see below) | `skill/grooming/set-cadence.sh` |
 | `com.alex.harah-alerts` | every 6h | `skill/alerts/enable.sh` |
 
 Every installer is **self-locating** (the plist points at the script beside it),
 so re-run them after moving the checkout. Logs:
-`~/Library/Logs/harah-{grooming,alerts}.log`,
-`~/Library/Logs/servermanager-dashboard.log`. State lives in `~/.harah/`.
+`~/Library/Logs/harah-{grooming,alerts}.log`. State lives in `~/.harah/`.
 
 ## The grooming ↔ alerts correlation
 
@@ -69,14 +72,12 @@ more. `skill/grooming/POLICY.md` remains the sole merge authorization.
   kept returning 200 while every Docker call failed and the UI showed 0
   containers. The plist now sets `EnvironmentVariables → PATH`. **Health ≠
   Docker reachability — check `/api/containers` after any launch change.**
-- The dashboard was a **hand-started orphan for 34 days** (parent = launchd,
-  nothing managing it) and would not have survived a reboot. Never start it in a
-  terminal; use `dashboard/enable.sh`.
-- Frontend changes need `cd dashboard/web && npm run build` **and** a service
-  restart, or the stale bundle keeps being served.
+- The dashboard (retired 2026-11-26) was a **hand-started orphan for 34 days**
+  (parent = launchd, nothing managing it) and would not have survived a reboot.
+  Never hand-start a service in a terminal; give it a launchd job.
 - `~/docker-bare-run/` holds **plaintext secrets** — never commit it.
-- Guardrail enforced in code: `ALLOWED_ACTIONS = {start, stop, restart}`; the
-  API returns 400 for remove/rm/kill/delete. Keep that invariant.
+- Guardrail: start / stop / restart only, never remove. `incident/respond.py`
+  holds it in code. Keep that invariant.
 - `groom.sh` logs via `tee` while launchd also captures stdout to the same
   file, so scheduled passes double-log each line. Cosmetic; don't read it as
   two passes.

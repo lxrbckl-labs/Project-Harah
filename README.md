@@ -1,6 +1,6 @@
 <p align="center"><img src="assets/harah.png" width="220" alt="Harah"></p>
 
-# ServerManager
+# Project-Harah
 
 A portable toolkit + agent playbook for **monitoring Docker + Caddy servers**.
 
@@ -8,7 +8,7 @@ Point an agent (or yourself) at any server running Docker behind a Caddy reverse
 proxy, follow [`AGENT.md`](AGENT.md), and come out the other side with request
 monitoring, container health checks, and scheduled reporting in place.
 
-ServerManager is deliberately **Docker- and Caddy-oriented**. It assumes:
+The toolkit is deliberately **Docker- and Caddy-oriented**. It assumes:
 
 - Docker is the container runtime (`docker ps`, `docker exec`, … are available).
 - A **Caddy** container is the reverse proxy, with its `Caddyfile` reachable

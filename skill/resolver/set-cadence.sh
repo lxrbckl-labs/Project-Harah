@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Single owner of the harah RESOLVER plist — same pattern as grooming's.
-# enable.sh delegates here, and the dashboard's Resolver panel calls it via
-# POST /api/resolver/cadence/{choice}.
+# enable.sh delegates here.
 #
 # Usage: set-cadence.sh <daily|SECONDS> [reason] [--force]
 #

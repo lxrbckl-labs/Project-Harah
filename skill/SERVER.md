@@ -22,27 +22,22 @@ Everything is fronted by a **Caddy** container doing automatic HTTPS + reverse p
 ## Where things live
 
 - **`~/lxrbckl-dev/Project-Harah`** — the project repo — **on the mini: one checkout only, this path** (the launchd routines run from it; a second mini clone invites split-brain). Other machines may hold their own clone for doctrine/dev work (the MacBook's lives at `~/lxrbckl-labs/Project-Harah`); routines never run there. Remote: `github.com/lxrbckl-labs/Project-Harah` (**public**; was `lxRbckl/ServerManager`, transferred + renamed 2026-08-15 — old URLs redirect, but update local remotes when convenient), `main` tracks origin. **Moved here from `~/Documents/ServerManager` 2026-08-16 — macOS TCC blocks launchd from running scripts inside `~/Documents`, which silently broke every scheduled routine in this repo (exit 126). Do not move it back under `~/Documents`, `~/Desktop`, or `~/Downloads`.**
-  - `dashboard/backend/app.py` — FastAPI API (Docker control, stats, traffic, guardian, backups, pins)
-  - `dashboard/web/` — Vite React-TS dashboard
   - `tools/caddy-traffic.py`, `tools/caddy-ensure-logging.py` — standalone CLI tools
   - `AGENT.md` — portable playbook for instrumenting *any* Docker+Caddy host
   - `docs/caddy-reverse-proxy-setup.md` — shareable Caddy setup guide
 - **`~/caddyfile`** — the live Caddy config (bind-mounted into the container)
 - **`~/docker-bare-run/`** — compose definitions for the non-compose containers (caddy, vaultwarden, watchtower, etc.). **Contains plaintext secrets — never commit.**
-- **`~/servermanager-backups/`** — `pg_dumpall` output
+- **`~/servermanager-backups/`** — `pg_dumpall` output (the folder keeps its old name)
 - **`~/rxresume/`, `~/immich/`, `~/minecraft/`, `~/Project-*`** — individual stacks
 
-### The dashboard
+### The dashboard is gone (2026-11-26)
 
-Runs on **port 8770** — this is the canonical, fixed port; don't change it without being told.
-
-```sh
-cd ~/lxrbckl-dev/Project-Harah/dashboard/web && npm run build     # after any frontend change
-cd ../backend && .venv/bin/uvicorn app:app --host 0.0.0.0 --port 8770
-```
-
-FastAPI serves the built `web/dist` **and** the API from one origin, so it's reachable at
-`http://192.168.1.200:8770` from any device on the LAN. It is deliberately **not** behind Caddy.
+The ServerManager dashboard (FastAPI + React on port 8770: host stats, Caddy
+traffic, container start/stop/restart, the guardian, the backups panel) was
+retired on Alex's word, 2026-11-26: "we are not using that anymore". Nothing
+listens on 8770. The routines still write their state to `~/.harah/*.json`;
+read those files, the logs and `doctor.sh` instead. The code is in git history
+before the commit that removed `dashboard/`.
 
 ---
 
@@ -51,20 +46,16 @@ FastAPI serves the built `web/dist` **and** the API from one origin, so it's rea
 These aren't bureaucracy — each one exists because the downside is severe and irreversible.
 
 **Never remove or delete containers, images, or volumes.** Stop / start / restart only.
-Alex's data lives in named volumes and bind mounts; a stray `rm` is unrecoverable. The
-dashboard API enforces this in code (`ALLOWED_ACTIONS = {start, stop, restart}`) and returns
-400 for `remove`/`rm`/`kill`/`delete`. Keep that invariant if you extend the API.
-
-**Don't expose the dashboard to the internet.** It controls Docker and has **no
-authentication** (Alex's explicit choice for a trusted LAN). Adding it to the Caddyfile
-would hand container control to anyone who can reach it.
+Alex's data lives in named volumes and bind mounts; a stray `rm` is unrecoverable.
+`incident/respond.py` holds the same limit in code. Keep that invariant in anything
+new that drives Docker.
 
 **Back up and validate before changing `~/caddyfile`.** Caddy fronts Vaultwarden, Immich,
 and every public site — a syntax error takes them all down. Copy the file, run
 `caddy validate` against the *custom* image, and only then apply.
 
-**Don't commit secrets.** `guardian_config.json`, `pins.json`, `resources.db`, `config.env`,
-and everything in `~/docker-bare-run/` are gitignored or out-of-repo. Check `git status`
+**Don't commit secrets.** `config.env` and everything in `~/docker-bare-run/` are
+gitignored or out-of-repo. Check `git status`
 before committing.
 
 **Confirm before user-facing disruption.** Stopping a service, recreating Caddy, or anything
@@ -95,7 +86,7 @@ security features come up — don't imply protection that isn't there.
 
 **macOS memory accounting is ambiguous.** psutil's `used` (active+wired) and `total −
 available` (which includes ~6 GB compressed) differ by a lot. Use **`total − available`** —
-it matches Activity Monitor's "Memory Used". The dashboard hero uses Alex's own formula:
+it matches Activity Monitor's "Memory Used". Alex's own formula for a single number is
 `docker_used + (host_used − docker_alloc)` over total RAM, deliberately de-duplicating
 Docker's reserved-but-unused allocation.
 
@@ -106,21 +97,17 @@ entry for key Health"). Parse health from the `docker ps` **Status** string inst
 **Container logs often go to stderr** (Caddy does). `docker logs` writes them to *stderr*,
 so a helper that only captures stdout returns empty. Merge the streams.
 
-**Mobile scroll jank** came from three things stacking: a nested `.main` overflow scroller,
-a fixed continuously-animating WebGL background, and a sticky header. On phones: scroll the
-document naturally, drop the animated veil, un-stick the header.
-
 **launchd's PATH does not include `/usr/local/bin`** — where Docker Desktop
-symlinks the `docker` CLI. The dashboard ran for months as a hand-started
-process inheriting Alex's shell PATH; the moment it became a launchd job the
+symlinks the `docker` CLI. The retired dashboard ran for months as a hand-started
+process inheriting Alex's shell PATH; the moment it became a launchd job its
 API still answered `/api/health` **200** while every Docker call failed with
-`docker not found on PATH` — containers, stats, top-load, and backups all
-silently empty. The plist therefore sets `EnvironmentVariables → PATH`
-explicitly. Health-checking a service is **not** the same as checking it can
-still reach Docker; verify a Docker-backed endpoint (`/api/containers`) after
-any change to how the dashboard is launched. (Hit and fixed 2026-08-16.)
+`docker not found on PATH`. A plist for anything that calls Docker therefore
+sets `EnvironmentVariables → PATH` explicitly. Health-checking a service is
+**not** the same as checking it can still reach Docker; exercise a
+Docker-backed call after any change to how a service is launched. (Hit and
+fixed 2026-08-16.)
 
-**Python 3.14** is the system Python and FastAPI/psutil/pydantic wheels *do* install on it.
+**Python 3.14** is the system Python.
 
 ---
 
@@ -129,7 +116,7 @@ any change to how the dashboard is launched. (Hit and fixed 2026-08-16.)
 Read it when actually doing the task: Caddy config change (backup →
 validate against the custom `caddy-ratelimit` image → recreate), add a
 subdomain (+ accesslog guard), traffic investigation, DB backup (manual
-only), ship a ServerManager change (build → commit → push, automatic).
+only), ship a change (commit → push, automatic).
 
 ---
 
@@ -163,11 +150,11 @@ routines were declared "live and verified" off manual runs while every real
 fire failed with exit 126. **The only acceptable evidence is: kickstart it,
 read the exit code, read the log.** Report the exit code you actually saw.
 
-**3. Liveness is not function.** `/api/health` returning 200 said nothing about
-whether the dashboard could reach Docker — it couldn't, and the UI showed zero
-containers. After any change to how a service starts, exercise an endpoint that
-*uses the dependency* (`/api/containers`), not just the one that proves the
-process is breathing.
+**3. Liveness is not function.** The retired dashboard's `/api/health` returning
+200 said nothing about whether it could reach Docker — it couldn't, and the UI
+showed zero containers. After any change to how a service starts, exercise a
+call that *uses the dependency*, not just the one that proves the process is
+breathing.
 
 **4. Re-derive from live data; every brief goes stale — including this file.**
 Version targets, alert counts, and "the fix is in X" age badly. The resolver's

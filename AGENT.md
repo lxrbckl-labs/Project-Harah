@@ -1,10 +1,10 @@
-# ServerManager — Agent Playbook
+# Agent Playbook — instrumenting a Docker + Caddy server
 
 This is the ordered procedure an agent follows to set up monitoring on a
 **Docker + Caddy** server. It assumes shell access to the host (local or over
 SSH) and that Docker is usable without prompting.
 
-The goal state: Caddy is emitting access logs, the ServerManager tools are
+The goal state: Caddy is emitting access logs, the monitoring tools are
 installed and runnable, and at least the traffic monitor is scheduled to run on
 an interval with its output captured.
 
@@ -44,8 +44,8 @@ Caddy container name and the access-log path you'll use.
 ## Step 1 — Instrument Caddy with access logging
 
 Caddy does **not** log requests by default, and there is **no global switch** —
-access logging is enabled per-site with a `log` directive. ServerManager's
-pattern: define one reusable snippet and `import` it into every site block, all
+access logging is enabled per-site with a `log` directive. The
+pattern here: define one reusable snippet and `import` it into every site block, all
 writing to a single JSON log inside the `caddy_data` volume.
 
 1. **Back up** the Caddyfile: `cp <caddyfile> <caddyfile>.bak.<date>`.
@@ -128,7 +128,7 @@ Pick a cadence and capture output.
 - **Background on Linux:** a `cron` entry or systemd timer running the same command.
 
 Decide where output goes: a rolling text log for humans, and/or `--json` piped to
-a file a future dashboard can read.
+a file another tool can read.
 
 ---
 

@@ -12,7 +12,7 @@ whenever a vulnerable dependency is detected, whether or not a PR exists (no
 version-update config, no fix available yet, or the PR was closed). On
 2026-08-16 that gap was 3 PRs visible vs 100 alerts open.
 
-State -> ~/.harah/alerts-state.json (rendered by the dashboard's Alerts panel).
+State -> ~/.harah/alerts-state.json.
 """
 from __future__ import annotations
 

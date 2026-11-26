@@ -62,7 +62,7 @@ for label, name, status, code, want_ok, want_suppressed in CASES:
         bad.append(f"ok={e['ok']} want {want_ok}")
     if e["known_bad"] is not want_suppressed:
         bad.append(f"known_bad={e['known_bad']} want {want_suppressed}")
-    # A suppression is only legitimate if it says why — the dashboard prints it.
+    # A suppression is only legitimate if it says why.
     if e["known_bad"] and not (e.get("known_bad_reason") or "").strip():
         bad.append("suppressed with no stated reason")
     if not e["known_bad"] and e.get("known_bad_reason"):

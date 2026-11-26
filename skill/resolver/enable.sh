@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # Install the harah resolver launchd job. Run on the MINI.
 #
-# The schedule is owned by set-cadence.sh (which the dashboard's Resolver panel
-# also drives), so the two can never write different plists. An existing
-# cadence is PRESERVED across re-installs.
+# The schedule is owned by set-cadence.sh, so there is one writer of the plist.
+# An existing cadence is PRESERVED across re-installs.
 #
 # Runs in the GUI domain deliberately — headless `claude -p` needs the login
 # Keychain for its OAuth subscription token; a system-domain daemon cannot

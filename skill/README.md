@@ -21,7 +21,7 @@ in git history.
 | | dir | runner | cadence |
 |---|---|---|---|
 | 1 Sweep | `grooming/` | `groom.sh` (`--dry-run`) | daily 4:30am, escalated by `alerts/` |
-| 2 Resolve | `resolver/` | `resolve.sh` → `claude -p prompt.md` (`--dry-run`) | daily 5:30am (dashboard: 6h / 12h) |
+| 2 Resolve | `resolver/` | `resolve.sh` → `claude -p prompt.md` (`--dry-run`) | daily 5:30am (`resolver/set-cadence.sh`: 6h / 12h) |
 | 3 Prove | `prove/` | `prove.sh` → `prove.py` (`--force`, `--repo`, `--dry-run`) | every 10 min, acts on image change |
 
 Supporting: `alerts/` (sensor, every 6h, read-only), `watchdog/` + `incident/`
