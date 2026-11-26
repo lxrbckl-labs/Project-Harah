@@ -1,23 +1,42 @@
 # Open items (measured, dated; re-measure before acting)
 
+**2026-11-26, gateway IPv6 and Pi-hole (mini):**
+
+- ⏸ **`gateway.py ipv6lan dhcpv6 off` does not stick on the BGW320 — parked by Alex.** Alex's word 2026-11-26 02:41 ("turn it off"), so dual-stack devices stop being handed the gateway (`2600:1700:181f:210::1`) as IPv6 resolver and bypassing the Pi-hole. Two attempts: 02:41:59 the POST was accepted (page showed `dhcpv6 = off`) and had reverted to `on` by 02:43:03; 02:44 the POST was accepted again, held through +45 s of re-reads, and had reverted by 02:58:02. `ipv6lan` and `dhcpv6pd` stayed `on` both times; the form is three selects plus nonce and Save, no hidden fields, no error text. The page itself says DHCPv6 "configuration details are configured by your service provider", so the likely cause is the provider-managed config (or a PD-requires-DHCPv6 rule) restoring it. Not retried further. **Alex's decision 2026-11-26 03:0x: leave IPv6 as is** (accept the bypass). Untried alternatives, for the record: `dhcpv6` and `dhcpv6pd` off together, or `ipv6lan off` (every hosted name is IPv4-only, A records on 99.109.232.114, no AAAA, so nothing hosted would break). Do not re-attempt without his word. Measured: the mini's own DHCPv6 lease (`::46`, DNS `::1`) was still being renewed at 02:58.
+- 🟡 **`.local` SOA loop between the Pi-hole and the host dnsmasq.** Measured 02:50: of 1,448 queries since 02:22, 993 were `SOA local` from the MacBook (`192.168.1.201`, mDNSResponder's unicast probe, ~50/min), all forwarded by FTL to `192.168.1.200` because Pi-hole's revServers setting also emits `server=//192.168.1.200` (single-label names go to the conditional forwarder); the host dnsmasq has `domain-needed` and never answers, so the MacBook retries forever. Harmless noise, but it is two thirds of the query log. Fix, Alex's word (needs his `sudo brew services restart dnsmasq`): add `local=/local/` to `skill/network/dnsmasq.conf` (and the live `/opt/homebrew/etc/dnsmasq.conf`) so `.local` gets an authoritative NXDOMAIN and never leaves the host, per RFC 6762.
+
+**2026-11-26, headless Claude on the mini:**
+
+- ✅ **`claude -p` on the mini failed with `OAuth session expired` — CLOSED 2026-11-26 02:32 CST.** Measured 02:24 interactively and in `~/Library/Logs/harah-pihole.log` (the weekly Pi-hole audit's agent step exited 1 on 2026-11-15 and 2026-11-22). The scheduler skill's gotcha, not launchd: Alex re-ran `/login` at the mini at 02:3x; `claude -p "reply OK"` then printed OK and `launchctl kickstart -k gui/$(id -u)/com.alex.harah-pihole` ran the audit end to end (exit 0, 26 shortlisted, 0 DENY / 18 KEEP / 8 UNSURE, propose mode, state `ok`). Dark since 11-15, so 11 days of audits were lost; the proof-of-life is `doctor.sh` reading `pihole-state.json`. Residual: the run logs `[claude-code:unrecognized_model] claude-fable-5-2`, i.e. `audit.sh` asks for a model slug this CLI does not know and falls back; harmless today, worth pinning to a current slug.
+
 **2026-11-13, Docker networking (mini):**
 
-- 🔴 **Containers cannot reach the LAN (192.168.1.0/24).** Measured 00:50 CST
-  from a throwaway `curlimages/curl` container and from the `caddy` container:
-  TCP to `192.168.1.254:80`, `192.168.1.201:443`, and even the mini's own
-  `192.168.1.200:8753` all time out ("Host is unreachable"); internet and
-  `host.docker.internal` work. Docker Desktop 4.98.0 / engine 29.9.2. Possibly
-  related: the mini is dual-homed, `en1` (Wi-Fi) holds `192.168.1.82` by DHCP
-  with its own default route next to `en0`'s manual `.200`. **Consequences
-  today:** the Pi-hole's upstream `192.168.1.254` and its revServers target
-  `192.168.1.200` never answer (FTL upstream stats: count 15 / 10, response 0),
-  so it resolves via `1.1.1.1` only and the Pi-hole admin page shows no device names;
-  the Relay live suite cannot be run from a container against a LAN host.
-  **Candidate fixes, Alex's call:** (a) Pi-hole: point `FTLCONF_dns_revServers`
-  (and, if wanted, the first upstream) at `host.docker.internal`, which does
-  reach the host dnsmasq from the pihole container (verified: PTR for `.201`
-  returns `MacBook-Pro.attlocal.net`); (b) turn Wi-Fi off on the mini or move it
-  off the LAN subnet, then re-measure; (c) Docker Desktop's network settings.
+- ✅ **Containers cannot reach the LAN (192.168.1.0/24) — CLOSED 2026-11-26 02:22 CST.**
+  Root cause: the Docker network `caddy_default` (created 2026-07-03) had been
+  given `192.168.0.0/20` by the engine's automatic address pool, a range that
+  contains the LAN. Inside the VM that is a connected route on the caddy
+  bridge, so every container's LAN-bound packet (TCP, UDP, ICMP) died there and
+  never reached macOS. Ruled out by measurement first: the dual-homing (`en1`),
+  the macOS 15 Local Network permission (toggled, then a full reboot: no
+  change), the firewall. Fix, on Alex's word: `~/docker-bare-run/caddy/
+  docker-compose.yml` now declares `networks.default.ipam.config.subnet:
+  10.90.0.0/24` (backup `docker-compose.yml.bak-20261126-pre-subnet`); `docker
+  compose up -d` recreated the network and the container with a sub-second
+  blink. Verified after: every public site answers; from a container
+  `192.168.1.254:80`, `.67:6466`, `.220:22`, `.200:8123` all open; the
+  Pi-hole's upstream `192.168.1.254:53` and revServers `192.168.1.200:53` are
+  reachable and reverse lookups return LAN names again. No Pi-hole config
+  change was needed. Vault change log: `Homelab/Network/Apartment.md`
+  (2026-11-26). The original 2026-11-13 measurement is in git history.
+- 🟡 **Docker's automatic address pool can hand a stack a LAN-overlapping
+  subnet again.** The fix above pins only Caddy's network. Hygiene, Alex's
+  call: `~/.docker/daemon.json` gets `"default-address-pools":
+  [{"base":"172.17.0.0/12","size":16},{"base":"10.200.0.0/16","size":24}]`
+  (keeps `192.168/16` out of Docker entirely); takes effect after a Docker
+  Desktop restart (every container blinks); existing networks keep their
+  subnets. Until then, a new stack whose network lands in `192.168.0.0/20`
+  would re-create the outage: check `docker network inspect` subnets against
+  `192.168.1.0/24` when adding a stack.
 
 **2026-11-12, Pi-hole (mini):**
 
