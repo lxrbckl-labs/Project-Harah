@@ -1,23 +1,37 @@
 # Open items (measured, dated; re-measure before acting)
 
+**2026-11-26, headless Claude on the mini:**
+
+- 🔴 **`claude -p` on the mini fails: `Failed to authenticate: OAuth session expired and could not be refreshed`.** Measured 02:24 CST interactively and in `~/Library/Logs/harah-pihole.log` (the weekly Pi-hole audit's agent step has exited 1 on 2026-11-15 and 2026-11-22; `~/.harah/pihole-state.json` outcome `error`). Every routine that calls `claude -p` is affected until the token is renewed. Not a launchd/Keychain fault (the scheduler skill's gotcha): the fix is Alex, at the mini's keyboard, `claude` then `/login`, then `claude -p "reply OK"` prints OK and `launchctl kickstart -k gui/$(id -u)/com.alex.harah-pihole` proves the audit. Blocklists themselves are unaffected: 4 adlists, gravity rebuilt 2026-11-26 02:24 (575,442 domains).
+
 **2026-11-13, Docker networking (mini):**
 
-- 🔴 **Containers cannot reach the LAN (192.168.1.0/24).** Measured 00:50 CST
-  from a throwaway `curlimages/curl` container and from the `caddy` container:
-  TCP to `192.168.1.254:80`, `192.168.1.201:443`, and even the mini's own
-  `192.168.1.200:8753` all time out ("Host is unreachable"); internet and
-  `host.docker.internal` work. Docker Desktop 4.98.0 / engine 29.9.2. Possibly
-  related: the mini is dual-homed, `en1` (Wi-Fi) holds `192.168.1.82` by DHCP
-  with its own default route next to `en0`'s manual `.200`. **Consequences
-  today:** the Pi-hole's upstream `192.168.1.254` and its revServers target
-  `192.168.1.200` never answer (FTL upstream stats: count 15 / 10, response 0),
-  so it resolves via `1.1.1.1` only and the Pi-hole admin page shows no device names;
-  the Relay live suite cannot be run from a container against a LAN host.
-  **Candidate fixes, Alex's call:** (a) Pi-hole: point `FTLCONF_dns_revServers`
-  (and, if wanted, the first upstream) at `host.docker.internal`, which does
-  reach the host dnsmasq from the pihole container (verified: PTR for `.201`
-  returns `MacBook-Pro.attlocal.net`); (b) turn Wi-Fi off on the mini or move it
-  off the LAN subnet, then re-measure; (c) Docker Desktop's network settings.
+- ✅ **Containers cannot reach the LAN (192.168.1.0/24) — CLOSED 2026-11-26 02:22 CST.**
+  Root cause: the Docker network `caddy_default` (created 2026-07-03) had been
+  given `192.168.0.0/20` by the engine's automatic address pool, a range that
+  contains the LAN. Inside the VM that is a connected route on the caddy
+  bridge, so every container's LAN-bound packet (TCP, UDP, ICMP) died there and
+  never reached macOS. Ruled out by measurement first: the dual-homing (`en1`),
+  the macOS 15 Local Network permission (toggled, then a full reboot: no
+  change), the firewall. Fix, on Alex's word: `~/docker-bare-run/caddy/
+  docker-compose.yml` now declares `networks.default.ipam.config.subnet:
+  10.90.0.0/24` (backup `docker-compose.yml.bak-20261126-pre-subnet`); `docker
+  compose up -d` recreated the network and the container with a sub-second
+  blink. Verified after: every public site answers; from a container
+  `192.168.1.254:80`, `.67:6466`, `.220:22`, `.200:8123` all open; the
+  Pi-hole's upstream `192.168.1.254:53` and revServers `192.168.1.200:53` are
+  reachable and reverse lookups return LAN names again. No Pi-hole config
+  change was needed. Vault change log: `Homelab/Network/Apartment.md`
+  (2026-11-26). The original 2026-11-13 measurement is in git history.
+- 🟡 **Docker's automatic address pool can hand a stack a LAN-overlapping
+  subnet again.** The fix above pins only Caddy's network. Hygiene, Alex's
+  call: `~/.docker/daemon.json` gets `"default-address-pools":
+  [{"base":"172.17.0.0/12","size":16},{"base":"10.200.0.0/16","size":24}]`
+  (keeps `192.168/16` out of Docker entirely); takes effect after a Docker
+  Desktop restart (every container blinks); existing networks keep their
+  subnets. Until then, a new stack whose network lands in `192.168.0.0/20`
+  would re-create the outage: check `docker network inspect` subnets against
+  `192.168.1.0/24` when adding a stack.
 
 **2026-11-12, Pi-hole (mini):**
 
