@@ -43,7 +43,7 @@ preflight() {
   # netstat sees root-owned sockets without sudo; lsof does not.
   if netstat -an -p udp 2>/dev/null | /usr/bin/grep -qE '\.67 '; then ok "something already listens on UDP 67 on the mini: $(pgrep -x dnsmasq >/dev/null && echo dnsmasq || echo 'not dnsmasq')"; else warn "nothing listens on UDP 67 yet (expected before step 2)"; fi
   if /usr/bin/grep -q 'option:dns-server,192.168.1.200' "$DST"; then ok "clients will get DNS 192.168.1.200 (the Pi-hole)"; else bad "config does not hand out the Pi-hole as DNS"; fi
-  dig +short +time=3 example.com @127.0.0.1 -p 5335 >/dev/null 2>&1 && ok "the Pi-hole answers on 127.0.0.1:5335 (behind dnsmasq)" || bad "the Pi-hole does not answer on 127.0.0.1:5335; do not switch"
+  dig +short +time=3 example.com @192.168.1.254 >/dev/null 2>&1 && ok "the gateway answers DNS on 192.168.1.254 (dnsmasq's first upstream)" || bad "the gateway does not answer DNS; do not switch"
   if dig +short +time=3 example.com @192.168.1.200 >/dev/null 2>&1; then
     ok "dnsmasq answers DNS on 192.168.1.200:53 (forwarding to the Pi-hole)"
   elif netstat -an -p udp 2>/dev/null | /usr/bin/grep -qE '192\.168\.1\.200\.53 '; then
@@ -78,7 +78,7 @@ Switch day, in this order. Alex runs the sudo lines on the mini; Harah runs gate
 
 4. Prove it from any device: renew its lease (Wi-Fi off/on) and check its DNS is 192.168.1.200
      macOS: ipconfig getpacket en0 | grep domain_name_server      (or en1 on Wi-Fi)
-     then open a site with ads and watch: python3 $HERE/../pihole/pihole.py top --blocked
+     then resolve a hosted name from a phone: it must answer 192.168.1.200
 
 5. Harah: bash $0 status; add the change-log line to Homelab/Network/Apartment.md.
 
@@ -96,7 +96,7 @@ status() {
   echo "── mini"
   if netstat -an -p udp 2>/dev/null | /usr/bin/grep -qE '\.67 ' && pgrep -x dnsmasq >/dev/null; then ok "dnsmasq is serving DHCP on the mini (pid $(pgrep -x dnsmasq | head -1))"; else warn "dnsmasq is not listening on UDP 67"; fi
   dig +short +time=3 example.com @192.168.1.200 >/dev/null 2>&1 && ok "dnsmasq answers DNS on 192.168.1.200:53" || warn "no DNS answer from 192.168.1.200:53"
-  dig +short +time=3 example.com @127.0.0.1 -p 5335 >/dev/null 2>&1 && ok "the Pi-hole answers on 127.0.0.1:5335" || warn "the Pi-hole does not answer on 127.0.0.1:5335"
+  dig +short +time=3 relay.hivedeck.app @192.168.1.200 2>/dev/null | grep -qx 192.168.1.200 && ok "split horizon: relay.hivedeck.app -> 192.168.1.200" || warn "relay.hivedeck.app does not resolve to the mini via dnsmasq"
   sudo -n true 2>/dev/null && true
   if [ -r "$LEASES" ]; then
     echo "   leases ($(wc -l < "$LEASES" | tr -d ' ')):"; awk '{ cmd="date -r "$1" +%H:%M"; cmd | getline t; close(cmd); printf "   %-16s %-18s %s (until %s)\n", $3, $2, $4, t }' "$LEASES" | head -n 40

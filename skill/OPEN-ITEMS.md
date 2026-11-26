@@ -2,8 +2,8 @@
 
 **2026-11-26, gateway IPv6 and Pi-hole (mini):**
 
-- ⏸ **`gateway.py ipv6lan dhcpv6 off` does not stick on the BGW320 — parked by Alex.** Alex's word 2026-11-26 02:41 ("turn it off"), so dual-stack devices stop being handed the gateway (`2600:1700:181f:210::1`) as IPv6 resolver and bypassing the Pi-hole. Two attempts: 02:41:59 the POST was accepted (page showed `dhcpv6 = off`) and had reverted to `on` by 02:43:03; 02:44 the POST was accepted again, held through +45 s of re-reads, and had reverted by 02:58:02. `ipv6lan` and `dhcpv6pd` stayed `on` both times; the form is three selects plus nonce and Save, no hidden fields, no error text. The page itself says DHCPv6 "configuration details are configured by your service provider", so the likely cause is the provider-managed config (or a PD-requires-DHCPv6 rule) restoring it. Not retried further. **Alex's decision 2026-11-26 03:0x: leave IPv6 as is** (accept the bypass). Untried alternatives, for the record: `dhcpv6` and `dhcpv6pd` off together, or `ipv6lan off` (every hosted name is IPv4-only, A records on 99.109.232.114, no AAAA, so nothing hosted would break). Do not re-attempt without his word. Measured: the mini's own DHCPv6 lease (`::46`, DNS `::1`) was still being renewed at 02:58.
-- 🟡 **`.local` SOA loop between the Pi-hole and the host dnsmasq.** Measured 02:50: of 1,448 queries since 02:22, 993 were `SOA local` from the MacBook (`192.168.1.201`, mDNSResponder's unicast probe, ~50/min), all forwarded by FTL to `192.168.1.200` because Pi-hole's revServers setting also emits `server=//192.168.1.200` (single-label names go to the conditional forwarder); the host dnsmasq has `domain-needed` and never answers, so the MacBook retries forever. Harmless noise, but it is two thirds of the query log. Fix, Alex's word (needs his `sudo brew services restart dnsmasq`): add `local=/local/` to `skill/network/dnsmasq.conf` (and the live `/opt/homebrew/etc/dnsmasq.conf`) so `.local` gets an authoritative NXDOMAIN and never leaves the host, per RFC 6762.
+- ✅ **`gateway.py ipv6lan dhcpv6 off` does not stick on the BGW320 — MOOT since the Pi-hole's removal (2026-11-26):** the IPv6 bypass only mattered for ad blocking. Kept for the record. Alex's word 2026-11-26 02:41 ("turn it off"), so dual-stack devices stop being handed the gateway (`2600:1700:181f:210::1`) as IPv6 resolver and bypassing the Pi-hole. Two attempts: 02:41:59 the POST was accepted (page showed `dhcpv6 = off`) and had reverted to `on` by 02:43:03; 02:44 the POST was accepted again, held through +45 s of re-reads, and had reverted by 02:58:02. `ipv6lan` and `dhcpv6pd` stayed `on` both times; the form is three selects plus nonce and Save, no hidden fields, no error text. The page itself says DHCPv6 "configuration details are configured by your service provider", so the likely cause is the provider-managed config (or a PD-requires-DHCPv6 rule) restoring it. Not retried further. **Alex's decision 2026-11-26 03:0x: leave IPv6 as is** (accept the bypass). Untried alternatives, for the record: `dhcpv6` and `dhcpv6pd` off together, or `ipv6lan off` (every hosted name is IPv4-only, A records on 99.109.232.114, no AAAA, so nothing hosted would break). Do not re-attempt without his word. Measured: the mini's own DHCPv6 lease (`::46`, DNS `::1`) was still being renewed at 02:58.
+- ✅ **`.local` SOA loop between the Pi-hole and the host dnsmasq — MOOT since the Pi-hole's removal (2026-11-26):** the `server=//192.168.1.200` line that caused it was Pi-hole's. dnsmasq's `domain-needed` already refuses single-label names. Kept for the record. Measured 02:50: of 1,448 queries since 02:22, 993 were `SOA local` from the MacBook (`192.168.1.201`, mDNSResponder's unicast probe, ~50/min), all forwarded by FTL to `192.168.1.200` because Pi-hole's revServers setting also emits `server=//192.168.1.200` (single-label names go to the conditional forwarder); the host dnsmasq has `domain-needed` and never answers, so the MacBook retries forever. Harmless noise, but it is two thirds of the query log. Fix, Alex's word (needs his `sudo brew services restart dnsmasq`): add `local=/local/` to `skill/network/dnsmasq.conf` (and the live `/opt/homebrew/etc/dnsmasq.conf`) so `.local` gets an authoritative NXDOMAIN and never leaves the host, per RFC 6762.
 
 **2026-11-26, headless Claude on the mini:**
 
@@ -38,7 +38,7 @@
   would re-create the outage: check `docker network inspect` subnets against
   `192.168.1.0/24` when adding a stack.
 
-**2026-11-12, Pi-hole (mini):**
+**2026-11-12, Pi-hole (mini) — Pi-hole REMOVED 2026-11-26 at Alex's word; dnsmasq stays as DHCP + DNS:**
 
 - 🟢 **DHCP moved to the mini (2026-11-12 23:59 CST).** Gateway DHCP off via
   `gateway.py dhcp off` on Alex's word; the mini's root dnsmasq serves DHCP on
@@ -48,10 +48,7 @@
   `gateway.py ipv6lan dhcpv6 off` so dual-stack devices stop using the
   gateway's IPv6 resolver (today they can bypass the Pi-hole over IPv6).
   Rollback: `gateway.py dhcp on` + `sudo brew services stop dnsmasq`.
-- 🟢 **Per-client visibility** (2026-11-12): solved by putting the root dnsmasq
-  in front of the Pi-hole on the LAN's `:53` with EDNS0 Client Subnet; the
-  container moved to `127.0.0.1:5335` (5353 is mDNSResponder's). Verify after
-  the switch that the Pi-hole admin page shows `192.168.1.x` clients.
+- ✅ **Per-client visibility** (2026-11-12): was solved with ECS in front of the Pi-hole; moot since the Pi-hole's removal (2026-11-26). dnsmasq now caches (`cache-size=1000`) and no longer stamps ECS.
 
 **2026-11-08, measured on the mini (security sweep, Caddy up, fleet stopped):**
 

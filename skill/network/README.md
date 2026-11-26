@@ -87,20 +87,18 @@ device does on the internet, add a DNS layer on the mini once it is up:
 3. Harah reads AdGuard's query log per client (its API is simple) and the
    roster gains a "what it talks to" view; blocking lists are a bonus.
 
-Status 2026-11-12: step 1 is done as **Pi-hole** (`../pihole/README.md`), with
-four blocklists and the weekly leak audit. Step 2 as written is impossible: the
-BGW320's `dhcpserver.ha` form has **no DNS field** (verified against the live
-page: only the enable switch, the pool range and the lease time), so the
-gateway cannot hand clients a different resolver. The ways to route the whole
-LAN through the mini are in `../pihole/README.md` ("Routing"), each Alex's call.
-Until one is chosen, devices are pointed at `192.168.1.200` one by one. Step 3
-(per-device view) needs the dnsmasq DNS front door described below, because
-Docker Desktop NATs every LAN client to one address.
+Status: step 1 ran as **Pi-hole** from 2026-11-12 to 2026-11-26 (four blocklists,
+a weekly leak audit) and was removed at Alex's word ("it's useless"; "remove the
+container this time"). Step 2 as written is impossible: the BGW320's
+`dhcpserver.ha` form has **no DNS field** (verified against the live page: only
+the enable switch, the pool range and the lease time), which is why DHCP itself
+moved to the mini (below). Step 3 is off the table with the Pi-hole; dnsmasq's
+query log (`log-queries`) could stand in if the per-device view is ever wanted
+again, at the cost of a busy log.
 
 ## DHCP on the mini (Alex's decision 2026-11-12; switched 2026-11-12 23:59)
 
-The Pi-hole only filters devices that ask it, and the BGW320 cannot name it as
-the DNS server, so DHCP itself moves to the mini: `dnsmasq` (Homebrew) runs as a **root** LaunchDaemon (`sudo brew services start
+The BGW320 cannot name another DNS server for its clients, so DHCP itself moves to the mini: `dnsmasq` (Homebrew) runs as a **root** LaunchDaemon (`sudo brew services start
 dnsmasq`; DHCP needs the BPF socket, measured: a user process fails on it) with
 `dnsmasq.conf` from this directory, same pool `.64–.253`, same 1-day lease,
 router `.254`, DNS `.200`, and the fixed allocations copied from `ipalloc.ha`.
@@ -108,15 +106,17 @@ router `.254`, DNS `.200`, and the fixed allocations copied from `ipalloc.ha`.
 (`networksetup -setmanual`) so it never waits on a DHCP server, and keeps the
 gateway as its own resolver.
 
-The same dnsmasq is also the LAN's **DNS front door** (added 2026-11-12 for
-per-client stats): it listens on `192.168.1.200:53` and `127.0.0.1:53`,
-forwards every query uncached to the Pi-hole container on `127.0.0.1:5335`
-(`5353` is taken by macOS mDNSResponder, learned the hard way) and adds the
-real client address as EDNS0 Client Subnet, which Pi-hole FTL logs as the
-client. LAN names and PTRs (`attlocal.net`, `1.168.192.in-addr.arpa`) are
-answered from the leases and never forwarded, which is also what keeps the
-Pi-hole's conditional forwarding back to `.200` from looping. Changing
-`server=` or ports needs `sudo brew services restart dnsmasq`.
+The same dnsmasq is also the LAN's **DNS resolver**: it listens on
+`192.168.1.200:53` and `127.0.0.1:53`, caches (`cache-size=1000`), forwards to the
+gateway `192.168.1.254` and `1.1.1.1`, and carries the **split-horizon records**
+for every hosted name (`host-record=` lines, exact names, all `192.168.1.200`,
+because the BGW320 does not hairpin its public address; keep the list equal to
+the site blocks in `~/caddyfile`). LAN names and PTRs (`attlocal.net`,
+`1.168.192.in-addr.arpa`) are answered from the leases and never forwarded.
+From 2026-11-12 to 2026-11-26 it instead forwarded everything uncached to a
+Pi-hole container on `127.0.0.1:5335` with EDNS0 Client Subnet; that layer is
+gone. Changing `server=`, records or ports needs `sudo brew services restart
+dnsmasq`.
 
 `dhcp-takeover.sh` is the runbook: `install-config` (repo → `/opt/homebrew/etc`),
 `preflight`, `steps` (the exact commands, who runs which), `status` (who serves
