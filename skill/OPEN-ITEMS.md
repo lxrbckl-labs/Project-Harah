@@ -2,7 +2,7 @@
 
 **2026-11-26, headless Claude on the mini:**
 
-- 🔴 **`claude -p` on the mini fails: `Failed to authenticate: OAuth session expired and could not be refreshed`.** Measured 02:24 CST interactively and in `~/Library/Logs/harah-pihole.log` (the weekly Pi-hole audit's agent step has exited 1 on 2026-11-15 and 2026-11-22; `~/.harah/pihole-state.json` outcome `error`). Every routine that calls `claude -p` is affected until the token is renewed. Not a launchd/Keychain fault (the scheduler skill's gotcha): the fix is Alex, at the mini's keyboard, `claude` then `/login`, then `claude -p "reply OK"` prints OK and `launchctl kickstart -k gui/$(id -u)/com.alex.harah-pihole` proves the audit. Blocklists themselves are unaffected: 4 adlists, gravity rebuilt 2026-11-26 02:24 (575,442 domains).
+- ✅ **`claude -p` on the mini failed with `OAuth session expired` — CLOSED 2026-11-26 02:32 CST.** Measured 02:24 interactively and in `~/Library/Logs/harah-pihole.log` (the weekly Pi-hole audit's agent step exited 1 on 2026-11-15 and 2026-11-22). The scheduler skill's gotcha, not launchd: Alex re-ran `/login` at the mini at 02:3x; `claude -p "reply OK"` then printed OK and `launchctl kickstart -k gui/$(id -u)/com.alex.harah-pihole` ran the audit end to end (exit 0, 26 shortlisted, 0 DENY / 18 KEEP / 8 UNSURE, propose mode, state `ok`). Dark since 11-15, so 11 days of audits were lost; the proof-of-life is `doctor.sh` reading `pihole-state.json`. Residual: the run logs `[claude-code:unrecognized_model] claude-fable-5-2`, i.e. `audit.sh` asks for a model slug this CLI does not know and falls back; harmless today, worth pinning to a current slug.
 
 **2026-11-13, Docker networking (mini):**
 
