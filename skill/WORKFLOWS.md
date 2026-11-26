@@ -13,8 +13,43 @@ Caddy runs a **custom image** (`caddy-ratelimit:latest`, stock Caddy +
 If it's ever missing, rebuild before composing or the container won't start.
 
 ### Add a subdomain
-Add the site block → `import accesslog` inside it → run
+Add the site block → `import accesslog` and `import security` inside it → **if
+the app has a login, add its rate limit (below) before the first apply** → run
 `tools/caddy-ensure-logging.py --caddyfile ~/caddyfile --fix` → validate → apply.
+
+The rate limit (guardrail in SERVER.md): find the path the login form POSTs
+credentials to (browser devtools → Network, or the app's API docs; for an
+admin panel, its path prefix too), then inside the site block, before
+`reverse_proxy`:
+```caddyfile
+	# Brute-force protection: cap login attempts per client IP.
+	# <path> = the endpoint the login form POSTs to.
+	@<site>_auth path <login-POST-path> [<admin-path> <admin-path>/*]
+	rate_limit @<site>_auth {
+		zone <site>_auth {
+			key {remote_host}
+			events 8
+			window 1m
+		}
+	}
+```
+Eight events a minute per client is the house setting (Vaultwarden and Immich
+run it); a real user never hits it, a dictionary run gets 429 after the eighth
+try. Prove it after the apply: nine bad logins from one machine in under a
+minute, the ninth answers 429. `{remote_host}` is the real client only because
+Caddy terminates TLS itself; behind another proxy it would be that proxy's
+address, so re-check the key if the topology ever changes.
+
+### Audit login rate limits
+```sh
+skill/caddy/login-limits.sh            # reads ~/caddyfile; pass another path to check a draft
+```
+Read-only. Lists every site block, whether it carries a `rate_limit`, and the
+known login endpoint (the table is in the script; add a line when a new app
+with a login is hosted). A site marked `LOGIN` without `rate_limit` is the gap
+the guardrail talks about: take the list to Alex with the proposed endpoint
+and apply on his word, one site per validated apply. A site marked `unknown`
+needs a look at the app before it can be called safe.
 
 ### Investigate traffic or a suspected attack
 `tools/caddy-traffic.py -n 60` for a window summary. To attribute by source, parse `/data/access.log` inside

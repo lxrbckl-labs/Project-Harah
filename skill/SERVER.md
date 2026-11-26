@@ -54,6 +54,15 @@ new that drives Docker.
 and every public site — a syntax error takes them all down. Copy the file, run
 `caddy validate` against the *custom* image, and only then apply.
 
+**Every hosted site with a login gets a Caddy rate limit on its credential
+endpoints before it is public.** Caddy is the only brute-force protection left
+on this host (the dashboard's guardian went with it, 2026-11-26), and Alex's
+word is "so we don't get hacked so easily". The limit is a `rate_limit` block,
+keyed on `{remote_host}`, on the path(s) the login form actually POSTs to —
+never on the whole site. A site found without one (new or old) is a gap: name
+it to Alex with the proposed endpoint and apply on his word; the procedure is
+*Add a subdomain* and *Audit login rate limits* in WORKFLOWS.md.
+
 **Don't commit secrets.** `config.env` and everything in `~/docker-bare-run/` are
 gitignored or out-of-repo. Check `git status`
 before committing.
