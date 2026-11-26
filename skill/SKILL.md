@@ -75,13 +75,13 @@ in the same session. This file licenses nothing by itself.
 
 - Every outward write (PR body, comment, non-merge commit) ends `— Harah`;
   commits are authored `Harah <harah@users.noreply.github.com>`.
-- State for the dashboard (`http://192.168.1.200:8770`) lives in `~/.harah/`:
-  `grooming-state.json`, `alerts-state.json`, `watchdog-state.json`,
-  `prove-state.json`.
+- Each routine leaves its state in `~/.harah/`: `grooming-state.json`,
+  `alerts-state.json`, `watchdog-state.json`, `prove-state.json`. Read the
+  files; the dashboard that rendered them was retired 2026-11-26.
 - **Harah never messages Alex** (2026-11-14: "I just need Harah to do its job
   in the background"). No iMessage, no heartbeat; the retired `heartbeat/`
   routine is gone and `~/.harah/heartbeat-target` stays absent. Proof of life
-  is `doctor.sh` on the mini (and the dashboard), checked by whoever is
+  is `doctor.sh` on the mini, checked by whoever is
   working on it; `bootstrap.sh` is standing-authorized when a routine is dead.
 
 ## Where things live

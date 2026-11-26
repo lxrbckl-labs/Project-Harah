@@ -70,7 +70,7 @@ publish lands, the prove routine tests it.
 
 Record every merge in `~/.harah/grooming-state.json` under `resolver_actions`
 (repo, PR/alert numbers, what was fixed, verified-by, timestamp) so the
-dashboard shows it.
+record shows what was fixed without anyone reading logs.
 
 ## 4. Hard stops
 

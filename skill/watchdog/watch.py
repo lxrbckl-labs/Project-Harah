@@ -10,7 +10,7 @@ Deliberately NOT limited to "did Harah cause it". It checks every deployed
 target in deploy-check/targets.json regardless of cause, because the honest
 question is "is the estate healthy", not "am I to blame".
 
-State -> ~/.harah/watchdog-state.json (rendered by the dashboard).
+State -> ~/.harah/watchdog-state.json.
 Transitions are what matter: it records when a target goes ok->down and
 down->ok, so a long-broken thing doesn't shout every 10 minutes forever.
 
@@ -30,8 +30,8 @@ TARGETS = Path(__file__).resolve().parent.parent / "deploy-check" / "targets.jso
 STATE = Path.home() / ".harah" / "watchdog-state.json"
 # Chronic failures that are understood and accepted, each with the REASON it is
 # excluded from alerting. A suppression with no stated reason is how `showalter`
-# sat unexplained for months (docs/dev-notes.md, 2026-08-25) — the dashboard
-# renders these strings, so an entry here has to justify itself in the UI.
+# sat unexplained for months (docs/dev-notes.md, 2026-08-25) — the state file
+# carries these strings, so an entry here has to justify itself to a reader.
 #
 # The suppression covers the KNOWN failure only. See classify_container: a
 # suppressed container that has stopped running entirely is a different failure

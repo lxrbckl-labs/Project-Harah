@@ -44,8 +44,8 @@ DRY=0
 if ! mkdir "$LOCK" 2>/dev/null; then
   echo "$(date '+%F %T') skip: a resolver run is still active" >> "$LOG"; exit 0
 fi
-# Run marker for the dashboard. The lock lives in $TMPDIR, which is not
-# guaranteed to be the same directory the dashboard process sees; this is.
+# Run marker. The lock lives in $TMPDIR, which is not guaranteed to be the
+# same directory another process sees; this is.
 RUNMARK="$HOME/.harah/resolver-running"
 mkdir -p "$(dirname "$RUNMARK")"
 printf '%s\n' "$([ "$DRY" = 1 ] && echo review || echo run) $(date '+%FT%T%z')" > "$RUNMARK"

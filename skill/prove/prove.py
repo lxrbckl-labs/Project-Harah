@@ -28,7 +28,7 @@ A target with "urls" but no "checks" gets one default check per URL (any
 is reported as a WARNING, never a regression. The container's own state
 (running, not restart-looping) is always checked too.
 
-State -> ~/.harah/prove-state.json (rendered by the dashboard).
+State -> ~/.harah/prove-state.json.
 Read-only against the apps. Exit 0 unless a regression was found (1).
 
 Flags: --force   run checks for every target even if the image is unchanged

@@ -4,7 +4,7 @@ caddy-ensure-logging.py — guarantee every Caddy site block is instrumented for
 access logging, so newly-added subdomains can't become monitoring blind spots.
 
 Caddy enables access logging PER SITE (there is no global "log everything"
-switch). ServerManager's pattern is an `(accesslog)` snippet imported into every
+switch). The pattern here is an `(accesslog)` snippet imported into every
 site block. This guard parses the Caddyfile and finds any site block that lacks
 that logging, so coverage never silently drifts as you add channels/subdomains.
 

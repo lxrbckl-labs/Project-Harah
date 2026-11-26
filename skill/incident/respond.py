@@ -24,7 +24,6 @@ wrong are well known, and each rung is a guard against one of them:
 
 Hard limits, non-negotiable:
   * start / stop / restart ONLY. Never rm, never a volume, never an image.
-    (Same invariant the dashboard enforces in code.)
   * MAX 2 remediation attempts per target per hour. Past that it escalates
     instead of thrashing — a restart loop hides the real fault and can corrupt
     state mid-write.

@@ -11,7 +11,7 @@
   with its own default route next to `en0`'s manual `.200`. **Consequences
   today:** the Pi-hole's upstream `192.168.1.254` and its revServers target
   `192.168.1.200` never answer (FTL upstream stats: count 15 / 10, response 0),
-  so it resolves via `1.1.1.1` only and the dashboard shows no device names;
+  so it resolves via `1.1.1.1` only and the Pi-hole admin page shows no device names;
   the Relay live suite cannot be run from a container against a LAN host.
   **Candidate fixes, Alex's call:** (a) Pi-hole: point `FTLCONF_dns_revServers`
   (and, if wanted, the first upstream) at `host.docker.internal`, which does
@@ -29,18 +29,17 @@
   `gateway.py ipv6lan dhcpv6 off` so dual-stack devices stop using the
   gateway's IPv6 resolver (today they can bypass the Pi-hole over IPv6).
   Rollback: `gateway.py dhcp on` + `sudo brew services stop dnsmasq`.
-- 🟡 **Dashboard frontend still hardcodes the old LAN IP:** `dashboard/web/src/App.tsx` `SERVER_HOST = '192.168.68.200'`; needs the `.1.200` value, `npm run build` and a service restart (dev-notes). Doctrine files were corrected 2026-11-12.
 - 🟢 **Per-client visibility** (2026-11-12): solved by putting the root dnsmasq
   in front of the Pi-hole on the LAN's `:53` with EDNS0 Client Subnet; the
   container moved to `127.0.0.1:5335` (5353 is mDNSResponder's). Verify after
-  the switch that the dashboard shows `192.168.1.x` clients.
+  the switch that the Pi-hole admin page shows `192.168.1.x` clients.
 
 **2026-11-08, measured on the mini (security sweep, Caddy up, fleet stopped):**
 
 - 🔴 **No `scan/` routine.** POLICY's deployed-app security maintenance
   (2026-11-08) is hand-run: Trivy over running images + default-branch
-  lockfiles, feeding Layer 2. Needs a runner (schedule, log, dashboard
-  state) or the resolver prompt grows the scan step. Until then it only
+  lockfiles, feeding Layer 2. Needs a runner (schedule, log, state file)
+  or the resolver prompt grows the scan step. Until then it only
   happens in a hand-run session.
 - 🔴 **Merged, not deployed:** Project-DS#48, Project-LucidIndex#142,
   Project-Showalter#92, Project-Fenaverat#16 (V5) landed 2026-11-08 with
@@ -130,7 +129,8 @@
   a framework migration, not a bump). `pnpm typecheck` is that repo's signal.
 - 🟢 **Showalter healthcheck is cosmetic** (IPv6 probe vs IPv4 bind); fix
   filed as Project-Showalter#91, needs a publish to reach the container.
-- **No scheduled DB backups.** The dashboard panel is manual-only.
+- **No scheduled DB backups, and since 2026-11-26 no button either.** The
+  dashboard that ran them was retired; the command is in WORKFLOWS.md.
 - **Stale Caddy blocks**: `msymmonds.app`, `resume.msymmonds.app`,
   `jupyter.lxrbckl.com` (containers gone).
 - **Exposed PATs** in `~/.zsh_history` and `~/docker-bare-run/*/docker-compose.yml`

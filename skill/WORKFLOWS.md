@@ -17,15 +17,18 @@ Add the site block → `import accesslog` inside it → run
 `tools/caddy-ensure-logging.py --caddyfile ~/caddyfile --fix` → validate → apply.
 
 ### Investigate traffic or a suspected attack
-`tools/caddy-traffic.py -n 60` for a window summary, or read the dashboard's
-Caddy Traffic panel. To attribute by source, parse `/data/access.log` inside
+`tools/caddy-traffic.py -n 60` for a window summary. To attribute by source, parse `/data/access.log` inside
 the caddy container. Remember the IP-masking gotcha (SKILL.md) before
 concluding anything about "attackers".
 
 ### Back up a database
-The dashboard's Database Backups panel runs `pg_dumpall` per Postgres
-container into `~/servermanager-backups/`. There is **no schedule yet** —
-backups are manual.
+By hand, per Postgres container, into `~/servermanager-backups/` (the command
+the retired dashboard's panel ran; `POSTGRES_USER` is in the container's env):
+```sh
+docker exec <container> pg_dumpall -U <user> | gzip > ~/servermanager-backups/<container>-$(date +%Y%m%d-%H%M%S).sql.gz
+```
+There is **no schedule and no button** — a backup happens only when someone
+runs this.
 
 ### Add or change a scheduled routine
 Machinery goes in `skill/<name>/` with a self-locating `enable.sh`/`disable.sh`
@@ -49,12 +52,11 @@ cat ~/.harah/grooming-cadence                   # baseline | seconds
 bash skill/alerts/alerts.sh                     # force a pass now (read-only)
 bash skill/grooming/set-cadence.sh baseline     # manually return to daily 04:30
 ```
-The dashboard's **Security Alerts** panel renders the same state
-(`/api/alerts` ← `~/.harah/alerts-state.json`). Escalated cadence only makes
+The same state is in `~/.harah/alerts-state.json`. Escalated cadence only makes
 grooming run sooner — see `grooming/POLICY.md`, "Cadence is not authority".
 
 ### Ship a change
-Build the frontend if you touched it, then commit **and push** — the repo
+Commit **and push** — the repo
 tracks `origin/main`, and Alex expects this to happen automatically without
 being asked:
 ```sh

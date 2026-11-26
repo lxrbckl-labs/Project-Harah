@@ -94,7 +94,7 @@ for pr in json.load(sys.stdin):
 done
 log "pass done: $merged merged, $queued queued for Alex, $checked repo(s) had dependabot PRs"
 
-# Machine-readable state for the Harah dashboard (/api/grooming).
+# Machine-readable state (~/.harah/grooming-state.json).
 mkdir -p "$STATE_DIR"
 ROWS="$ROWS" STATE="$STATE" DRY="$DRY" MERGED="$merged" QUEUED="$queued" CHECKED="$checked" python3 - <<'PYEOF'
 import json, os, time
